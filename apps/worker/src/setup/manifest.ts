@@ -25,7 +25,9 @@ function manifestJson(origin: string): string {
     hook_attributes: { url: `${origin}/webhooks/github`, active: true },
     redirect_url: `${origin}/setup/github-app/callback`,
     callback_urls: [`${origin}/auth/github/callback`],
-    public: false,
+    // Public so the app is installable on every estate org, not only the
+    // owning account — "public" only affects who may install, nothing else.
+    public: true,
     default_permissions: {
       metadata: 'read',
       contents: 'read',
