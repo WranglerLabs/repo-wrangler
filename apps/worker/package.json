@@ -1,0 +1,23 @@
+{
+  "name": "@repo-wrangler/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo-wrangler/contracts": "workspace:*",
+    "@repo-wrangler/credits": "workspace:*",
+    "@repo-wrangler/domain": "workspace:*",
+    "@repo-wrangler/persistence-d1": "workspace:*",
+    "@repo-wrangler/provider-github": "workspace:*",
+    "@repo-wrangler/provider-mock": "workspace:*",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "typescript": "^5.8.3"
+  }
+}

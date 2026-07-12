@@ -1,0 +1,35 @@
+{
+  // RepoWrangler — single Worker serving the React SPA (static assets) and the API.
+  "name": "repo-wrangler",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "apps/web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/auth/*", "/webhooks/*", "/health/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "repo-wrangler",
+      "database_id": "REPLACE_WITH_OPERATOR_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    // Two triggers stay well below the free-account limit of five.
+    // */15 — reconciliation + enrichment batches; 17 3 — daily billing/retention/compaction.
+    "crons": ["*/15 * * * *", "17 3 * * *"]
+  },
+  "vars": {
+    "AUTH_MODE": "github_app",
+    "DEMO_MODE": "false"
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Secrets (set with `wrangler secret put <NAME>`, never committed):
+  //   GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET,
+  //   GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, SESSION_SECRET
+}

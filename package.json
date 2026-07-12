@@ -1,0 +1,28 @@
+{
+  "name": "repo-wrangler",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RepoWrangler — wrangle every repository into one clear view.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.4.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:web": "pnpm --filter @repo-wrangler/web dev",
+    "build": "pnpm --filter @repo-wrangler/web build",
+    "deploy": "pnpm build && wrangler deploy",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "vitest run",
+    "db:migrate:local": "wrangler d1 migrations apply repo-wrangler --local",
+    "db:migrate:remote": "wrangler d1 migrations apply repo-wrangler --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0",
+    "wrangler": "^4.20.0"
+  }
+}

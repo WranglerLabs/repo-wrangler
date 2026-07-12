@@ -1,45 +1,111 @@
-# RepoWrangler Solution Design Pack
+# RepoWrangler
 
-**Solution:** RepoWrangler  
-**Organization:** `Hybrid-Solutions-Cloud`  
-**Status:** Architecture and planning baseline; no production code yet  
-**Prepared:** 2026-07-11
+**Wrangle every repository into one clear view.**
 
-> **RepoWrangler actively discovers, monitors, and helps manage repositories across GitHub and GitLab.**
+RepoWrangler is an open-source repository estate dashboard. It automatically
+discovers repositories across your GitHub organizations (GitLab planned),
+continuously evaluates their operational health, and puts the work that needs
+attention on one screen: failing pipelines, blocked and stale pull requests,
+branches ahead of `main` with no PR, security findings, new and disappeared
+repositories.
 
-This design pack defines the expected product, architecture, security model, free-tier deployment, provider integrations, user experience, open-source governance, attribution requirements, research spikes, architectural decisions, and implementation roadmap.
+It runs as a **single Cloudflare Worker** (API + React SPA + D1 database),
+designed to fit the **Cloudflare free tier** for a normal personal estate, and
+it is **read-only** toward your providers by design.
 
-## Recommended repository model
+## Highlights
 
-| Repository | Visibility | Purpose |
-|---|---|---|
-| `Hybrid-Solutions-Cloud/repo-wrangler` | Public | Open-source product code, documentation, tests, database migrations, UI, Worker API, provider adapters, and release artifacts. |
-| `Hybrid-Solutions-Cloud/repo-wrangler-ops` | Private, optional | Personal deployment notes, non-secret environment policy, expected organization/group inventory, runbooks, recovery procedures, and a pin to the deployed public release. |
-| `Hybrid-Solutions-Cloud/gitactionboard` | Public fork, temporary | Upstream research and provenance for GitactionBoard. Archive after the reuse audit rather than immediately deleting it. |
-| `Hybrid-Solutions-Cloud/git-pull-request-dashboard` | Public fork, temporary | Upstream research and provenance for Git Pull Request Dashboard. Archive after the reuse audit. |
+- **Automatic discovery** — install a read-only GitHub App with *All
+  repositories* and new repos appear on the dashboard without configuration.
+  Webhooks give near-real-time updates; checkpointed reconciliation repairs
+  anything a missed webhook broke.
+- **Attention-first** — the Command Center leads with what's wrong, ranked by
+  severity, with an explanation for every finding. No opaque health scores.
+- **Honest about missing data** — "0 budgets" and "budget API not authorized"
+  are different states, and the UI never converts one into the other.
+- **Branch intelligence** — `main is current` actually means something:
+  ahead/behind/diverged comparison of active branches, with change-request
+  tracking and bot-branch exclusions (FR-005 semantics).
+- **Provider-neutral core** — the domain model knows workspaces, repositories,
+  change requests, and pipelines; GitHub is an adapter, GitLab is next.
+- **Demo mode out of the box** — deploy with zero secrets and explore a
+  synthetic estate evaluated by the real health rules engine.
 
-The private operations repository is **not** a private fork of the application and does not contain GitHub App private keys, GitLab tokens, session secrets, or copied production data. Secrets belong in Cloudflare secret storage; runtime inventory belongs in D1.
+## Quick start (demo mode, no secrets)
 
-## Documents
+```bash
+pnpm install
+cp .dev.vars.example .dev.vars        # DEMO_MODE=true is the default
+pnpm db:migrate:local
+pnpm build
+pnpm dev                              # http://localhost:8787
+```
 
-1. [Executive summary](00-executive-summary.md)
-2. [Product requirements](01-product-requirements.md)
-3. [Solution architecture](02-solution-architecture.md)
-4. [Platform requirements](03-platform-requirements.md)
-5. [Free-tier capacity and cost](04-free-tier-capacity-and-cost.md)
-6. [Security and authentication](05-security-and-authentication.md)
-7. [Data model and synchronization](06-data-model-and-synchronization.md)
-8. [Dashboard and user experience](07-dashboard-and-user-experience.md)
-9. [Repository and open-source strategy](08-repository-and-open-source-strategy.md)
-10. [Upstream reuse and attribution](09-upstream-reuse-and-attribution.md)
-11. [Research spikes](10-research-spikes.md)
-12. [Roadmap and backlog](11-roadmap-and-backlog.md)
-13. [Expected code structure](12-expected-code-structure.md)
-14. [Diagrams and Lucid plan](13-diagrams-and-lucid-plan.md)
-15. [Implementation readiness checklist](14-implementation-readiness-checklist.md)
-16. [Sources](SOURCES.md)
-17. [Architectural decision records](adrs/)
+## Deploying your own instance
 
-## Current recommendation in one paragraph
+1. Create a D1 database and put its ID in `wrangler.jsonc`:
+   `wrangler d1 create repo-wrangler`
+2. Apply migrations: `pnpm db:migrate:remote`
+3. Create a **read-only GitHub App** and install it on your organizations —
+   see [docs/setup/github-app.md](docs/setup/github-app.md).
+4. Set secrets:
 
-Build RepoWrangler as a **single-repository, modular TypeScript solution** deployed as one Cloudflare Worker with static React assets. Use a GitHub App for read-only GitHub access, GitHub webhooks for near-real-time updates, small resumable reconciliation batches for correctness, D1 for snapshots and history, and a provider-neutral domain model so GitLab can be added without redesigning the application. Start single-tenant and read-only. Keep all code public under Apache-2.0, keep your live data and secrets outside the public repository, and maintain explicit third-party notices plus an in-product credits page for any reused source.
+   ```bash
+   wrangler secret put GITHUB_APP_ID
+   wrangler secret put GITHUB_APP_PRIVATE_KEY
+   wrangler secret put GITHUB_WEBHOOK_SECRET
+   wrangler secret put GITHUB_CLIENT_ID
+   wrangler secret put GITHUB_CLIENT_SECRET
+   wrangler secret put SESSION_SECRET
+   ```
+
+5. Configure `ALLOWED_GITHUB_USERS` (comma-separated; first user is the owner)
+   and `PUBLIC_BASE_URL`, set `DEMO_MODE=false`, then `pnpm deploy`.
+
+Full walkthrough: [docs/setup/deploy-cloudflare.md](docs/setup/deploy-cloudflare.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  U[Browser] -->|HTTPS| W[Cloudflare Worker]
+  W --> A[React static assets]
+  W --> API[Hono API]
+  API --> D1[(Cloudflare D1)]
+  API --> GH[GitHub APIs]
+  GH -->|signed webhooks| W
+  CRON[Cron triggers] --> W
+```
+
+- `apps/worker` — Hono API, GitHub App OAuth login, webhook receiver,
+  Cron-driven checkpointed sync.
+- `apps/web` — React + Vite SPA (Command Center, inventory, detail pages).
+- `packages/domain` — provider-neutral entities, capability model, explainable
+  health rules, branch semantics.
+- `packages/provider-github` — App JWT, installation tokens, REST client,
+  webhook translation, bounded collectors.
+- `packages/provider-mock` — synthetic demo estate.
+- `packages/persistence-d1` — schema, idempotent upserts, sync checkpoints.
+- `packages/contracts` — shared API DTOs (zod).
+
+The complete architecture, requirements, ADRs, and roadmap live in the
+[solution design pack](docs/design/RepoWrangler-Solution-Design.md).
+
+## Development
+
+```bash
+pnpm typecheck   # per-package strict TypeScript
+pnpm test        # vitest — domain rules + webhook translation
+pnpm build       # SPA production build
+```
+
+## License and credits
+
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+RepoWrangler was inspired by
+[GitactionBoard](https://github.com/otto-de/gitactionboard) (Apache-2.0) and
+[Git Pull Request Dashboard](https://github.com/AKharytonchyk/git-pull-request-dashboard)
+(MIT). No upstream source code has been copied; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [CREDITS.md](CREDITS.md),
+and the in-product **About & Credits** page.

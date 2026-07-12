@@ -1,0 +1,13 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Cloudflare local state
+.wrangler/
+.dev.vars
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+*.log

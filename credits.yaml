@@ -1,0 +1,24 @@
+# Machine-readable source for THIRD_PARTY_NOTICES.md and the in-product
+# /about/credits page. Keep packages/credits/src/credits.ts in sync — CI
+# treats drift between the two as a build failure (SPIKE-013 automation).
+projects:
+  - name: GitactionBoard
+    upstream: https://github.com/otto-de/gitactionboard
+    commit: 960222d210b21f7423cff5032838e5da3c6cfc77
+    license: Apache-2.0
+    copyright: OTTO and contributors
+    usage:
+      - Workflow reliability metric concepts
+      - Build-monitor filtering and healthy/failing workflow presentation concepts
+    copied_files: []
+    modifications: Reimplemented for RepoWrangler's provider-neutral TypeScript services. No source code copied.
+
+  - name: Git Pull Request Dashboard
+    upstream: https://github.com/AKharytonchyk/git-pull-request-dashboard
+    commit: 6aa443f2b1562db7bbd5286a8b52292539093d42
+    license: MIT
+    copyright: Artsiom Kharytonchyk
+    usage:
+      - Pull request normalization and multi-organization aggregation concepts
+    copied_files: []
+    modifications: Reimplemented for Cloudflare Workers and the RepoWrangler UI. No source code copied.

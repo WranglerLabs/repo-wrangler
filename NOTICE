@@ -1,0 +1,14 @@
+RepoWrangler
+Copyright 2026 Hybrid Cloud Solutions LLC and RepoWrangler contributors
+
+This product includes software developed as part of the RepoWrangler project
+(https://github.com/Hybrid-Solutions-Cloud/repo-wrangler).
+
+Portions of this product were inspired by (no source code copied):
+- GitactionBoard (https://github.com/otto-de/gitactionboard), Apache-2.0,
+  Copyright OTTO and contributors.
+- Git Pull Request Dashboard
+  (https://github.com/AKharytonchyk/git-pull-request-dashboard), MIT,
+  Copyright Artsiom Kharytonchyk.
+
+See THIRD_PARTY_NOTICES.md and credits.yaml for the complete inventory.

@@ -1,0 +1,12 @@
+# Copy to .dev.vars for local development. NEVER commit real values.
+# Leave GitHub values empty and set DEMO_MODE=true to run with mock data.
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_WEBHOOK_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+SESSION_SECRET=change-me-to-a-long-random-string
+PUBLIC_BASE_URL=http://localhost:8787
+ALLOWED_GITHUB_USERS=
+ALLOWED_GITHUB_ORGS=
+DEMO_MODE=true
