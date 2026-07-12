@@ -40,14 +40,19 @@ function titleCase(id: string): string {
   return id.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export const AVAILABLE_THEMES: ThemeMeta[] = Object.keys(modules)
-  .map(idFromPath)
-  .sort()
-  .map((id) => ({
-    id,
-    label: THEME_MANIFEST[id]?.label ?? titleCase(id),
-    scheme: THEME_MANIFEST[id]?.scheme ?? 'light',
-  }));
+export const AVAILABLE_THEMES: ThemeMeta[] = [
+  ...Object.keys(modules)
+    .map(idFromPath)
+    .sort()
+    .map((id) => ({
+      id,
+      label: THEME_MANIFEST[id]?.label ?? titleCase(id),
+      scheme: THEME_MANIFEST[id]?.scheme ?? 'light',
+    })),
+  // The Custom theme has no stylesheet — it is applied at runtime from a
+  // user-defined palette (see custom.ts + the Theme Studio).
+  { id: 'custom', label: 'Custom…', scheme: 'light' },
+];
 
 export function isKnownTheme(id: string | null | undefined): id is string {
   return !!id && AVAILABLE_THEMES.some((t) => t.id === id);

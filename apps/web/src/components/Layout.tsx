@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useSessionUser } from '../api/client';
 import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
+import {
+  CUSTOM_THEME_ID,
+  applyCustomPalette,
+  clearCustomPalette,
+  loadCustomPalette,
+} from '../themes/custom';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Command Center' },
@@ -23,6 +29,8 @@ function useTheme(): [string, (id: string) => void] {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('rw-theme', theme);
+    if (theme === CUSTOM_THEME_ID) applyCustomPalette(loadCustomPalette());
+    else clearCustomPalette();
   }, [theme]);
   return [theme, setTheme];
 }
@@ -68,6 +76,9 @@ export function Layout() {
                 </option>
               ))}
             </select>
+            <NavLink to="/theme" className="theme-studio-link">
+              Customize colors →
+            </NavLink>
           </label>
         </div>
       </aside>

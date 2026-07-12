@@ -14,6 +14,11 @@ semantic versioning.
   Ships with `light`, `dark`, `midnight`, `slate`, `sandstone`, `high-contrast`;
   deployers set the default with `VITE_DEFAULT_THEME`, users switch live (saved
   per browser). See `docs/guide/theming.md`.
+- **Theme Studio (live color customization):** a `/theme` editor with color
+  pickers for every token — apply your palette live as the **Custom** theme
+  (saved per browser, no rebuild), seed from the current theme or reset, and
+  **export** a committable `themes/<id>.css` to turn a personal palette into a
+  permanent shared theme.
 - **Host-agnostic frontend (ADR-011):** the SPA reads its API origin from
   `VITE_API_BASE_URL` (empty = integrated same-origin) and the Worker enforces a
   CORS allowlist via `CORS_ALLOWED_ORIGINS`. Two topologies — integrated

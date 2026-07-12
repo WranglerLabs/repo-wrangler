@@ -13,6 +13,23 @@ Users pick a theme from the switcher in the sidebar; the choice is saved per
 browser. Deployers can set the first-visit default with the build-time env var
 `VITE_DEFAULT_THEME=<id>` (empty follows the OS light/dark preference).
 
+## Customize colors live — Theme Studio
+
+You don't have to edit a file to change colors. Open **Customize colors →** under
+the theme switcher (route `/theme`) to open the **Theme Studio**:
+
+- Pick any token color with a color picker and see it applied **live**.
+- Your palette is saved in the browser as the **Custom** theme (persists across
+  visits, no rebuild).
+- **Start from current theme** seeds the editor from whatever theme you're on;
+  **Reset to defaults** returns to the light palette.
+- **Export** downloads (or copies) a ready-to-commit `themes/<id>.css`. Drop that
+  file into `apps/web/src/themes/` and it becomes a permanent, shareable theme for
+  every deployment — see below.
+
+So there are two levels: **per-browser color tweaking** (Theme Studio, no build)
+and **permanent shared themes** (a committed CSS file).
+
 ## How a theme works
 
 Every color, surface, and radius in the app is a CSS custom property (`--rw-*`).

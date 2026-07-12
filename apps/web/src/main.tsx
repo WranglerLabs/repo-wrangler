@@ -16,6 +16,7 @@ import { Workspaces } from './routes/Workspaces';
 import { PlatformHealth } from './routes/PlatformHealth';
 import { Administration } from './routes/Administration';
 import { Credits } from './routes/Credits';
+import { ThemeStudio } from './routes/ThemeStudio';
 import './themes/registry';
 import './styles/global.css';
 
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
       { path: 'workspaces', element: <Workspaces /> },
       { path: 'platform', element: <PlatformHealth /> },
       { path: 'admin', element: <Administration /> },
+      { path: 'theme', element: <ThemeStudio /> },
       { path: 'credits', element: <Credits /> },
     ],
   },
