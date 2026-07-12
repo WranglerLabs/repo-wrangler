@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "repo-wrangler",
-      "database_id": "REPLACE_WITH_OPERATOR_D1_DATABASE_ID",
+      "database_id": "5a55c6e8-e06e-4381-ba04-e95dcf894f70",
       "migrations_dir": "migrations"
     }
   ],
