@@ -14,6 +14,10 @@ live in [docs/design/RepoWrangler-Solution-Design.md](../design/RepoWrangler-Sol
 9. ADR-009 — Queues optional until benchmarked
 10. ADR-010 — Single-tenant first
 
+Standalone ADRs in this directory:
+
+11. [ADR-011 — Host-agnostic frontend and two deployment topologies](ADR-011-host-agnostic-frontend.md)
+
 New ADRs get their own numbered Markdown file in this directory
 (`ADR-011-<slug>.md` onward) using the same Context / Decision / Consequences
 format.

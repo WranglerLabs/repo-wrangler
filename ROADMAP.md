@@ -5,7 +5,11 @@ The authoritative phased roadmap lives in the
 
 - **Phase 0 — Foundation and governance** ✅ done: public repo, license and
   credits machinery, CI + CodeQL, issue/PR templates, runbooks, demo mode
-  without secrets.
+  without secrets. **Host-agnostic frontend** (ADR-011): the SPA deploys to
+  Cloudflare (integrated, default), GitHub Pages, or Azure Static Web Apps via
+  `VITE_API_BASE_URL` + a Worker CORS allowlist, with per-host recipes under
+  `deploy/`. Package seams for backend portability in place
+  (`persistence-core`), plus shared `ui` tokens and `test-support` fixtures.
 - **Phase 1 — GitHub estate MVP** ✅ done: GitHub App connection, automatic
   discovery, D1 inventory, Command Center, workflow/PR state, connection
   health. Spike outcomes recorded in `docs/research/`.

@@ -17,7 +17,17 @@ Cron triggers — all inside the free plan for a normal personal estate.
 pnpm exec wrangler d1 create repo-wrangler
 ```
 
-Copy the returned `database_id` into `wrangler.jsonc`.
+Put the returned `database_id` in a **git-ignored** `wrangler.local.jsonc` (see
+the repo-root README) — **not** the committed `wrangler.jsonc`, which ships
+placeholders only:
+
+```jsonc
+// wrangler.local.jsonc — never committed
+{ "d1_databases": [ { "binding": "DB", "database_name": "repo-wrangler",
+  "database_id": "<your-d1-database-id>", "migrations_dir": "migrations" } ] }
+```
+
+Deploy with both configs layered: `wrangler deploy -c wrangler.jsonc -c wrangler.local.jsonc`.
 
 ### 2. Apply migrations
 
@@ -34,23 +44,21 @@ wrangler secret put GITHUB_WEBHOOK_SECRET
 wrangler secret put GITHUB_CLIENT_ID
 wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put SESSION_SECRET           # long random string
+wrangler secret put ALLOWED_GITHUB_USERS     # comma-separated; first login is the owner
 ```
 
 (Skip all of these to run a demo-mode deployment with synthetic data.)
 
+Keep your allowlist a **secret**, not a committed `var` — that keeps your login
+out of the public repo and survives Workers-Builds redeploys.
+
 ### 4. Configure vars
 
-In `wrangler.jsonc` (or the dashboard): set `DEMO_MODE` to `"false"`,
-`PUBLIC_BASE_URL` to your Worker URL, and add:
-
-```jsonc
-"vars": {
-  "AUTH_MODE": "github_app",
-  "DEMO_MODE": "false",
-  "PUBLIC_BASE_URL": "https://repo-wrangler.<account>.workers.dev",
-  "ALLOWED_GITHUB_USERS": "your-github-login"
-}
-```
+`DEMO_MODE` and `PUBLIC_BASE_URL` are the only vars you set per deployment (in
+the dashboard, or in your git-ignored `wrangler.local.jsonc`): set
+`DEMO_MODE` to `"false"` and `PUBLIC_BASE_URL` to your Worker URL. Do **not** add
+`database_id` or `ALLOWED_GITHUB_USERS` to the committed `wrangler.jsonc` — the
+first lives in `wrangler.local.jsonc` (step 1), the second is a secret (step 3).
 
 The first login in `ALLOWED_GITHUB_USERS` gets the `owner` role; the rest get
 `admin`.

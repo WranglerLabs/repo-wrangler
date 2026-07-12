@@ -1,0 +1,36 @@
+# Mode B — build the SPA and publish to Azure Static Web Apps.
+# Copy to .github/workflows/deploy-azure-swa.yml to enable.
+# Set repo variable API_BASE_URL (your Worker URL) and repo secret
+# AZURE_STATIC_WEB_APPS_API_TOKEN. The Worker must allow the SWA origin via
+# CORS_ALLOWED_ORIGINS.
+name: deploy-azure-swa
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build SPA
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          pnpm --filter @repo-wrangler/web build
+          cp deploy/azure-swa/staticwebapp.config.json apps/web/dist/
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: apps/web/dist
+          skip_app_build: true
+          api_location: ''

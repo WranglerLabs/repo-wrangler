@@ -19,6 +19,12 @@ export interface Env {
   ALLOWED_GITHUB_USERS?: string;
   ALLOWED_GITHUB_ORGS?: string;
   DEFAULT_RETENTION_DAYS?: string;
+  /**
+   * Comma-separated exact SPA origins allowed to call the API cross-origin
+   * (ADR-011, Mode B — decoupled frontend). Empty/unset (default, Mode A) means
+   * same-origin only: no cross-origin access is granted.
+   */
+  CORS_ALLOWED_ORIGINS?: string;
   /** GitLab base URL for self-managed instances; defaults to gitlab.com. */
   GITLAB_BASE_URL?: string;
   /** Comma-separated top-level GitLab group paths to monitor. */
@@ -31,6 +37,14 @@ export const APP_VERSION = '0.3.0';
 
 export function isGitLabConfigured(env: Env): boolean {
   return Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);
+}
+
+/** Parsed CORS allowlist (ADR-011). Empty array ⇒ same-origin only. */
+export function corsAllowedOrigins(env: Env): string[] {
+  return (env.CORS_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 }
 
 export function isDemoMode(env: Env): boolean {

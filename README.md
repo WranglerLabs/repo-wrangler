@@ -43,12 +43,31 @@ pnpm dev                              # http://localhost:8787
 
 ## Deploying your own instance
 
-1. Create a D1 database and put its ID in `wrangler.jsonc`:
-   `wrangler d1 create repo-wrangler`
+The committed `wrangler.jsonc` ships **placeholders only** — it never carries a
+real database id or your allowlist. Keep your instance-specific values out of the
+repo so a `git pull` (or a Cloudflare Workers Build) can never wipe or leak them.
+
+1. Create a D1 database:
+
+   ```bash
+   wrangler d1 create repo-wrangler
+   ```
+
+   Put the returned id in a **git-ignored** `wrangler.local.jsonc` (already in
+   `.gitignore`) — or track it in your private ops repo — **not** in the
+   committed `wrangler.jsonc`:
+
+   ```jsonc
+   // wrangler.local.jsonc — your values, never committed
+   { "d1_databases": [ { "binding": "DB", "database_name": "repo-wrangler",
+     "database_id": "<your-d1-database-id>", "migrations_dir": "migrations" } ] }
+   ```
+
+   Deploy with the override applied: `wrangler deploy -c wrangler.jsonc -c wrangler.local.jsonc`.
 2. Apply migrations: `pnpm db:migrate:remote`
-3. Create a **read-only GitHub App** and install it on your organizations —
-   see [docs/setup/github-app.md](docs/setup/github-app.md).
-4. Set secrets:
+3. Create a **read-only GitHub App** and install it on your organizations (or
+   your personal account) — see [docs/setup/github-app.md](docs/setup/github-app.md).
+4. Set secrets (these live in Cloudflare, never in the repo):
 
    ```bash
    wrangler secret put GITHUB_APP_ID
@@ -57,12 +76,17 @@ pnpm dev                              # http://localhost:8787
    wrangler secret put GITHUB_CLIENT_ID
    wrangler secret put GITHUB_CLIENT_SECRET
    wrangler secret put SESSION_SECRET
+   wrangler secret put ALLOWED_GITHUB_USERS   # comma-separated; first user is the owner
    ```
 
-5. Configure `ALLOWED_GITHUB_USERS` (comma-separated; first user is the owner)
-   and `PUBLIC_BASE_URL`, set `DEMO_MODE=false`, then `pnpm deploy`.
+   Setting `ALLOWED_GITHUB_USERS` as a **secret** (not a committed `var`) keeps
+   your login out of the public repo and survives redeploys.
+5. Set `PUBLIC_BASE_URL` and `DEMO_MODE=false` on your deployment, then `pnpm deploy`.
 
 Full walkthrough: [docs/setup/deploy-cloudflare.md](docs/setup/deploy-cloudflare.md).
+Hosting the UI somewhere other than Cloudflare (GitHub Pages, Azure Static Web
+Apps, …)? See [docs/adr/ADR-011-host-agnostic-frontend.md](docs/adr/ADR-011-host-agnostic-frontend.md)
+and the per-host recipes under [`deploy/`](deploy/).
 
 ## Architecture
 

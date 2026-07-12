@@ -4,6 +4,35 @@ All notable changes to RepoWrangler are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project follows
 semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- **Host-agnostic frontend (ADR-011):** the SPA reads its API origin from
+  `VITE_API_BASE_URL` (empty = integrated same-origin) and the Worker enforces a
+  CORS allowlist via `CORS_ALLOWED_ORIGINS`. Two topologies — integrated
+  Cloudflare Worker (default, zero-config) and decoupled SPA on any static host.
+- **`deploy/` recipes + copy-ready CI** for Cloudflare (integrated), GitHub
+  Pages, and Azure Static Web Apps.
+- **New packages:** `persistence-core` (backend-neutral storage-port interfaces
+  — the seam a future Node/Postgres backend fulfils), `ui` (framework-agnostic
+  design tokens + capability presentation), `test-support` (deterministic domain
+  fixtures).
+- `VITE_BASE_PATH` support for GitHub Pages project sites.
+
+### Changed
+
+- **Public repo carries placeholders only:** `wrangler.jsonc` ships no real D1
+  id or allowlist and defaults to demo mode. Deployers put their D1 id in a
+  git-ignored `wrangler.local.jsonc` and set `ALLOWED_GITHUB_USERS` as a
+  Cloudflare secret (README "Deploying your own instance" updated accordingly).
+- Manifest setup form no longer prefills a specific organization login.
+
+### Documentation
+
+- The **personal-account GitHub App** path is documented as first-class,
+  including the org-owner 404 and how to avoid it (`docs/setup/github-app.md`).
+
 ## [0.3.0] - 2026-07-12
 
 ### Added

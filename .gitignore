@@ -7,6 +7,10 @@ coverage/
 .wrangler/
 .dev.vars
 
+# Per-deployment overrides — your D1 id / instance config, never committed
+wrangler.local.jsonc
+wrangler.*.local.jsonc
+
 # Editor/OS noise
 .DS_Store
 Thumbs.db

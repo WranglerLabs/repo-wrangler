@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { CREDITS } from '@repo-wrangler/credits';
-import { APP_VERSION, isDemoMode, type Env } from './bindings';
+import { APP_VERSION, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
 import { authRoutes } from './auth/github';
 import { setupRoutes } from './setup/manifest';
@@ -12,6 +13,28 @@ import { runScheduled } from './scheduled';
 const app = new Hono<AppContext>();
 
 app.use('*', securityHeaders);
+
+// CORS for decoupled-frontend deployments (ADR-011, Mode B). When
+// CORS_ALLOWED_ORIGINS is empty (default, integrated Mode A) the allowlist is
+// empty and no cross-origin request is granted access — same-origin is unaffected.
+app.use('/api/*', (c, next) => {
+  const allowed = corsAllowedOrigins(c.env);
+  return cors({
+    origin: (origin) => (allowed.includes(origin) ? origin : null),
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Accept'],
+  })(c, next);
+});
+app.use('/auth/*', (c, next) => {
+  const allowed = corsAllowedOrigins(c.env);
+  return cors({
+    origin: (origin) => (allowed.includes(origin) ? origin : null),
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Accept'],
+  })(c, next);
+});
 
 // Liveness/readiness — no provider calls.
 app.get('/health/live', (c) => c.json({ ok: true, version: APP_VERSION }));

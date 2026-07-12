@@ -13,7 +13,9 @@
     {
       "binding": "DB",
       "database_name": "repo-wrangler",
-      "database_id": "5a55c6e8-e06e-4381-ba04-e95dcf894f70",
+      // Operator-created: run `wrangler d1 create repo-wrangler` and put YOUR id here
+      // (or in a git-ignored wrangler.local.jsonc / your ops repo). Do not commit a real id.
+      "database_id": "<your-d1-database-id>",
       "migrations_dir": "migrations"
     }
   ],
@@ -24,9 +26,13 @@
   },
   "vars": {
     "AUTH_MODE": "github_app",
-    "DEMO_MODE": "false",
-    // First allowlisted login is the instance owner; later entries are admins.
-    "ALLOWED_GITHUB_USERS": "kristopherjturner"
+    // Public default is demo mode: a fresh clone runs on mock data with zero secrets.
+    // Set DEMO_MODE=false on your own deployment once your GitHub App secrets are set.
+    "DEMO_MODE": "true",
+    // Per-deployment only. Set YOUR allowlist (comma-separated; first login is the owner)
+    // as a Cloudflare secret or in .dev.vars — never commit a personal login here.
+    // Empty = no real users (demo only).
+    "ALLOWED_GITHUB_USERS": ""
   },
   "observability": {
     "enabled": true

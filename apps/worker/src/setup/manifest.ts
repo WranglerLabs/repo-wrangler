@@ -91,7 +91,7 @@ setupRoutes.get('/github-app', (c) => {
   <h2>Under an organization</h2>
   <form id="orgForm" method="post">
     <input type="hidden" name="manifest" value="${manifest}">
-    <label>Organization login: <input type="text" id="orgName" value="Hybrid-Solutions-Cloud" required></label>
+    <label>Organization login: <input type="text" id="orgName" value="" placeholder="your-org-login" required></label>
     <button type="submit">Create App (organization)</button>
   </form>
   <p><small>You must be an <strong>owner</strong> of the organization — GitHub shows a 404

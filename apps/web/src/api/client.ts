@@ -25,8 +25,24 @@ export class ApiError extends Error {
   }
 }
 
+// Host-agnostic API base (ADR-011). Empty (default) ⇒ same-origin relative
+// requests, the integrated Cloudflare Worker topology (Mode A). Set
+// VITE_API_BASE_URL at build time to point a decoupled SPA (GitHub Pages, Azure
+// SWA, …) at a Worker on another origin (Mode B); the Worker must then allow this
+// SPA's origin via CORS_ALLOWED_ORIGINS.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+
+/** Resolve an app-relative API path against the configured API base. */
+export function apiUrl(path: string): string {
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
 async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(path, { headers: { accept: 'application/json' } });
+  const response = await fetch(apiUrl(path), {
+    headers: { accept: 'application/json' },
+    // Send the session cookie cross-origin in Mode B; harmless same-origin.
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new ApiError(response.status, `Request failed: ${response.status}`);
   }
@@ -148,6 +164,9 @@ export function useSessionUser() {
 }
 
 export async function triggerManualSync(): Promise<void> {
-  const response = await fetch('/api/v1/admin/sync', { method: 'POST' });
+  const response = await fetch(apiUrl('/api/v1/admin/sync'), {
+    method: 'POST',
+    credentials: 'include',
+  });
   if (!response.ok) throw new ApiError(response.status, 'Sync request failed');
 }

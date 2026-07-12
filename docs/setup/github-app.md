@@ -5,8 +5,26 @@ never sees your credentials.
 
 ## 1. Create the App
 
-GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**
-(create it under the organization that will own it).
+GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**.
+
+### Personal account or organization?
+
+**Either works — and a personal-account App is a first-class path, not a
+fallback.** Because the App is created `public`, it can be *installed* on your
+personal account **and** any organizations you belong to, regardless of which
+account owns it.
+
+- **Personal account (recommended for solo deployers):** create it at
+  `https://github.com/settings/apps/new`. This always works.
+- **Organization:** create it at
+  `https://github.com/organizations/<org>/settings/apps/new`. This requires you
+  to be an **owner** of that org — if you are not, GitHub returns a **404** on
+  that URL (not a clear permission error). If you hit a 404 here, use the
+  personal-account path instead; the result is equivalent.
+
+RepoWrangler ships a one-tap **App Manifest** flow at `/setup/github-app` on your
+deployment that pre-fills all of the fields below and offers both a
+personal-account and an organization button — use it to skip the manual form.
 
 | Field | Value |
 |---|---|
