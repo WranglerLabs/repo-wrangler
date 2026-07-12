@@ -91,12 +91,19 @@ setupRoutes.get('/github-app', (c) => {
   <h2>Under an organization</h2>
   <form id="orgForm" method="post">
     <input type="hidden" name="manifest" value="${manifest}">
-    <label>Organization login: <input type="text" id="orgName" placeholder="Hybrid-Solutions-Cloud"></label>
+    <label>Organization login: <input type="text" id="orgName" value="Hybrid-Solutions-Cloud" required></label>
     <button type="submit">Create App (organization)</button>
   </form>
+  <p><small>You must be an <strong>owner</strong> of the organization — GitHub shows a 404
+  page (not "access denied") if you are not, or if the name has a typo.</small></p>
   <script>
-    document.getElementById('orgForm').addEventListener('submit', function () {
+    document.getElementById('orgForm').addEventListener('submit', function (e) {
       var org = document.getElementById('orgName').value.trim();
+      if (!org) {
+        e.preventDefault();
+        alert('Enter the organization login first.');
+        return;
+      }
       this.action = 'https://github.com/organizations/' + encodeURIComponent(org) + '/settings/apps/new';
     });
   </script>
