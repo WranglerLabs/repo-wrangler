@@ -1,0 +1,18 @@
+{
+  "name": "@repo-wrangler/provider-gitlab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo-wrangler/contracts": "workspace:*",
+    "@repo-wrangler/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

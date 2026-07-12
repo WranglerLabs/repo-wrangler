@@ -9,7 +9,15 @@ import {
 } from '../components/Badges';
 import { CAPABILITY_LABELS, timeAgo } from '../lib/format';
 
-const TABS = ['Overview', 'Branches', 'Pipelines', 'Change Requests', 'Security', 'Budgets'] as const;
+const TABS = [
+  'Overview',
+  'Branches',
+  'Pipelines',
+  'Change Requests',
+  'Security',
+  'Governance',
+  'Budgets',
+] as const;
 
 export function RepositoryDetail() {
   const { id } = useParams();
@@ -25,8 +33,16 @@ export function RepositoryDetail() {
     );
   }
 
-  const { repository, healthFindings, branches, pipelineRuns, changeRequests, security, budgets } =
-    detail.data;
+  const {
+    repository,
+    healthFindings,
+    branches,
+    pipelineRuns,
+    changeRequests,
+    security,
+    governance,
+    budgets,
+  } = detail.data;
 
   return (
     <>
@@ -282,13 +298,95 @@ export function RepositoryDetail() {
         </div>
       )}
 
+      {tab === 'Governance' && (
+        <div className="panel">
+          <h2>Governance</h2>
+          {!governance || governance.state !== 'available' ? (
+            <p className="capability">
+              {CAPABILITY_LABELS[governance?.state ?? 'not_configured'] ?? governance?.state} —
+              governance data is collected during repository enrichment.
+            </p>
+          ) : (
+            <table className="data">
+              <tbody>
+                <tr>
+                  <td className="muted" style={{ width: 240 }}>
+                    Default branch protection
+                  </td>
+                  <td>
+                    {governance.defaultBranchProtected === undefined ? (
+                      <span className="capability">unknown</span>
+                    ) : governance.defaultBranchProtected ? (
+                      <span className="badge healthy">protected</span>
+                    ) : (
+                      <span className="badge medium">not protected</span>
+                    )}
+                  </td>
+                </tr>
+                {governance.files &&
+                  Object.entries(governance.files).map(([file, present]) => (
+                    <tr key={file}>
+                      <td className="muted">{file}</td>
+                      <td>
+                        {present ? (
+                          <span className="badge healthy">present</span>
+                        ) : (
+                          <span className="badge low">missing</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                {governance.healthPercentage !== undefined && (
+                  <tr>
+                    <td className="muted">Community health score</td>
+                    <td>{governance.healthPercentage}%</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {tab === 'Budgets' && (
         <div className="panel">
           <h2>Budgets &amp; usage</h2>
-          <p className="capability">
-            {CAPABILITY_LABELS[budgets.state] ?? budgets.state} — budget and usage collection
-            arrives in Phase 3 and depends on organization plan and permissions.
-          </p>
+          {budgets.state !== 'available' ? (
+            <p className="capability">
+              {CAPABILITY_LABELS[budgets.state] ?? budgets.state} — this is a capability state,
+              not zero budgets. Collection depends on organization plan and permissions.
+            </p>
+          ) : (
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Scope</th>
+                  <th>Amount</th>
+                  <th>Hard stop</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(budgets.items ?? []).map((budget, index) => (
+                  <tr key={index}>
+                    <td>{budget.product ?? '—'}</td>
+                    <td>
+                      {budget.scopeType ?? '—'}
+                      {budget.scopeTarget ? ` (${budget.scopeTarget})` : ''}
+                    </td>
+                    <td>
+                      {budget.amount !== undefined
+                        ? `${budget.amount} ${budget.unit ?? ''}`
+                        : '—'}
+                    </td>
+                    <td>{budget.preventFurtherUsage ? 'yes' : 'no'}</td>
+                    <td>{budget.alertStatus ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </>

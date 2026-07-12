@@ -24,6 +24,26 @@ export async function ensureGitHubConnection(db: D1Database): Promise<string> {
   return id;
 }
 
+/** Ensure the single GitLab connection row exists; return its id. */
+export async function ensureGitLabConnection(
+  db: D1Database,
+  baseUrl: string,
+): Promise<string> {
+  const existing = await db
+    .prepare(`SELECT id FROM provider_connections WHERE provider_type = 'gitlab' LIMIT 1`)
+    .first<{ id: string }>();
+  if (existing) return existing.id;
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO provider_connections (id, provider_type, display_name, base_url, auth_type)
+       VALUES (?1, 'gitlab', 'GitLab', ?2, 'token')`,
+    )
+    .bind(id, baseUrl)
+    .run();
+  return id;
+}
+
 export async function listConnections(db: D1Database): Promise<ConnectionRow[]> {
   const result = await db
     .prepare(

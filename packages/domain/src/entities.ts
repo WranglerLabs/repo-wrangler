@@ -135,6 +135,20 @@ export interface SecurityFindingSnapshot {
   resolvedAt?: string;
 }
 
+export interface GovernanceInfo {
+  /** Derived from the default branch's protection flag when known. */
+  defaultBranchProtected?: boolean;
+  files?: {
+    readme?: boolean;
+    license?: boolean;
+    contributing?: boolean;
+    codeOfConduct?: boolean;
+    issueTemplate?: boolean;
+    pullRequestTemplate?: boolean;
+  };
+  healthPercentage?: number;
+}
+
 export interface BudgetSnapshot {
   externalId: string;
   product?: string;

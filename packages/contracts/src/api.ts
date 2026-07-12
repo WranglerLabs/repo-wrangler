@@ -153,7 +153,30 @@ export const repositoryDetailSchema = z.object({
       )
       .optional(),
   }),
-  budgets: z.object({ state: capabilityStateSchema }),
+  governance: z
+    .object({
+      state: capabilityStateSchema,
+      defaultBranchProtected: z.boolean().optional(),
+      files: z.record(z.string(), z.boolean()).optional(),
+      healthPercentage: z.number().optional(),
+    })
+    .optional(),
+  budgets: z.object({
+    state: capabilityStateSchema,
+    items: z
+      .array(
+        z.object({
+          product: z.string().optional(),
+          scopeType: z.string().optional(),
+          scopeTarget: z.string().optional(),
+          amount: z.number().optional(),
+          unit: z.string().optional(),
+          preventFurtherUsage: z.boolean(),
+          alertStatus: z.string().optional(),
+        }),
+      )
+      .optional(),
+  }),
 });
 export type RepositoryDetailDto = z.infer<typeof repositoryDetailSchema>;
 
@@ -212,6 +235,66 @@ export const creditsSchema = z.object({
   ),
 });
 export type CreditsDto = z.infer<typeof creditsSchema>;
+
+export const estateBranchSchema = z.object({
+  repositoryId: z.string(),
+  repositoryFullName: z.string(),
+  provider: z.string(),
+  name: z.string(),
+  headCommittedAt: z.string().optional(),
+  aheadBy: z.number().optional(),
+  behindBy: z.number().optional(),
+  comparisonStatus: z.string(),
+  openChangeRequestNumber: z.number().optional(),
+  isProtected: z.boolean(),
+});
+export type EstateBranchDto = z.infer<typeof estateBranchSchema>;
+
+export const estateChangeRequestSchema = z.object({
+  repositoryId: z.string(),
+  repositoryFullName: z.string(),
+  provider: z.string(),
+  number: z.number(),
+  title: z.string().optional(),
+  url: z.string().optional(),
+  author: z.string().optional(),
+  isDraft: z.boolean(),
+  baseRef: z.string().optional(),
+  headRef: z.string().optional(),
+  mergeableState: z.string().optional(),
+  checksStatus: z.string().optional(),
+  updatedAt: z.string().optional(),
+  attention: z.enum(['ready', 'blocked', 'stale', 'draft', 'normal']),
+});
+export type EstateChangeRequestDto = z.infer<typeof estateChangeRequestSchema>;
+
+export const governanceDtoSchema = z.object({
+  state: capabilityStateSchema,
+  defaultBranchProtected: z.boolean().optional(),
+  files: z
+    .object({
+      readme: z.boolean().optional(),
+      license: z.boolean().optional(),
+      contributing: z.boolean().optional(),
+      codeOfConduct: z.boolean().optional(),
+      issueTemplate: z.boolean().optional(),
+      pullRequestTemplate: z.boolean().optional(),
+    })
+    .optional(),
+  healthPercentage: z.number().optional(),
+});
+export type GovernanceDto = z.infer<typeof governanceDtoSchema>;
+
+export const budgetDtoSchema = z.object({
+  product: z.string().optional(),
+  scopeType: z.string().optional(),
+  scopeTarget: z.string().optional(),
+  amount: z.number().optional(),
+  unit: z.string().optional(),
+  preventFurtherUsage: z.boolean(),
+  alertStatus: z.string().optional(),
+});
+export type BudgetDto = z.infer<typeof budgetDtoSchema>;
 
 export const sessionUserSchema = z.object({
   login: z.string(),

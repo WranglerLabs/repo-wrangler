@@ -1,27 +1,33 @@
 import { Hono } from 'hono';
 import type {
   AttentionItemDto,
+  EstateBranchDto,
+  EstateChangeRequestDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
   RepositoryListItemDto,
   WorkspaceDto,
 } from '@repo-wrangler/contracts';
-import type { HealthFinding } from '@repo-wrangler/domain';
+import type { CapabilityResult, GovernanceInfo, HealthFinding } from '@repo-wrangler/domain';
 import {
   getAttentionLevelCounts,
   getHealthFindings,
   getOverviewCounts,
   getRepositoryById,
+  getRepositoryGovernance,
   getSyncStats,
   getWebhookStats,
   listAttentionRows,
   listBranches,
   listConnections,
+  listEstateBranches,
+  listEstateChangeRequests,
   listOpenChangeRequests,
   listOpenSecurityFindings,
   listRecentRuns,
   listRepositoryItems,
+  listWorkspaceBudgets,
   listWorkspaceRows,
   enqueueSyncJob,
   recordAuditEvent,
@@ -29,6 +35,8 @@ import {
 } from '@repo-wrangler/persistence-d1';
 import {
   demoAttention,
+  demoEstateBranches,
+  demoEstateChangeRequests,
   demoOverview,
   demoPlatformHealth,
   demoRepositories,
@@ -223,8 +231,110 @@ apiRoutes.get('/repositories/:id', async (c) => {
             })),
           }
         : { state: 'not_configured' },
-    budgets: { state: 'not_configured' },
+    governance: await loadGovernanceDto(c.env.DB, id),
+    budgets: await loadBudgetsDto(c.env.DB, repo.workspace_id),
   };
+  return c.json(body);
+});
+
+async function loadGovernanceDto(
+  db: D1Database,
+  repositoryId: string,
+): Promise<RepositoryDetailDto['governance']> {
+  const json = await getRepositoryGovernance(db, repositoryId);
+  if (!json) return { state: 'not_configured' };
+  try {
+    const parsed = JSON.parse(json) as CapabilityResult<GovernanceInfo>;
+    if (parsed.state !== 'available') return { state: parsed.state };
+    return {
+      state: 'available',
+      defaultBranchProtected: parsed.data?.defaultBranchProtected,
+      files: parsed.data?.files
+        ? Object.fromEntries(
+            Object.entries(parsed.data.files).filter(([, v]) => v !== undefined),
+          ) as Record<string, boolean>
+        : undefined,
+      healthPercentage: parsed.data?.healthPercentage,
+    };
+  } catch {
+    return { state: 'error' };
+  }
+}
+
+async function loadBudgetsDto(
+  db: D1Database,
+  workspaceId: string,
+): Promise<RepositoryDetailDto['budgets']> {
+  const rows = await listWorkspaceBudgets(db, workspaceId);
+  if (rows.length === 0) return { state: 'not_configured' };
+  return {
+    state: 'available',
+    items: rows.map((row) => ({
+      product: row.product ?? undefined,
+      scopeType: row.scope_type ?? undefined,
+      scopeTarget: row.scope_target ?? undefined,
+      amount: row.amount ?? undefined,
+      unit: row.unit ?? undefined,
+      preventFurtherUsage: row.prevent_further_usage === 1,
+      alertStatus: row.alert_status ?? undefined,
+    })),
+  };
+}
+
+const STALE_CR_DAYS = 14;
+
+export function classifyChangeRequestAttention(cr: {
+  is_draft: number;
+  mergeable_state: string | null;
+  updated_at: string | null;
+}): EstateChangeRequestDto['attention'] {
+  if (cr.is_draft === 1) return 'draft';
+  if (cr.mergeable_state === 'dirty' || cr.mergeable_state === 'blocked') return 'blocked';
+  const updated = cr.updated_at ? Date.parse(cr.updated_at) : NaN;
+  if (!Number.isNaN(updated) && Date.now() - updated > STALE_CR_DAYS * 24 * 60 * 60 * 1000) {
+    return 'stale';
+  }
+  if (cr.mergeable_state === 'clean') return 'ready';
+  return 'normal';
+}
+
+apiRoutes.get('/branches', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoEstateBranches());
+  const rows = await listEstateBranches(c.env.DB);
+  const body: EstateBranchDto[] = rows.map((row) => ({
+    repositoryId: row.repository_id,
+    repositoryFullName: row.full_name,
+    provider: row.provider,
+    name: row.name,
+    headCommittedAt: row.head_committed_at ?? undefined,
+    aheadBy: row.ahead_by ?? undefined,
+    behindBy: row.behind_by ?? undefined,
+    comparisonStatus: row.comparison_status ?? 'unknown',
+    openChangeRequestNumber: row.open_change_request_number ?? undefined,
+    isProtected: row.is_protected === 1,
+  }));
+  return c.json(body);
+});
+
+apiRoutes.get('/change-requests', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoEstateChangeRequests());
+  const rows = await listEstateChangeRequests(c.env.DB);
+  const body: EstateChangeRequestDto[] = rows.map((row) => ({
+    repositoryId: row.repository_id,
+    repositoryFullName: row.full_name,
+    provider: row.provider,
+    number: row.number,
+    title: row.title ?? undefined,
+    url: row.url ?? undefined,
+    author: row.author ?? undefined,
+    isDraft: row.is_draft === 1,
+    baseRef: row.base_ref ?? undefined,
+    headRef: row.head_ref ?? undefined,
+    mergeableState: row.mergeable_state ?? undefined,
+    checksStatus: row.checks_status ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+    attention: classifyChangeRequestAttention(row),
+  }));
   return c.json(body);
 });
 

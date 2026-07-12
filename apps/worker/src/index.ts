@@ -4,6 +4,7 @@ import { APP_VERSION, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
 import { authRoutes } from './auth/github';
 import { githubWebhookRoutes } from './webhooks/github';
+import { gitlabWebhookRoutes } from './webhooks/gitlab';
 import { requireAuth, securityHeaders, type AppContext } from './middleware/auth';
 import { runScheduled } from './scheduled';
 
@@ -27,6 +28,7 @@ app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
 app.route('/auth', authRoutes);
 app.route('/webhooks', githubWebhookRoutes);
+app.route('/webhooks', gitlabWebhookRoutes);
 
 app.use('/api/v1/*', requireAuth);
 app.route('/api/v1', apiRoutes);

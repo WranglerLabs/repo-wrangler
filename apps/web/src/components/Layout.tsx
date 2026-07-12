@@ -5,6 +5,8 @@ import { useSessionUser } from '../api/client';
 const NAV_ITEMS = [
   { to: '/', label: 'Command Center' },
   { to: '/repositories', label: 'Repositories' },
+  { to: '/branches', label: 'Branches' },
+  { to: '/change-requests', label: 'Change Requests' },
   { to: '/workspaces', label: 'Workspaces' },
   { to: '/platform', label: 'Platform Health' },
   { to: '/credits', label: 'About & Credits' },

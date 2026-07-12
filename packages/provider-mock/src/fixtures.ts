@@ -1,5 +1,7 @@
 import type {
   AttentionItemDto,
+  EstateBranchDto,
+  EstateChangeRequestDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -32,6 +34,7 @@ function daysAgo(days: number): string {
 
 interface DemoRepo {
   id: string;
+  provider?: 'github' | 'gitlab';
   workspaceSlug: string;
   name: string;
   description?: string;
@@ -321,6 +324,67 @@ const DEMO_REPOS: DemoRepo[] = [
     firstSeenDaysAgo: 5,
   },
   {
+    id: 'demo-r10',
+    provider: 'gitlab',
+    workspaceSlug: 'mesa-verde',
+    name: 'switchyard-api',
+    description: 'Internal integration API (GitLab).',
+    visibility: 'private',
+    defaultBranch: 'main',
+    pushedDaysAgo: 1,
+    language: 'Python',
+    branches: [
+      branch({ name: 'main', isDefault: true, isProtected: true, comparisonStatus: 'identical' }),
+      branch({
+        name: 'feature/webhooks',
+        comparisonStatus: 'ahead',
+        aheadBy: 3,
+        behindBy: 0,
+        openChangeRequestNumber: 31,
+        headCommittedAt: daysAgo(1),
+      }),
+    ],
+    latestRun: run({ externalId: 'run-10', name: 'pipeline', branch: 'main', runStartedAt: daysAgo(1) }),
+    openChangeRequests: [
+      {
+        number: 31,
+        title: 'Add outbound webhooks',
+        author: 'mesa-dev',
+        isDraft: false,
+        state: 'open',
+        baseRef: 'main',
+        headRef: 'feature/webhooks',
+        requestedReviewers: [],
+        mergeableState: 'clean',
+        checksStatus: 'passing',
+        createdAt: daysAgo(2),
+        updatedAt: daysAgo(1),
+      },
+    ],
+    securityUnavailable: true,
+  },
+  {
+    id: 'demo-r11',
+    provider: 'gitlab',
+    workspaceSlug: 'mesa-verde',
+    name: 'ops-runbooks',
+    description: 'Operational runbooks (GitLab).',
+    visibility: 'private',
+    defaultBranch: 'main',
+    pushedDaysAgo: 20,
+    language: 'Markdown',
+    branches: [branch({ name: 'main', isDefault: true, comparisonStatus: 'identical' })],
+    latestRun: run({
+      externalId: 'run-11',
+      name: 'pipeline',
+      conclusion: 'failure',
+      branch: 'main',
+      runStartedAt: daysAgo(20),
+    }),
+    openChangeRequests: [],
+    securityUnavailable: true,
+  },
+  {
     id: 'demo-r9',
     workspaceSlug: 'high-desert',
     name: 'old-blog',
@@ -340,12 +404,19 @@ const WORKSPACES: Array<{
   id: string;
   slug: string;
   displayName: string;
-  kind: 'organization' | 'user';
+  kind: 'organization' | 'user' | 'group';
+  provider: 'github' | 'gitlab';
 }> = [
-  { id: 'demo-w1', slug: 'saguaro-systems', displayName: 'Saguaro Systems', kind: 'organization' },
-  { id: 'demo-w2', slug: 'copperline-labs', displayName: 'Copperline Labs', kind: 'organization' },
-  { id: 'demo-w3', slug: 'high-desert', displayName: 'high-desert', kind: 'user' },
+  { id: 'demo-w1', slug: 'saguaro-systems', displayName: 'Saguaro Systems', kind: 'organization', provider: 'github' },
+  { id: 'demo-w2', slug: 'copperline-labs', displayName: 'Copperline Labs', kind: 'organization', provider: 'github' },
+  { id: 'demo-w3', slug: 'high-desert', displayName: 'high-desert', kind: 'user', provider: 'github' },
+  { id: 'demo-w4', slug: 'mesa-verde', displayName: 'Mesa Verde Group', kind: 'group', provider: 'gitlab' },
 ];
+
+function repoUrl(repo: DemoRepo): string {
+  const host = repo.provider === 'gitlab' ? 'gitlab.com' : 'github.com';
+  return `https://${host}/${repo.workspaceSlug}/${repo.name}`;
+}
 
 function healthInput(repo: DemoRepo): RepositoryHealthInput {
   return {
@@ -364,7 +435,7 @@ function healthInput(repo: DemoRepo): RepositoryHealthInput {
       primaryLanguage: repo.language,
       licenseSpdx: repo.license,
       description: repo.description,
-      url: `https://github.com/${repo.workspaceSlug}/${repo.name}`,
+      url: repoUrl(repo),
     },
     branches: repo.branches,
     latestDefaultBranchRun: repo.latestRun,
@@ -380,11 +451,11 @@ function toListItem(repo: DemoRepo): RepositoryListItemDto {
   const branchEval = evaluateDefaultBranchStatus(repo.branches);
   return {
     id: repo.id,
-    provider: 'github',
+    provider: repo.provider ?? 'github',
     workspaceSlug: repo.workspaceSlug,
     name: repo.name,
     fullName: `${repo.workspaceSlug}/${repo.name}`,
-    url: `https://github.com/${repo.workspaceSlug}/${repo.name}`,
+    url: repoUrl(repo),
     visibility: repo.visibility,
     isArchived: repo.isArchived ?? false,
     defaultBranch: repo.defaultBranch,
@@ -473,8 +544,97 @@ export function demoRepositoryDetail(id: string): RepositoryDetailDto | undefine
             url: f.url,
           })),
         },
-    budgets: { state: 'unsupported_by_plan' },
+    governance: {
+      state: 'available',
+      defaultBranchProtected: repo.branches.some((b) => b.isDefault && b.isProtected),
+      files: {
+        readme: true,
+        license: Boolean(repo.license),
+        contributing: repo.workspaceSlug === 'saguaro-systems',
+        codeOfConduct: repo.workspaceSlug === 'saguaro-systems',
+      },
+      healthPercentage: repo.license ? 85 : 55,
+    },
+    budgets:
+      repo.workspaceSlug === 'saguaro-systems'
+        ? {
+            state: 'available',
+            items: [
+              {
+                product: 'actions',
+                scopeType: 'organization',
+                scopeTarget: 'saguaro-systems',
+                amount: 50,
+                unit: 'USD',
+                preventFurtherUsage: true,
+                alertStatus: '92% consumed',
+              },
+            ],
+          }
+        : { state: 'unsupported_by_plan' },
   };
+}
+
+export function demoEstateBranches(): EstateBranchDto[] {
+  const items: EstateBranchDto[] = [];
+  for (const repo of DEMO_REPOS) {
+    if (repo.status === 'inaccessible') continue;
+    for (const b of repo.branches) {
+      if (b.isDefault || b.excluded) continue;
+      if (b.comparisonStatus !== 'ahead' && b.comparisonStatus !== 'diverged') continue;
+      items.push({
+        repositoryId: repo.id,
+        repositoryFullName: `${repo.workspaceSlug}/${repo.name}`,
+        provider: repo.provider ?? 'github',
+        name: b.name,
+        headCommittedAt: b.headCommittedAt,
+        aheadBy: b.aheadBy,
+        behindBy: b.behindBy,
+        comparisonStatus: b.comparisonStatus,
+        openChangeRequestNumber: b.openChangeRequestNumber,
+        isProtected: b.isProtected,
+      });
+    }
+  }
+  return items.sort((a, b) => (b.aheadBy ?? 0) - (a.aheadBy ?? 0));
+}
+
+export function demoEstateChangeRequests(): EstateChangeRequestDto[] {
+  const items: EstateChangeRequestDto[] = [];
+  for (const repo of DEMO_REPOS) {
+    if (repo.status === 'inaccessible') continue;
+    for (const cr of repo.openChangeRequests) {
+      if (cr.state !== 'open') continue;
+      let attention: EstateChangeRequestDto['attention'] = 'normal';
+      if (cr.isDraft) attention = 'draft';
+      else if (cr.mergeableState === 'dirty' || cr.mergeableState === 'blocked') {
+        attention = 'blocked';
+      } else if (
+        cr.updatedAt &&
+        Date.now() - Date.parse(cr.updatedAt) > 14 * 24 * 60 * 60 * 1000
+      ) {
+        attention = 'stale';
+      } else if (cr.mergeableState === 'clean') attention = 'ready';
+      items.push({
+        repositoryId: repo.id,
+        repositoryFullName: `${repo.workspaceSlug}/${repo.name}`,
+        provider: repo.provider ?? 'github',
+        number: cr.number,
+        title: cr.title,
+        url: cr.url,
+        author: cr.author,
+        isDraft: cr.isDraft,
+        baseRef: cr.baseRef,
+        headRef: cr.headRef,
+        mergeableState: cr.mergeableState,
+        checksStatus: cr.checksStatus,
+        updatedAt: cr.updatedAt,
+        attention,
+      });
+    }
+  }
+  const order = { blocked: 0, stale: 1, ready: 2, normal: 3, draft: 4 };
+  return items.sort((a, b) => order[a.attention] - order[b.attention]);
 }
 
 export function demoWorkspaces(): WorkspaceDto[] {
@@ -485,7 +645,7 @@ export function demoWorkspaces(): WorkspaceDto[] {
     for (const r of repos) counts[r.attentionLevel] = (counts[r.attentionLevel] ?? 0) + 1;
     return {
       id: w.id,
-      provider: 'github',
+      provider: w.provider,
       slug: w.slug,
       displayName: w.displayName,
       kind: w.kind,
@@ -508,8 +668,8 @@ export function demoAttention(): AttentionItemDto[] {
         message: finding.message,
         repositoryId: repo.id,
         repositoryFullName: `${repo.workspaceSlug}/${repo.name}`,
-        provider: 'github',
-        url: `https://github.com/${repo.workspaceSlug}/${repo.name}`,
+        provider: repo.provider ?? 'github',
+        url: repoUrl(repo),
         observedAt: daysAgo(0.01),
       });
     }

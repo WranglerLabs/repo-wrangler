@@ -1,5 +1,6 @@
 import type {
   ChangeRequestSnapshot,
+  GovernanceInfo,
   PipelineRunSnapshot,
   RepositorySnapshot,
   SecurityFindingSnapshot,
@@ -41,6 +42,8 @@ export interface RepositoryHealthInput {
   latestDefaultBranchRun?: PipelineRunSnapshot;
   openChangeRequests: ChangeRequestSnapshot[];
   securityFindings: CapabilityResult<SecurityFindingSnapshot[]>;
+  /** Optional governance evaluation input (Phase 3). */
+  governance?: CapabilityResult<GovernanceInfo>;
   /** Days without a push before a repo counts as inactive. */
   staleRepositoryDays?: number;
   /** Days an open change request may sit unmerged before it is stale. */
@@ -172,6 +175,34 @@ export function evaluateRepositoryHealth(
         code: 'change_flow.stale',
         severity: 'low',
         message: `#${cr.number} "${cr.title ?? ''}" has had no activity for ${Math.floor(age)} day(s).`,
+      });
+    }
+  }
+
+  // Governance — protection and hygiene drift.
+  if (input.governance?.state === 'available' && input.governance.data) {
+    const governance = input.governance.data;
+    if (governance.defaultBranchProtected === false && repo.visibility !== 'public') {
+      findings.push({
+        code: 'governance.unprotected_default_branch',
+        severity: 'medium',
+        message: 'Default branch has no branch protection or ruleset.',
+      });
+    } else if (governance.defaultBranchProtected === false) {
+      findings.push({
+        code: 'governance.unprotected_default_branch',
+        severity: 'low',
+        message: 'Default branch has no branch protection or ruleset.',
+      });
+    }
+    const missing: string[] = [];
+    if (governance.files?.readme === false) missing.push('README');
+    if (governance.files?.license === false) missing.push('license');
+    if (missing.length > 0) {
+      findings.push({
+        code: 'governance.missing_files',
+        severity: 'low',
+        message: `Missing repository hygiene files: ${missing.join(', ')}.`,
       });
     }
   }

@@ -191,6 +191,29 @@ export async function markEnriched(db: D1Database, id: string): Promise<void> {
     .run();
 }
 
+/** Store the governance capability snapshot (JSON) for a repository. */
+export async function setRepositoryGovernance(
+  db: D1Database,
+  id: string,
+  governanceJson: string,
+): Promise<void> {
+  await db
+    .prepare(`UPDATE repositories SET governance = ?2 WHERE id = ?1`)
+    .bind(id, governanceJson)
+    .run();
+}
+
+export async function getRepositoryGovernance(
+  db: D1Database,
+  id: string,
+): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT governance FROM repositories WHERE id = ?1`)
+    .bind(id)
+    .first<{ governance: string | null }>();
+  return row?.governance ?? null;
+}
+
 export interface RepositoryListRow extends RepositoryRow {
   workspace_slug: string;
   provider: string;

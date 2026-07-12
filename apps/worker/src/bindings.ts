@@ -9,6 +9,8 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  GITLAB_TOKEN?: string;
+  GITLAB_WEBHOOK_SECRET?: string;
 
   // Non-secret configuration (wrangler.jsonc vars / dashboard)
   AUTH_MODE?: string;
@@ -17,9 +19,19 @@ export interface Env {
   ALLOWED_GITHUB_USERS?: string;
   ALLOWED_GITHUB_ORGS?: string;
   DEFAULT_RETENTION_DAYS?: string;
+  /** GitLab base URL for self-managed instances; defaults to gitlab.com. */
+  GITLAB_BASE_URL?: string;
+  /** Comma-separated top-level GitLab group paths to monitor. */
+  GITLAB_GROUPS?: string;
+  /** Optional outbound webhook for critical/high attention escalations. */
+  NOTIFY_WEBHOOK_URL?: string;
 }
 
-export const APP_VERSION = '0.1.0';
+export const APP_VERSION = '0.2.0';
+
+export function isGitLabConfigured(env: Env): boolean {
+  return Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);
+}
 
 export function isDemoMode(env: Env): boolean {
   if (env.DEMO_MODE === 'true') return true;

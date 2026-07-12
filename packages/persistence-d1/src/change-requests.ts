@@ -94,6 +94,32 @@ export async function upsertChangeRequest(
   }
 }
 
+export interface EstateChangeRequestRow extends ChangeRequestRow {
+  full_name: string;
+  provider: string;
+}
+
+/** Estate-wide open change requests for the Change Requests page. */
+export async function listEstateChangeRequests(
+  db: D1Database,
+  limit = 300,
+): Promise<EstateChangeRequestRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT cr.*, r.full_name, c.provider_type AS provider
+       FROM change_requests cr
+       JOIN repositories r ON r.id = cr.repository_id
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       WHERE cr.state = 'open' AND r.status = 'active'
+       ORDER BY cr.updated_at ASC
+       LIMIT ?1`,
+    )
+    .bind(limit)
+    .all<EstateChangeRequestRow>();
+  return result.results;
+}
+
 export async function listOpenChangeRequests(
   db: D1Database,
   repositoryId: string,

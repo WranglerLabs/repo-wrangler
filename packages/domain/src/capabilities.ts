@@ -35,8 +35,10 @@ export function capabilityUnavailable<T>(
   return { state, detail, observedAt: new Date().toISOString() };
 }
 
-/** Map an HTTP status from a provider API to a capability state. */
-export function capabilityStateFromHttpStatus(status: number): CapabilityState {
+/** Map an HTTP error status from a provider API to a capability state. */
+export function capabilityStateFromHttpStatus(
+  status: number,
+): Exclude<CapabilityState, 'available'> {
   if (status === 401 || status === 403) return 'not_authorized';
   if (status === 404) return 'unsupported_by_provider';
   if (status === 429) return 'rate_limited';

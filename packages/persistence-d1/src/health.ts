@@ -1,5 +1,16 @@
 import type { HealthFinding, AttentionLevel } from '@repo-wrangler/domain';
 
+export async function getAttentionLevel(
+  db: D1Database,
+  repositoryId: string,
+): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT attention_level FROM health_snapshots WHERE repository_id = ?1`)
+    .bind(repositoryId)
+    .first<{ attention_level: string }>();
+  return row?.attention_level ?? null;
+}
+
 export async function upsertHealthSnapshot(
   db: D1Database,
   repositoryId: string,

@@ -1,10 +1,13 @@
 import type {
   BranchSnapshot,
   ChangeRequestSnapshot,
+  GovernanceInfo,
   PipelineRunSnapshot,
+  CapabilityResult,
 } from '@repo-wrangler/domain';
 import {
   capabilityAvailable,
+  capabilityUnavailable,
   evaluateRepositoryHealth,
 } from '@repo-wrangler/domain';
 import {
@@ -17,13 +20,17 @@ import {
   compactWebhookDeliveries,
   claimEnrichmentBatch,
   ensureGitHubConnection,
+  ensureGitLabConnection,
   enqueueSyncJob,
   failSyncJob,
+  getAttentionLevel,
   getMeta,
   getRepositoryByFullName,
+  getRepositoryGovernance,
   listBranches,
   listOpenChangeRequests,
   listOpenSecurityFindings,
+  listWorkspacesForSync,
   latestDefaultBranchRunRow,
   markEnriched,
   markUnseenInaccessible,
@@ -31,30 +38,43 @@ import {
   recordConnectionSuccess,
   recordConnectionError,
   setMeta,
+  setRepositoryGovernance,
   upsertBranch,
+  upsertBudget,
   upsertChangeRequest,
   upsertHealthSnapshot,
   upsertPipelineRun,
   upsertRepository,
+  upsertSecurityFinding,
   upsertWorkspace,
   type RepositoryRow,
 } from '@repo-wrangler/persistence-d1';
 import {
   collectBranches,
+  fetchGovernanceProfile,
   getInstallationToken,
   latestDefaultBranchRun,
   listInstallationRepositories,
   listInstallations,
   listOpenPullRequests,
+  listOrganizationBudgets,
+  listSecurityFindings,
   mapInstallationToWorkspace,
 } from '@repo-wrangler/provider-github';
-import { isDemoMode, type Env } from '../bindings';
+import {
+  GitLabClient,
+  collectGitLabBranches,
+  getGroupWorkspace,
+  latestDefaultBranchPipeline,
+  listGroupProjects,
+  listOpenMergeRequests,
+} from '@repo-wrangler/provider-gitlab';
+import { isDemoMode, isGitLabConfigured, type Env } from '../bindings';
 
 /**
  * Checkpointed reconciliation engine. Every invocation claims a bounded
  * amount of work, records a cursor after each unit, and stops before the
- * free-tier subrequest budget is exhausted. It never attempts the whole
- * estate in one execution.
+ * free-tier subrequest budget is exhausted.
  */
 
 const SUBREQUEST_BUDGET = 40;
@@ -69,7 +89,7 @@ interface DiscoveryCursor {
 }
 
 export async function runScheduled(env: Env, cron: string): Promise<void> {
-  if (isDemoMode(env)) return;
+  if (isDemoMode(env) && !isGitLabConfigured(env)) return;
 
   if (cron === '17 3 * * *') {
     await runDailyMaintenance(env);
@@ -84,7 +104,14 @@ export async function runScheduled(env: Env, cron: string): Promise<void> {
     const job = await claimNextSyncJob(env.DB);
     if (!job) break;
     try {
-      subrequestsUsed += await runJob(env, job.id, job.job_type, job.scope, job.cursor, SUBREQUEST_BUDGET - subrequestsUsed);
+      subrequestsUsed += await runJob(
+        env,
+        job.id,
+        job.job_type,
+        job.scope,
+        job.cursor,
+        SUBREQUEST_BUDGET - subrequestsUsed,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       await failSyncJob(env.DB, job.id, message);
@@ -99,11 +126,11 @@ async function ensurePeriodicJobs(env: Env): Promise<void> {
     !lastDiscovery ||
     Date.now() - Date.parse(lastDiscovery) > DISCOVERY_INTERVAL_HOURS * 60 * 60 * 1000;
   if (due) {
-    await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
+    if (!isDemoMode(env)) await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
+    if (isGitLabConfigured(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
     await setMeta(env.DB, 'last_discovery_enqueued_at', new Date().toISOString());
   }
 
-  // Rolling enrichment of the stalest repositories.
   const stale = await claimEnrichmentBatch(env.DB, ENRICH_BATCH_SIZE);
   for (const repo of stale) {
     await enqueueSyncJob(env.DB, 'enrich_repository', repo.full_name, 5);
@@ -116,8 +143,11 @@ async function runDailyMaintenance(env: Env): Promise<void> {
   await compactChangeRequests(env.DB, 180);
   await compactWebhookDeliveries(env.DB, 7);
   await compactSyncJobs(env.DB, 30);
-  await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
-  // Billing/budget sync lands here in Phase 3 (capability-gated).
+  if (!isDemoMode(env)) {
+    await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
+    await enqueueSyncJob(env.DB, 'billing', 'all', 8);
+  }
+  if (isGitLabConfigured(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
 }
 
 async function runJob(
@@ -131,8 +161,12 @@ async function runJob(
   switch (jobType) {
     case 'discovery':
       return runDiscovery(env, jobId, cursor, budget);
+    case 'gitlab_discovery':
+      return runGitLabDiscovery(env, jobId);
     case 'enrich_repository':
       return runEnrichRepository(env, jobId, scope ?? '');
+    case 'billing':
+      return runBillingSync(env, jobId);
     case 'evaluate_health': {
       await evaluateHealthForRepo(env, scope ?? '');
       await completeSyncJob(env.DB, jobId, 0);
@@ -145,11 +179,7 @@ async function runJob(
   }
 }
 
-/**
- * Discovery reconciliation: enumerate installations → workspaces → repository
- * pages, upserting as it goes. After a workspace's complete pass, previously
- * known but unseen repositories are marked inaccessible (tombstone).
- */
+/** GitHub discovery reconciliation (installations → workspaces → repo pages). */
 async function runDiscovery(
   env: Env,
   jobId: string,
@@ -197,14 +227,18 @@ async function runDiscovery(
     used += 1;
 
     let page = i === cursor.installationIndex ? cursor.page : 1;
-    let seen = i === cursor.installationIndex ? [...cursor.seenExternalIds] : [];
+    const seen = i === cursor.installationIndex ? [...cursor.seenExternalIds] : [];
 
     for (;;) {
       if (used >= budget - 5) {
         await checkpointSyncJob(
           env.DB,
           jobId,
-          JSON.stringify({ installationIndex: i, page, seenExternalIds: seen } satisfies DiscoveryCursor),
+          JSON.stringify({
+            installationIndex: i,
+            page,
+            seenExternalIds: seen,
+          } satisfies DiscoveryCursor),
           used,
         );
         return used;
@@ -228,53 +262,113 @@ async function runDiscovery(
   return used;
 }
 
-/**
- * Repository enrichment: open PRs, latest default-branch run, bounded branch
- * inventory + comparisons, then health evaluation. Priority order per design.
- */
-async function runEnrichRepository(env: Env, jobId: string, fullName: string): Promise<number> {
-  const appId = env.GITHUB_APP_ID;
-  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
-  if (!appId || !privateKey || !fullName) {
+/** GitLab discovery: configured top-level groups → projects (incl. subgroups). */
+async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
+  if (!isGitLabConfigured(env)) {
     await completeSyncJob(env.DB, jobId, 0);
     return 0;
   }
-
-  const repo = await getRepositoryByFullName(env.DB, fullName);
-  if (!repo || repo.status !== 'active') {
-    await completeSyncJob(env.DB, jobId, 0);
-    return 0;
-  }
-
-  const workspace = await env.DB.prepare(
-    `SELECT installation_id FROM workspaces WHERE id = ?1`,
-  )
-    .bind(repo.workspace_id)
-    .first<{ installation_id: string | null }>();
-  if (!workspace?.installation_id) {
-    await completeSyncJob(env.DB, jobId, 0);
-    return 0;
-  }
+  const client = new GitLabClient(env.GITLAB_TOKEN!, env.GITLAB_BASE_URL ?? 'https://gitlab.com');
+  const connectionId = await ensureGitLabConnection(
+    env.DB,
+    env.GITLAB_BASE_URL ?? 'https://gitlab.com',
+  );
+  const groups = (env.GITLAB_GROUPS ?? '')
+    .split(',')
+    .map((group) => group.trim())
+    .filter(Boolean);
 
   let used = 0;
-  const token = await getInstallationToken(appId, privateKey, workspace.installation_id);
+  try {
+    for (const groupPath of groups) {
+      const workspace = await getGroupWorkspace(client, groupPath);
+      used += 1;
+      const workspaceId = await upsertWorkspace(env.DB, connectionId, workspace);
+
+      const seen: string[] = [];
+      let page: number | undefined = 1;
+      while (page !== undefined) {
+        const result = await listGroupProjects(client, groupPath, page);
+        used += 1;
+        for (const repo of result.repositories) {
+          await upsertRepository(env.DB, workspaceId, repo);
+          seen.push(repo.externalId);
+        }
+        page = result.nextPage;
+      }
+      await markUnseenInaccessible(env.DB, workspaceId, seen);
+      await markWorkspaceReconciled(env.DB, workspaceId);
+    }
+    await recordConnectionSuccess(env.DB, connectionId);
+  } catch (error) {
+    await recordConnectionError(env.DB, connectionId, 'gitlab_discovery_failed');
+    throw error;
+  }
+
+  await completeSyncJob(env.DB, jobId, used);
+  return used;
+}
+
+interface RepoContext {
+  repo: RepositoryRow;
+  provider: string;
+  installationId: string | null;
+}
+
+async function getRepoContext(env: Env, fullName: string): Promise<RepoContext | null> {
+  const repo = await getRepositoryByFullName(env.DB, fullName);
+  if (!repo || repo.status !== 'active') return null;
+  const row = await env.DB.prepare(
+    `SELECT w.installation_id, c.provider_type
+     FROM workspaces w JOIN provider_connections c ON c.id = w.connection_id
+     WHERE w.id = ?1`,
+  )
+    .bind(repo.workspace_id)
+    .first<{ installation_id: string | null; provider_type: string }>();
+  if (!row) return null;
+  return { repo, provider: row.provider_type, installationId: row.installation_id };
+}
+
+/** Repository enrichment, dispatched by provider. */
+async function runEnrichRepository(env: Env, jobId: string, fullName: string): Promise<number> {
+  const context = await getRepoContext(env, fullName);
+  if (!context) {
+    await completeSyncJob(env.DB, jobId, 0);
+    return 0;
+  }
+  const used =
+    context.provider === 'gitlab'
+      ? await enrichGitLabRepository(env, context)
+      : await enrichGitHubRepository(env, context);
+  await completeSyncJob(env.DB, jobId, used);
+  return used;
+}
+
+async function enrichGitHubRepository(env: Env, context: RepoContext): Promise<number> {
+  const appId = env.GITHUB_APP_ID;
+  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
+  const { repo } = context;
+  if (!appId || !privateKey || !context.installationId) return 0;
+
+  let used = 0;
+  const token = await getInstallationToken(appId, privateKey, context.installationId);
   used += 1;
 
-  const openPrs = await listOpenPullRequests(token, fullName);
+  const openPrs = await listOpenPullRequests(token, repo.full_name);
   used += 1;
   for (const pr of openPrs) {
     await upsertChangeRequest(env.DB, repo.id, pr);
   }
 
   const defaultBranch = repo.default_branch ?? 'main';
-  const latestRun = await latestDefaultBranchRun(token, fullName, defaultBranch);
+  const latestRun = await latestDefaultBranchRun(token, repo.full_name, defaultBranch);
   used += 1;
-  if (latestRun) {
-    await upsertPipelineRun(env.DB, repo.id, latestRun);
-  }
+  if (latestRun) await upsertPipelineRun(env.DB, repo.id, latestRun);
 
-  const prHeads = new Set(openPrs.map((pr) => pr.headRef).filter((r): r is string => !!r));
-  const branches = await collectBranches(token, fullName, defaultBranch, {
+  const prHeads = new Set(
+    openPrs.map((pr) => pr.headRef).filter((ref): ref is string => !!ref),
+  );
+  const branches = await collectBranches(token, repo.full_name, defaultBranch, {
     maxBranches: 100,
     maxComparisons: 5,
     openChangeRequestHeads: prHeads,
@@ -282,19 +376,101 @@ async function runEnrichRepository(env: Env, jobId: string, fullName: string): P
   used += 1 + Math.min(5, branches.filter((b) => !b.isDefault && !b.excluded).length);
   for (const branch of branches) {
     const openPr = openPrs.find((pr) => pr.headRef === branch.name && pr.state === 'open');
-    await upsertBranch(env.DB, repo.id, {
-      ...branch,
-      openChangeRequestNumber: openPr?.number,
-    });
+    await upsertBranch(env.DB, repo.id, { ...branch, openChangeRequestNumber: openPr?.number });
+  }
+
+  // Governance (Phase 3): default-branch protection comes from branch data.
+  const defaultBranchRow = branches.find((branch) => branch.isDefault);
+  const governance = await fetchGovernanceProfile(
+    token,
+    repo.full_name,
+    defaultBranchRow?.isProtected,
+  );
+  used += 1;
+  await setRepositoryGovernance(env.DB, repo.id, JSON.stringify(governance));
+
+  // Security reconciliation (Phase 3): capability-gated, 3 subrequests.
+  const security = await listSecurityFindings(token, repo.full_name);
+  used += 3;
+  if (security.state === 'available') {
+    for (const finding of security.data ?? []) {
+      await upsertSecurityFinding(env.DB, repo.id, finding);
+    }
   }
 
   await markEnriched(env.DB, repo.id);
-  await evaluateHealthForRepo(env, fullName);
+  await evaluateHealthForRepo(env, repo.full_name);
+  return used;
+}
+
+async function enrichGitLabRepository(env: Env, context: RepoContext): Promise<number> {
+  if (!isGitLabConfigured(env)) return 0;
+  const { repo } = context;
+  const client = new GitLabClient(env.GITLAB_TOKEN!, env.GITLAB_BASE_URL ?? 'https://gitlab.com');
+  let used = 0;
+
+  const openMrs = await listOpenMergeRequests(client, repo.external_id);
+  used += 1;
+  for (const mr of openMrs) {
+    await upsertChangeRequest(env.DB, repo.id, mr);
+  }
+
+  const defaultBranch = repo.default_branch ?? 'main';
+  const pipeline = await latestDefaultBranchPipeline(client, repo.external_id, defaultBranch);
+  used += 1;
+  if (pipeline) await upsertPipelineRun(env.DB, repo.id, pipeline);
+
+  const mrHeads = new Set(openMrs.map((mr) => mr.headRef).filter((ref): ref is string => !!ref));
+  const branches = await collectGitLabBranches(client, repo.external_id, defaultBranch, {
+    maxComparisons: 3,
+    openChangeRequestHeads: mrHeads,
+  });
+  used += 1 + 2 * Math.min(3, branches.filter((b) => !b.isDefault && !b.excluded).length);
+  for (const branch of branches) {
+    const openMr = openMrs.find((mr) => mr.headRef === branch.name);
+    await upsertBranch(env.DB, repo.id, { ...branch, openChangeRequestNumber: openMr?.number });
+  }
+
+  const defaultBranchRow = branches.find((branch) => branch.isDefault);
+  await setRepositoryGovernance(
+    env.DB,
+    repo.id,
+    JSON.stringify(capabilityAvailable({ defaultBranchProtected: defaultBranchRow?.isProtected })),
+  );
+
+  await markEnriched(env.DB, repo.id);
+  await evaluateHealthForRepo(env, repo.full_name);
+  return used;
+}
+
+/** Daily budgets sync per GitHub workspace (capability-gated). */
+async function runBillingSync(env: Env, jobId: string): Promise<number> {
+  const appId = env.GITHUB_APP_ID;
+  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
+  if (!appId || !privateKey) {
+    await completeSyncJob(env.DB, jobId, 0);
+    return 0;
+  }
+  let used = 0;
+  const workspaces = await listWorkspacesForSync(env.DB);
+  for (const workspace of workspaces) {
+    if (!workspace.installation_id || workspace.kind === 'user') continue;
+    const token = await getInstallationToken(appId, privateKey, workspace.installation_id);
+    used += 1;
+    const budgets = await listOrganizationBudgets(token, workspace.slug);
+    used += 1;
+    if (budgets.state === 'available') {
+      for (const budget of budgets.data ?? []) {
+        await upsertBudget(env.DB, workspace.id, budget);
+      }
+    }
+    await setMeta(env.DB, `budgets_capability:${workspace.id}`, budgets.state);
+  }
   await completeSyncJob(env.DB, jobId, used);
   return used;
 }
 
-/** Re-evaluate health from D1 snapshots only (no provider calls). */
+/** Re-evaluate health from D1 snapshots; notify on escalation (Phase 5). */
 export async function evaluateHealthForRepo(env: Env, fullName: string): Promise<void> {
   const repo = await getRepositoryByFullName(env.DB, fullName);
   if (!repo) return;
@@ -351,6 +527,18 @@ export async function evaluateHealthForRepo(env: Env, fullName: string): Promise
 
   const findingRows = await listOpenSecurityFindings(env.DB, repo.id);
 
+  let governance: CapabilityResult<GovernanceInfo> = capabilityUnavailable('not_configured');
+  const governanceJson = await getRepositoryGovernance(env.DB, repo.id);
+  if (governanceJson) {
+    try {
+      governance = JSON.parse(governanceJson) as CapabilityResult<GovernanceInfo>;
+    } catch {
+      // Keep not_configured on parse failure.
+    }
+  }
+
+  const previousLevel = await getAttentionLevel(env.DB, repo.id);
+
   const health = evaluateRepositoryHealth({
     repository: rowToSnapshot(repo),
     branches,
@@ -367,9 +555,33 @@ export async function evaluateHealthForRepo(env: Env, fullName: string): Promise
         createdAt: f.created_at ?? undefined,
       })),
     ),
+    governance,
   });
 
   await upsertHealthSnapshot(env.DB, repo.id, health.level, health.findings, health.policyVersion);
+
+  // Phase 5: outbound notification when a repository escalates to high/critical.
+  const escalated =
+    (health.level === 'critical' || health.level === 'high') && previousLevel !== health.level;
+  if (escalated && env.NOTIFY_WEBHOOK_URL) {
+    try {
+      await fetch(env.NOTIFY_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          source: 'repo-wrangler',
+          repository: repo.full_name,
+          url: repo.url,
+          previousLevel: previousLevel ?? 'unknown',
+          level: health.level,
+          findings: health.findings.filter((finding) => finding.severity !== 'info'),
+          observedAt: new Date().toISOString(),
+        }),
+      });
+    } catch {
+      // Notification failure never blocks health evaluation.
+    }
+  }
 }
 
 function rowToSnapshot(repo: RepositoryRow) {

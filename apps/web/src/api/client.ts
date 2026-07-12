@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import type {
   AttentionItemDto,
   CreditsDto,
+  EstateBranchDto,
+  EstateChangeRequestDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -58,6 +60,22 @@ export function useRepositoryDetail(id: string | undefined) {
     queryKey: ['repository', id],
     queryFn: () => apiGet(`/api/v1/repositories/${id}`),
     enabled: !!id,
+  });
+}
+
+export function useEstateBranches() {
+  return useQuery<EstateBranchDto[]>({
+    queryKey: ['estate-branches'],
+    queryFn: () => apiGet('/api/v1/branches'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useEstateChangeRequests() {
+  return useQuery<EstateChangeRequestDto[]>({
+    queryKey: ['estate-change-requests'],
+    queryFn: () => apiGet('/api/v1/change-requests'),
+    refetchInterval: REFRESH_MS,
   });
 }
 

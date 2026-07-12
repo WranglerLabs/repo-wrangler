@@ -13,6 +13,7 @@
     "@repo-wrangler/domain": "workspace:*",
     "@repo-wrangler/persistence-d1": "workspace:*",
     "@repo-wrangler/provider-github": "workspace:*",
+    "@repo-wrangler/provider-gitlab": "workspace:*",
     "@repo-wrangler/provider-mock": "workspace:*",
     "hono": "^4.7.0"
   },

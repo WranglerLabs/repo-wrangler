@@ -1,10 +1,20 @@
 import type {
   BranchSnapshot,
+  BudgetSnapshot,
+  CapabilityResult,
   ChangeRequestSnapshot,
+  GovernanceInfo,
   PipelineRunSnapshot,
   RepositorySnapshot,
+  SecurityFindingSnapshot,
 } from '@repo-wrangler/domain';
-import { classifyComparison, isExcludedBranchName } from '@repo-wrangler/domain';
+import {
+  capabilityAvailable,
+  capabilityStateFromHttpStatus,
+  capabilityUnavailable,
+  classifyComparison,
+  isExcludedBranchName,
+} from '@repo-wrangler/domain';
 import { GitHubClient, hasNextPage } from './client';
 import { mapPullRequest, mapRepository, mapWorkflowRun } from './mappers';
 
@@ -122,6 +132,7 @@ export async function collectBranches(
     .sort((a, b) => Number(prHeads.has(b.name)) - Number(prHeads.has(a.name)));
 
   for (const branch of candidates.slice(0, maxComparisons)) {
+    // eslint-disable-next-line no-await-in-loop -- serial keeps rate-limit pressure low
     const compare = await client.request<{
       ahead_by: number;
       behind_by: number;
@@ -138,4 +149,158 @@ export async function collectBranches(
   }
 
   return branches;
+}
+
+/**
+ * Governance signals from the community profile endpoint (one subrequest).
+ * GitHub only exposes community profiles for public repositories — private
+ * repos surface as a capability state, never a false "all files missing".
+ */
+export async function fetchGovernanceProfile(
+  token: string,
+  fullName: string,
+  defaultBranchProtected: boolean | undefined,
+): Promise<CapabilityResult<GovernanceInfo>> {
+  const client = new GitHubClient(token);
+  const response = await client.request<{
+    health_percentage?: number;
+    files?: Record<string, unknown>;
+  }>(`/repos/${fullName}/community/profile`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      // Private repo: still report what we know from branch data.
+      return capabilityAvailable({ defaultBranchProtected });
+    }
+    return capabilityUnavailable(capabilityStateFromHttpStatus(response.status));
+  }
+  const files = response.data?.files ?? {};
+  return capabilityAvailable({
+    defaultBranchProtected,
+    healthPercentage: response.data?.health_percentage,
+    files: {
+      readme: files['readme'] !== null && files['readme'] !== undefined,
+      license: files['license'] !== null && files['license'] !== undefined,
+      contributing: files['contributing'] !== null && files['contributing'] !== undefined,
+      codeOfConduct:
+        files['code_of_conduct'] !== null && files['code_of_conduct'] !== undefined,
+      issueTemplate:
+        files['issue_template'] !== null && files['issue_template'] !== undefined,
+      pullRequestTemplate:
+        files['pull_request_template'] !== null && files['pull_request_template'] !== undefined,
+    },
+  });
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * Security alert reconciliation. Each category is independently
+ * capability-gated: 403 → not_authorized, 404 → not_configured, etc.
+ */
+export async function listSecurityFindings(
+  token: string,
+  fullName: string,
+): Promise<CapabilityResult<SecurityFindingSnapshot[]>> {
+  const client = new GitHubClient(token);
+  const findings: SecurityFindingSnapshot[] = [];
+  let anyAvailable = false;
+  let lastState: Exclude<CapabilityResult<SecurityFindingSnapshot[]>['state'], 'available'> =
+    'not_configured';
+
+  const sources: Array<{
+    path: string;
+    category: SecurityFindingSnapshot['category'];
+    map: (alert: any) => SecurityFindingSnapshot;
+  }> = [
+    {
+      path: `/repos/${fullName}/code-scanning/alerts?state=open&per_page=50`,
+      category: 'code_scanning',
+      map: (alert) => ({
+        externalId: String(alert.number),
+        category: 'code_scanning',
+        severity: alert.rule?.security_severity_level ?? alert.rule?.severity,
+        state: alert.state,
+        ruleId: alert.rule?.id,
+        ref: alert.most_recent_instance?.ref,
+        url: alert.html_url,
+        summary: alert.rule?.description,
+        createdAt: alert.created_at,
+        updatedAt: alert.updated_at,
+      }),
+    },
+    {
+      path: `/repos/${fullName}/dependabot/alerts?state=open&per_page=50`,
+      category: 'dependency',
+      map: (alert) => ({
+        externalId: String(alert.number),
+        category: 'dependency',
+        severity: alert.security_advisory?.severity,
+        state: alert.state,
+        ruleId: alert.security_advisory?.ghsa_id,
+        url: alert.html_url,
+        summary: alert.security_advisory?.summary,
+        createdAt: alert.created_at,
+        updatedAt: alert.updated_at,
+      }),
+    },
+    {
+      path: `/repos/${fullName}/secret-scanning/alerts?state=open&per_page=50`,
+      category: 'secret_scanning',
+      map: (alert) => ({
+        externalId: String(alert.number),
+        category: 'secret_scanning',
+        state: alert.state,
+        ruleId: alert.secret_type,
+        url: alert.html_url,
+        // Display name only — never the secret value.
+        summary: alert.secret_type_display_name,
+        createdAt: alert.created_at,
+        updatedAt: alert.updated_at,
+      }),
+    },
+  ];
+
+  for (const source of sources) {
+    const response = await client.request<any[]>(source.path);
+    if (response.ok && Array.isArray(response.data)) {
+      anyAvailable = true;
+      findings.push(...response.data.map(source.map));
+    } else {
+      lastState =
+        response.status === 404
+          ? 'not_configured'
+          : capabilityStateFromHttpStatus(response.status);
+    }
+  }
+
+  if (!anyAvailable) return capabilityUnavailable(lastState);
+  return capabilityAvailable(findings);
+}
+
+/** Organization custom budgets (Phase 3). Requires org Administration read. */
+export async function listOrganizationBudgets(
+  token: string,
+  orgSlug: string,
+): Promise<CapabilityResult<BudgetSnapshot[]>> {
+  const client = new GitHubClient(token);
+  const response = await client.request<{ budgets?: any[] } | any[]>(
+    `/orgs/${orgSlug}/settings/billing/budgets`,
+  );
+  if (!response.ok) {
+    if (response.status === 404) return capabilityUnavailable('unsupported_by_plan');
+    return capabilityUnavailable(capabilityStateFromHttpStatus(response.status));
+  }
+  const raw = Array.isArray(response.data) ? response.data : (response.data?.budgets ?? []);
+  return capabilityAvailable(
+    raw.map((budget: any, index: number) => ({
+      externalId: String(budget.id ?? budget.budget_id ?? index),
+      product: budget.product ?? budget.sku ?? undefined,
+      scopeType: budget.target_type ?? budget.scope ?? undefined,
+      scopeTarget: budget.target_name ?? undefined,
+      amount: typeof budget.budget_amount === 'number' ? budget.budget_amount : budget.amount,
+      unit: budget.unit ?? 'USD',
+      preventFurtherUsage: Boolean(budget.prevent_further_usage ?? budget.stop_usage),
+      alertStatus: budget.alert_status ?? undefined,
+    })),
+  );
 }

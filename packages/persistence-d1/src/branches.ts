@@ -102,6 +102,34 @@ export async function markBranchDeleted(
     .run();
 }
 
+export interface EstateBranchRow extends BranchRow {
+  full_name: string;
+  provider: string;
+}
+
+/** Estate-wide ahead/diverged branches for the Branches page. */
+export async function listEstateBranches(
+  db: D1Database,
+  limit = 300,
+): Promise<EstateBranchRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT b.*, r.full_name, c.provider_type AS provider
+       FROM branches b
+       JOIN repositories r ON r.id = b.repository_id
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       WHERE b.status = 'active' AND b.excluded = 0 AND b.is_default = 0
+         AND b.comparison_status IN ('ahead', 'diverged')
+         AND r.status = 'active'
+       ORDER BY b.comparison_status DESC, b.ahead_by DESC
+       LIMIT ?1`,
+    )
+    .bind(limit)
+    .all<EstateBranchRow>();
+  return result.results;
+}
+
 export async function listBranches(
   db: D1Database,
   repositoryId: string,

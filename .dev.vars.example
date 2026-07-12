@@ -10,3 +10,10 @@ PUBLIC_BASE_URL=http://localhost:8787
 ALLOWED_GITHUB_USERS=
 ALLOWED_GITHUB_ORGS=
 DEMO_MODE=true
+# GitLab (Phase 4) — leave empty to disable
+GITLAB_TOKEN=
+GITLAB_BASE_URL=https://gitlab.com
+GITLAB_GROUPS=
+GITLAB_WEBHOOK_SECRET=
+# Outbound escalation webhook (Phase 5) — leave empty to disable
+NOTIFY_WEBHOOK_URL=

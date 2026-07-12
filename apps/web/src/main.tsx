@@ -6,6 +6,8 @@ import { Layout } from './components/Layout';
 import { CommandCenter } from './routes/CommandCenter';
 import { Repositories } from './routes/Repositories';
 import { RepositoryDetail } from './routes/RepositoryDetail';
+import { Branches } from './routes/Branches';
+import { ChangeRequests } from './routes/ChangeRequests';
 import { Workspaces } from './routes/Workspaces';
 import { PlatformHealth } from './routes/PlatformHealth';
 import { Credits } from './routes/Credits';
@@ -25,6 +27,8 @@ const router = createBrowserRouter([
       { index: true, element: <CommandCenter /> },
       { path: 'repositories', element: <Repositories /> },
       { path: 'repositories/:id', element: <RepositoryDetail /> },
+      { path: 'branches', element: <Branches /> },
+      { path: 'change-requests', element: <ChangeRequests /> },
       { path: 'workspaces', element: <Workspaces /> },
       { path: 'platform', element: <PlatformHealth /> },
       { path: 'credits', element: <Credits /> },
