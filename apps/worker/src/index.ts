@@ -3,6 +3,7 @@ import { CREDITS } from '@repo-wrangler/credits';
 import { APP_VERSION, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
 import { authRoutes } from './auth/github';
+import { setupRoutes } from './setup/manifest';
 import { githubWebhookRoutes } from './webhooks/github';
 import { gitlabWebhookRoutes } from './webhooks/gitlab';
 import { requireAuth, securityHeaders, type AppContext } from './middleware/auth';
@@ -27,6 +28,7 @@ app.get('/health/ready', async (c) => {
 app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
 app.route('/auth', authRoutes);
+app.route('/setup', setupRoutes);
 app.route('/webhooks', githubWebhookRoutes);
 app.route('/webhooks', gitlabWebhookRoutes);
 
