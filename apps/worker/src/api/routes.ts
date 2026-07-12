@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
 import type {
+  ActivityEventDto,
   AttentionItemDto,
   EstateBranchDto,
+  EstateBudgetsDto,
   EstateChangeRequestDto,
+  EstatePipelineDto,
+  EstateSecurityFindingDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -18,14 +22,19 @@ import {
   getRepositoryGovernance,
   getSyncStats,
   getWebhookStats,
+  listAllBudgets,
   listAttentionRows,
+  listAuditEvents,
   listBranches,
   listConnections,
   listEstateBranches,
   listEstateChangeRequests,
+  listEstatePipelines,
+  listEstateSecurityFindings,
   listOpenChangeRequests,
   listOpenSecurityFindings,
   listRecentRuns,
+  listRecentSyncJobEvents,
   listRepositoryItems,
   listWorkspaceBudgets,
   listWorkspaceRows,
@@ -34,9 +43,13 @@ import {
   type RepositoryListRow,
 } from '@repo-wrangler/persistence-d1';
 import {
+  demoActivity,
   demoAttention,
   demoEstateBranches,
+  demoEstateBudgets,
   demoEstateChangeRequests,
+  demoEstatePipelines,
+  demoEstateSecurity,
   demoOverview,
   demoPlatformHealth,
   demoRepositories,
@@ -336,6 +349,87 @@ apiRoutes.get('/change-requests', async (c) => {
     attention: classifyChangeRequestAttention(row),
   }));
   return c.json(body);
+});
+
+apiRoutes.get('/pipelines', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoEstatePipelines());
+  const rows = await listEstatePipelines(c.env.DB);
+  const body: EstatePipelineDto[] = rows.map((row) => ({
+    repositoryId: row.repository_id,
+    repositoryFullName: row.full_name,
+    provider: row.provider,
+    name: row.name ?? undefined,
+    status: row.status ?? 'unknown',
+    conclusion: row.conclusion ?? undefined,
+    branch: row.branch ?? undefined,
+    url: row.url ?? undefined,
+    runStartedAt: row.run_started_at ?? undefined,
+    durationSeconds: row.duration_seconds ?? undefined,
+  }));
+  return c.json(body);
+});
+
+apiRoutes.get('/security', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoEstateSecurity());
+  const rows = await listEstateSecurityFindings(c.env.DB);
+  const body: EstateSecurityFindingDto[] = rows.map((row) => ({
+    repositoryId: row.repository_id,
+    repositoryFullName: row.full_name,
+    provider: row.provider,
+    category: row.category,
+    severity: row.severity ?? undefined,
+    state: row.state ?? undefined,
+    summary: row.summary ?? undefined,
+    url: row.url ?? undefined,
+    createdAt: row.created_at ?? undefined,
+  }));
+  return c.json(body);
+});
+
+apiRoutes.get('/budgets', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoEstateBudgets());
+  const rows = await listAllBudgets(c.env.DB);
+  const body: EstateBudgetsDto =
+    rows.length === 0
+      ? { state: 'not_configured' }
+      : {
+          state: 'available',
+          items: rows.map((row) => ({
+            workspaceSlug: row.workspace_slug,
+            provider: row.provider,
+            product: row.product ?? undefined,
+            scopeType: row.scope_type ?? undefined,
+            scopeTarget: row.scope_target ?? undefined,
+            amount: row.amount ?? undefined,
+            unit: row.unit ?? undefined,
+            preventFurtherUsage: row.prevent_further_usage === 1,
+            alertStatus: row.alert_status ?? undefined,
+          })),
+        };
+  return c.json(body);
+});
+
+apiRoutes.get('/activity', async (c) => {
+  if (isDemoMode(c.env)) return c.json(demoActivity());
+  const audit = await listAuditEvents(c.env.DB);
+  const jobs = await listRecentSyncJobEvents(c.env.DB);
+  const events: ActivityEventDto[] = [
+    ...audit.map((event) => ({
+      at: event.created_at,
+      kind: 'admin',
+      actor: event.actor,
+      message: `${event.action}${event.detail ? ` — ${event.detail}` : ''}`,
+    })),
+    ...jobs.map((job) => ({
+      at: job.finished_at ?? '',
+      kind: job.state === 'failed' ? 'sync-failure' : 'sync',
+      message: `${job.job_type}${job.scope ? ` (${job.scope})` : ''} ${job.state}${job.last_error ? ` — ${job.last_error}` : ''}`,
+    })),
+  ]
+    .filter((event) => event.at)
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 100);
+  return c.json(events);
 });
 
 apiRoutes.get('/workspaces', async (c) => {

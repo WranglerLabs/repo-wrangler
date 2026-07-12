@@ -296,6 +296,61 @@ export const budgetDtoSchema = z.object({
 });
 export type BudgetDto = z.infer<typeof budgetDtoSchema>;
 
+export const estatePipelineSchema = z.object({
+  repositoryId: z.string(),
+  repositoryFullName: z.string(),
+  provider: z.string(),
+  name: z.string().optional(),
+  status: z.string(),
+  conclusion: z.string().optional(),
+  branch: z.string().optional(),
+  url: z.string().optional(),
+  runStartedAt: z.string().optional(),
+  durationSeconds: z.number().optional(),
+});
+export type EstatePipelineDto = z.infer<typeof estatePipelineSchema>;
+
+export const estateSecurityFindingSchema = z.object({
+  repositoryId: z.string(),
+  repositoryFullName: z.string(),
+  provider: z.string(),
+  category: z.string(),
+  severity: z.string().optional(),
+  state: z.string().optional(),
+  summary: z.string().optional(),
+  url: z.string().optional(),
+  createdAt: z.string().optional(),
+});
+export type EstateSecurityFindingDto = z.infer<typeof estateSecurityFindingSchema>;
+
+export const estateBudgetsSchema = z.object({
+  state: capabilityStateSchema,
+  items: z
+    .array(
+      z.object({
+        workspaceSlug: z.string(),
+        provider: z.string(),
+        product: z.string().optional(),
+        scopeType: z.string().optional(),
+        scopeTarget: z.string().optional(),
+        amount: z.number().optional(),
+        unit: z.string().optional(),
+        preventFurtherUsage: z.boolean(),
+        alertStatus: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+export type EstateBudgetsDto = z.infer<typeof estateBudgetsSchema>;
+
+export const activityEventSchema = z.object({
+  at: z.string(),
+  kind: z.string(),
+  actor: z.string().optional(),
+  message: z.string(),
+});
+export type ActivityEventDto = z.infer<typeof activityEventSchema>;
+
 export const sessionUserSchema = z.object({
   login: z.string(),
   role: z.enum(['owner', 'admin', 'viewer']),

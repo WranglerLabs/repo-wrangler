@@ -52,6 +52,25 @@ export async function upsertBudget(
     .run();
 }
 
+export interface EstateBudgetRow extends BudgetRow {
+  workspace_slug: string;
+  provider: string;
+}
+
+/** All budgets estate-wide (Budgets & Usage page). */
+export async function listAllBudgets(db: D1Database): Promise<EstateBudgetRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT b.*, w.slug AS workspace_slug, c.provider_type AS provider
+       FROM budgets b
+       JOIN workspaces w ON w.id = b.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       ORDER BY w.slug, b.product`,
+    )
+    .all<EstateBudgetRow>();
+  return result.results;
+}
+
 export async function listWorkspaceBudgets(
   db: D1Database,
   workspaceId: string,

@@ -24,7 +24,9 @@
   },
   "vars": {
     "AUTH_MODE": "github_app",
-    "DEMO_MODE": "false"
+    "DEMO_MODE": "false",
+    // First allowlisted login is the instance owner; later entries are admins.
+    "ALLOWED_GITHUB_USERS": "kristopherjturner"
   },
   "observability": {
     "enabled": true

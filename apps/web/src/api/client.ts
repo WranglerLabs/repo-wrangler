@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  ActivityEventDto,
   AttentionItemDto,
   CreditsDto,
   EstateBranchDto,
+  EstateBudgetsDto,
   EstateChangeRequestDto,
+  EstatePipelineDto,
+  EstateSecurityFindingDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -75,6 +79,38 @@ export function useEstateChangeRequests() {
   return useQuery<EstateChangeRequestDto[]>({
     queryKey: ['estate-change-requests'],
     queryFn: () => apiGet('/api/v1/change-requests'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useEstatePipelines() {
+  return useQuery<EstatePipelineDto[]>({
+    queryKey: ['estate-pipelines'],
+    queryFn: () => apiGet('/api/v1/pipelines'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useEstateSecurity() {
+  return useQuery<EstateSecurityFindingDto[]>({
+    queryKey: ['estate-security'],
+    queryFn: () => apiGet('/api/v1/security'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useEstateBudgets() {
+  return useQuery<EstateBudgetsDto>({
+    queryKey: ['estate-budgets'],
+    queryFn: () => apiGet('/api/v1/budgets'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useActivity() {
+  return useQuery<ActivityEventDto[]>({
+    queryKey: ['activity'],
+    queryFn: () => apiGet('/api/v1/activity'),
     refetchInterval: REFRESH_MS,
   });
 }

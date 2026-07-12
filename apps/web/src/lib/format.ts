@@ -13,6 +13,14 @@ export function timeAgo(iso: string | undefined): string {
   return `${months}mo ago`;
 }
 
+export function formatDuration(seconds: number | undefined): string {
+  if (seconds === undefined || Number.isNaN(seconds)) return '—';
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ${Math.round(seconds % 60)}s`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
 export const CAPABILITY_LABELS: Record<string, string> = {
   available: 'Available',
   not_configured: 'Not configured',

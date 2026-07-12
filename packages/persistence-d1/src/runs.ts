@@ -89,6 +89,38 @@ export async function latestDefaultBranchRunRow(
     .first<PipelineRunRow>();
 }
 
+export interface EstatePipelineRow extends PipelineRunRow {
+  full_name: string;
+  provider: string;
+}
+
+/** Latest observed run per repository, estate-wide (Pipelines page). */
+export async function listEstatePipelines(
+  db: D1Database,
+  limit = 300,
+): Promise<EstatePipelineRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT p.*, r.full_name, c.provider_type AS provider
+       FROM pipeline_runs p
+       JOIN (
+         SELECT repository_id, MAX(observed_at) AS max_observed
+         FROM pipeline_runs GROUP BY repository_id
+       ) latest ON latest.repository_id = p.repository_id AND latest.max_observed = p.observed_at
+       JOIN repositories r ON r.id = p.repository_id
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       WHERE r.status = 'active'
+       ORDER BY CASE WHEN p.conclusion IN ('failure', 'timed_out') THEN 0
+                     WHEN p.conclusion = 'cancelled' THEN 1 ELSE 2 END,
+                p.observed_at DESC
+       LIMIT ?1`,
+    )
+    .bind(limit)
+    .all<EstatePipelineRow>();
+  return result.results;
+}
+
 /** Retention: delete run summaries past the configured window. */
 export async function compactPipelineRuns(db: D1Database, retentionDays: number): Promise<number> {
   const result = await db

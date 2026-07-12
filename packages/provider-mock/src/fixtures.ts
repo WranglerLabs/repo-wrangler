@@ -1,7 +1,11 @@
 import type {
+  ActivityEventDto,
   AttentionItemDto,
   EstateBranchDto,
+  EstateBudgetsDto,
   EstateChangeRequestDto,
+  EstatePipelineDto,
+  EstateSecurityFindingDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -713,6 +717,91 @@ export function demoOverview(): OverviewDto {
     attentionCounts: counts,
     generatedAt: new Date().toISOString(),
   };
+}
+
+export function demoEstatePipelines(): EstatePipelineDto[] {
+  const items: EstatePipelineDto[] = [];
+  for (const repo of getDemoRepos()) {
+    if (repo.status === 'inaccessible' || !repo.latestRun) continue;
+    items.push({
+      repositoryId: repo.id,
+      repositoryFullName: `${repo.workspaceSlug}/${repo.name}`,
+      provider: repo.provider ?? 'github',
+      name: repo.latestRun.name,
+      status: repo.latestRun.status,
+      conclusion: repo.latestRun.conclusion,
+      branch: repo.latestRun.branch,
+      url: repo.latestRun.url,
+      runStartedAt: repo.latestRun.runStartedAt,
+      durationSeconds: repo.latestRun.durationSeconds,
+    });
+  }
+  const order = (c?: string) => (c === 'failure' || c === 'timed_out' ? 0 : c === 'cancelled' ? 1 : 2);
+  return items.sort((a, b) => order(a.conclusion) - order(b.conclusion));
+}
+
+export function demoEstateSecurity(): EstateSecurityFindingDto[] {
+  const items: EstateSecurityFindingDto[] = [];
+  for (const repo of getDemoRepos()) {
+    if (repo.status === 'inaccessible') continue;
+    for (const finding of repo.securityFindings ?? []) {
+      if (finding.state !== 'open') continue;
+      items.push({
+        repositoryId: repo.id,
+        repositoryFullName: `${repo.workspaceSlug}/${repo.name}`,
+        provider: repo.provider ?? 'github',
+        category: finding.category,
+        severity: finding.severity,
+        state: finding.state,
+        summary: finding.summary,
+        url: finding.url,
+        createdAt: finding.createdAt,
+      });
+    }
+  }
+  return items.sort((a) => (a.category === 'secret_scanning' ? -1 : 1));
+}
+
+export function demoEstateBudgets(): EstateBudgetsDto {
+  return {
+    state: 'available',
+    items: [
+      {
+        workspaceSlug: 'saguaro-systems',
+        provider: 'github',
+        product: 'actions',
+        scopeType: 'organization',
+        scopeTarget: 'saguaro-systems',
+        amount: 50,
+        unit: 'USD',
+        preventFurtherUsage: true,
+        alertStatus: '92% consumed',
+      },
+      {
+        workspaceSlug: 'saguaro-systems',
+        provider: 'github',
+        product: 'git_lfs',
+        scopeType: 'organization',
+        scopeTarget: 'saguaro-systems',
+        amount: 10,
+        unit: 'USD',
+        preventFurtherUsage: false,
+        alertStatus: '18% consumed',
+      },
+    ],
+  };
+}
+
+export function demoActivity(): ActivityEventDto[] {
+  return [
+    { at: daysAgo(0.01), kind: 'sync', message: 'Enrichment completed for saguaro-systems/trailhead-api.' },
+    { at: daysAgo(0.02), kind: 'health', message: 'saguaro-systems/trailhead-web escalated to critical (secret scanning alert).' },
+    { at: daysAgo(0.05), kind: 'sync', message: 'Discovery reconciliation completed — 10 repositories seen, 1 inaccessible.' },
+    { at: daysAgo(0.4), kind: 'discovery', message: 'New repository discovered: copperline-labs/forge-cli.' },
+    { at: daysAgo(0.6), kind: 'webhook', message: 'workflow_run webhook applied for saguaro-systems/trailhead-api (failure).' },
+    { at: daysAgo(1.1), kind: 'admin', actor: 'demo', message: 'Manual discovery requested from Administration.' },
+    { at: daysAgo(2), kind: 'billing', message: 'Budget sync completed for saguaro-systems (2 budgets).' },
+  ];
 }
 
 export function demoPlatformHealth(version: string): PlatformHealthDto {

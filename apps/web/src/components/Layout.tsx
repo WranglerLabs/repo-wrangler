@@ -5,10 +5,15 @@ import { useSessionUser } from '../api/client';
 const NAV_ITEMS = [
   { to: '/', label: 'Command Center' },
   { to: '/repositories', label: 'Repositories' },
-  { to: '/branches', label: 'Branches' },
-  { to: '/change-requests', label: 'Change Requests' },
   { to: '/workspaces', label: 'Workspaces' },
+  { to: '/branches', label: 'Branches' },
+  { to: '/pipelines', label: 'Pipelines' },
+  { to: '/change-requests', label: 'Change Requests' },
+  { to: '/security', label: 'Security' },
+  { to: '/budgets', label: 'Budgets & Usage' },
+  { to: '/activity', label: 'Activity' },
   { to: '/platform', label: 'Platform Health' },
+  { to: '/admin', label: 'Administration' },
   { to: '/credits', label: 'About & Credits' },
 ];
 

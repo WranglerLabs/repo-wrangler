@@ -4,6 +4,28 @@ All notable changes to RepoWrangler are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project follows
 semantic versioning.
 
+## [0.3.0] - 2026-07-12
+
+### Added
+
+- **Estate-wide navigation completed** (design IA items 5, 7, 8, 9, 10):
+  - **Pipelines** page — latest workflow/pipeline state per repository,
+    failures first, with duration and direct provider links.
+  - **Security** page — open findings across the estate ordered by
+    secret-scanning first, then severity; metadata only.
+  - **Budgets & Usage** page — budgets per workspace with alert state and
+    stop-at-limit flags; missing access rendered as a capability state.
+  - **Activity** page — recent sync jobs, discoveries, and administrative
+    audit events in one feed.
+  - **Administration** page — session/role, connection setup guidance,
+    manual discovery, and instance policy pointers.
+- Supporting API endpoints: `GET /api/v1/pipelines`, `/security`, `/budgets`,
+  `/activity`, with demo-mode fixtures.
+- Open-source baseline: issue/PR templates, CodeQL analysis workflow,
+  operations runbooks (key rotation, D1 backup/recovery, upgrade, provider
+  reconnect), and research spike outcomes (`docs/research/`).
+- Default owner allowlist configured via `ALLOWED_GITHUB_USERS`.
+
 ## [0.2.0] - 2026-07-12
 
 ### Added
