@@ -1,0 +1,21 @@
+/* Theme: Midnight — deep indigo/blue dark palette. */
+[data-theme='midnight'] {
+  --rw-green: #2f6b8f;
+  --rw-green-strong: #24506b;
+  --rw-blue: #5b8def;
+  --rw-gold: #e0b45e;
+  --rw-bg: #0f1420;
+  --rw-surface: #171d2e;
+  --rw-surface-2: #1f2740;
+  --rw-text: #e6e9f2;
+  --rw-text-muted: #9aa3bd;
+  --rw-border: #2a3350;
+  --rw-critical: #e5484d;
+  --rw-high: #e0863a;
+  --rw-medium: #d9a441;
+  --rw-low: #6aa0e0;
+  --rw-healthy: #3fb27f;
+  --rw-unknown: #7d879e;
+  --rw-radius: 8px;
+  color-scheme: dark;
+}

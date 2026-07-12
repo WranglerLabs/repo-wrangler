@@ -16,6 +16,7 @@ import { Workspaces } from './routes/Workspaces';
 import { PlatformHealth } from './routes/PlatformHealth';
 import { Administration } from './routes/Administration';
 import { Credits } from './routes/Credits';
+import './themes/registry';
 import './styles/global.css';
 
 const queryClient = new QueryClient({

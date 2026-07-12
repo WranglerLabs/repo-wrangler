@@ -1,39 +1,7 @@
-/* RepoWrangler design tokens — professional operations console.
-   Deep forest green + azure blue + warm gold on cream, with dark mode. */
-
-:root {
-  --rw-green: #1f4d3a;
-  --rw-green-strong: #163a2c;
-  --rw-blue: #2e7cd6;
-  --rw-gold: #d9a441;
-  --rw-bg: #f7f3ea;
-  --rw-surface: #ffffff;
-  --rw-surface-2: #efe9dc;
-  --rw-text: #1d221f;
-  --rw-text-muted: #5c645e;
-  --rw-border: #ddd6c6;
-  --rw-critical: #b3261e;
-  --rw-high: #c4622d;
-  --rw-medium: #b08a1e;
-  --rw-low: #3d6f9e;
-  --rw-healthy: #2f7d4f;
-  --rw-unknown: #77807a;
-  --rw-radius: 8px;
-  color-scheme: light;
-}
-
-[data-theme='dark'] {
-  --rw-bg: #141815;
-  --rw-surface: #1d231f;
-  --rw-surface-2: #262e28;
-  --rw-text: #e8e6dd;
-  --rw-text-muted: #a2aaa3;
-  --rw-border: #364138;
-  --rw-gold: #e0b45e;
-  --rw-blue: #5f9ce0;
-  --rw-healthy: #4caf7d;
-  color-scheme: dark;
-}
+/* RepoWrangler structural styles. The design TOKENS (--rw-* custom properties)
+   live in the drop-in theme stylesheets under src/themes/ (see themes/registry.ts
+   and docs/guide/theming.md). Everything here consumes those tokens via var(),
+   so a new theme is purely a new token file — no changes to this file. */
 
 * {
   box-sizing: border-box;
@@ -345,6 +313,19 @@ button.ghost {
   border: 1px solid var(--rw-critical);
   border-radius: var(--rw-radius);
   padding: 12px 16px;
+}
+
+/* Theme picker in the sidebar footer */
+.theme-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #b9c4b6;
+}
+.theme-picker select {
+  width: 100%;
 }
 
 @media (max-width: 860px) {

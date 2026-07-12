@@ -1,0 +1,21 @@
+/* Theme: High Contrast — maximum contrast for accessibility (WCAG AAA intent). */
+[data-theme='high-contrast'] {
+  --rw-green: #00a86b;
+  --rw-green-strong: #008f5a;
+  --rw-blue: #4da3ff;
+  --rw-gold: #ffcc00;
+  --rw-bg: #000000;
+  --rw-surface: #0a0a0a;
+  --rw-surface-2: #161616;
+  --rw-text: #ffffff;
+  --rw-text-muted: #d4d4d4;
+  --rw-border: #808080;
+  --rw-critical: #ff4136;
+  --rw-high: #ff851b;
+  --rw-medium: #ffdc00;
+  --rw-low: #7fdbff;
+  --rw-healthy: #2ecc40;
+  --rw-unknown: #aaaaaa;
+  --rw-radius: 4px;
+  color-scheme: dark;
+}

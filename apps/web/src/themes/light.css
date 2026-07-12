@@ -1,0 +1,23 @@
+/* Theme: Light (default) — deep forest green + azure + warm gold on cream.
+   Also defines :root so the app has tokens before any data-theme is applied. */
+:root,
+[data-theme='light'] {
+  --rw-green: #1f4d3a;
+  --rw-green-strong: #163a2c;
+  --rw-blue: #2e7cd6;
+  --rw-gold: #d9a441;
+  --rw-bg: #f7f3ea;
+  --rw-surface: #ffffff;
+  --rw-surface-2: #efe9dc;
+  --rw-text: #1d221f;
+  --rw-text-muted: #5c645e;
+  --rw-border: #ddd6c6;
+  --rw-critical: #b3261e;
+  --rw-high: #c4622d;
+  --rw-medium: #b08a1e;
+  --rw-low: #3d6f9e;
+  --rw-healthy: #2f7d4f;
+  --rw-unknown: #77807a;
+  --rw-radius: 8px;
+  color-scheme: light;
+}

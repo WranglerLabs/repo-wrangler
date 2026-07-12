@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useSessionUser } from '../api/client';
+import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Command Center' },
@@ -17,21 +18,17 @@ const NAV_ITEMS = [
   { to: '/credits', label: 'About & Credits' },
 ];
 
-function useTheme(): [string, () => void] {
-  const [theme, setTheme] = useState(
-    () =>
-      localStorage.getItem('rw-theme') ??
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
-  );
+function useTheme(): [string, (id: string) => void] {
+  const [theme, setTheme] = useState(() => resolveInitialTheme(localStorage.getItem('rw-theme')));
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem('rw-theme', theme);
   }, [theme]);
-  return [theme, () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))];
+  return [theme, setTheme];
 }
 
 export function Layout() {
-  const [theme, toggleTheme] = useTheme();
+  const [theme, setTheme] = useTheme();
   const { data: user } = useSessionUser();
 
   return (
@@ -58,13 +55,20 @@ export function Layout() {
               Sign in with GitHub
             </a>
           )}
-          <button
-            className="ghost"
-            style={{ marginTop: 8, color: '#d9dfd5', borderColor: '#3a5949' }}
-            onClick={toggleTheme}
-          >
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-          </button>
+          <label className="theme-picker">
+            <span>Theme</span>
+            <select
+              value={theme}
+              aria-label="Theme"
+              onChange={(e) => setTheme(e.target.value)}
+            >
+              {AVAILABLE_THEMES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </aside>
       <main className="main">

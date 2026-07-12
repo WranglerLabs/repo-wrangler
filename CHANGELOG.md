@@ -8,6 +8,12 @@ semantic versioning.
 
 ### Added
 
+- **Drop-in theming (ADR-012):** themes are self-contained CSS files under
+  `apps/web/src/themes/` — dropping one in makes it appear in the sidebar theme
+  switcher automatically (Hugo/Jekyll-style, via glob discovery), no code change.
+  Ships with `light`, `dark`, `midnight`, `slate`, `sandstone`, `high-contrast`;
+  deployers set the default with `VITE_DEFAULT_THEME`, users switch live (saved
+  per browser). See `docs/guide/theming.md`.
 - **Host-agnostic frontend (ADR-011):** the SPA reads its API origin from
   `VITE_API_BASE_URL` (empty = integrated same-origin) and the Worker enforces a
   CORS allowlist via `CORS_ALLOWED_ORIGINS`. Two topologies — integrated

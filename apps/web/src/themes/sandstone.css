@@ -1,0 +1,21 @@
+/* Theme: Sandstone — warm terracotta-and-clay light palette. */
+[data-theme='sandstone'] {
+  --rw-green: #9c5a3c;
+  --rw-green-strong: #7d4529;
+  --rw-blue: #3d6f9e;
+  --rw-gold: #c98a2b;
+  --rw-bg: #f4ede0;
+  --rw-surface: #fffdf8;
+  --rw-surface-2: #ece2d0;
+  --rw-text: #2a2620;
+  --rw-text-muted: #6b6355;
+  --rw-border: #ddd2bd;
+  --rw-critical: #b3261e;
+  --rw-high: #c4622d;
+  --rw-medium: #a9791a;
+  --rw-low: #3d6f9e;
+  --rw-healthy: #2f7d4f;
+  --rw-unknown: #857b6b;
+  --rw-radius: 8px;
+  color-scheme: light;
+}

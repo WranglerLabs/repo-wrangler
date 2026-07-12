@@ -1,80 +1,59 @@
-# repo-wrangler — Agent instructions
+# Contributor & agent guide
 
-<!--
-  AGENTS.md is the canonical, cross-tool instruction file for this repo.
-  Codex CLI, Cursor, and VS Code Copilot read it natively; Claude Code
-  imports it via CLAUDE.md; Gemini reads it via contextFileName.
-  Keep it THIN — it is a bootstrap and an offline fallback, not a full
-  standards library. The authoritative source is the HCS Governance MCP.
--->
+RepoWrangler is an open-source repository-estate dashboard: it discovers repos
+across GitHub organizations/accounts (GitLab supported), evaluates their
+operational health, and surfaces what needs attention on one screen. It runs as a
+single Cloudflare Worker (API + React SPA + D1) and is **read-only** toward
+providers by design.
 
-## What this repo is
+This file orients humans and AI coding agents working in the repo. It describes
+only this project — there is no external configuration to fetch.
 
-Application repo. Contains backend services or tooling built under the HCS platform engineering standard.
+## Layout
 
-<!-- One paragraph. What the repo is, why it exists, and what it is not. -->
+- `apps/web` — React + Vite SPA (pure static bundle). Styling is token-based; see
+  `apps/web/src/themes/` and `docs/guide/theming.md`.
+- `apps/worker` — Hono API, GitHub App OAuth, webhook receiver, Cron sync.
+- `packages/domain` — provider-neutral entities, capability model, health rules.
+- `packages/contracts` — shared API DTOs (zod).
+- `packages/provider-github`, `packages/provider-gitlab`, `packages/provider-mock`
+  — provider adapters (mock powers demo mode).
+- `packages/persistence-d1` — D1 schema and idempotent upserts;
+  `packages/persistence-core` — backend-neutral storage-port interfaces.
+- `packages/ui` — framework-agnostic design tokens + capability presentation.
+- `migrations/` — immutable SQL migrations.
+- `docs/` — architecture, ADRs, setup, deploy, operations, and the design pack.
+- `deploy/` — per-host deployment recipes (see ADR-011).
 
----
+## Commands
 
-## Start here — connect to the HCS Governance MCP
-
-This repo is governed by the **HCS Governance MCP server** (connection details in
-[`.ai/mcp/mcp-servers.md`](.ai/mcp/mcp-servers.md)). It is the source of truth for
-standards, hard rules, and orchestration guidance.
-
-**At session start, call:**
-
+```bash
+pnpm install
+pnpm db:migrate:local        # local D1
+pnpm dev                     # wrangler dev — demo mode needs no secrets
+pnpm build                   # build the SPA
+pnpm -r run typecheck
+pnpm test                    # vitest
 ```
-bootstrap(repo="repo-wrangler", client="<your client: claude-code | codex | gemini | cursor | vscode>")
-```
 
-It returns this repo's scope, the applicable hard rules, the index of applicable
-standards, the `.ai/` session protocol, and orchestration guidance shaped for your
-client's capability tier. **Prefer a live MCP answer over anything written in this file** —
-this file is the offline fallback.
+## Conventions
 
----
+- TypeScript strict; `pnpm -r run typecheck` and `pnpm test` must pass.
+- The domain and provider packages stay free of Cloudflare/runtime types so the
+  core remains portable (SPIKE-014, ADR-011).
+- Never render missing data as a false zero — use the capability model
+  (`available` vs `not_authorized` vs `unsupported_*`).
+- No provider **write** actions (ADR-008); the product is read-only.
+- Commits: `type(scope): summary` (Conventional Commits).
+- Never commit secrets, real database ids, or per-deployment values — the
+  committed `wrangler.jsonc` holds placeholders only.
 
-## Offline fallback (when the MCP server is unreachable)
+## Key design decisions
 
-**Standards scope:** `hcs` <!-- hcs | tierpoint-prodtech | azurelocal -->
+See `docs/adr/` (ADR-001…ADR-012) and `docs/design/`. Notable: provider-neutral
+core (ADR-004), read-only App (ADR-003), webhooks + reconciliation (ADR-006),
+host-agnostic frontend (ADR-011), drop-in theming (ADR-012).
 
-**Hard rules digest:**
+## License
 
-- No secrets, tokens, passwords, subscription/tenant/client IDs, or connection strings in any committed file.
-- All scripts: PowerShell 7+ — `#Requires -Version 7.0`, `Set-StrictMode -Version Latest`, `$ErrorActionPreference = 'Stop'`. Never PS 5.1, never Bash.
-- All documentation is Markdown only. Diagrams are draw.io only — commit the `.drawio` XML alongside any exported `.png`.
-- Commit format: `type(scope): short description` — types `feat`, `fix`, `docs`, `chore`, `refactor`, `test` — with an `AB#<id>` work-item reference.
-
-**Standards reference (public site — no auth required):**
-
-- Governance — <https://platform.hybridsolutions.cloud/standards/governance/>
-- Scripting — <https://platform.hybridsolutions.cloud/standards/scripting/>
-- Automation — <https://platform.hybridsolutions.cloud/standards/automation/>
-- Documentation — <https://platform.hybridsolutions.cloud/standards/documentation/>
-- Agents (multi-model) — <https://platform.hybridsolutions.cloud/standards/agents/>
-- AI workspace — <https://platform.hybridsolutions.cloud/standards/ai-workspace/>
-- Full index — <https://platform.hybridsolutions.cloud/standards/>
-
----
-
-## Session protocol
-
-1. **Read `.ai/state/` first** — `CURRENT_TASK.md`, then `HANDOFF.md`, then `OPEN_QUESTIONS.md`.
-2. Then read `.ai/memory/` for durable context (`PROJECT_CONTEXT.md`, `DECISIONS.md`, `COMMANDS.md`, `GOTCHAS.md`).
-3. Summarise your believed state back to the operator before making changes.
-4. **Before ending the session, update `.ai/state/HANDOFF.md`** — what changed, files touched, commands run and results, branch, blockers, next steps.
-
-Full contract: the [AI workspace standard](https://platform.hybridsolutions.cloud/standards/ai-workspace/).
-
----
-
-## Key facts
-
-| Fact | Value |
-|---|---|
-| ADO org | <https://dev.azure.com/hybridcloudsolutions> |
-| ADO project | Hybrid Solutions Cloud — Repo Wrangler |
-| Area path | N/A - see registry.yaml or ask the HCS Governance MCP |
-| Key Vault | kv-hcs-vault-01 |
-| Work item format | `AB#<id>` in commits and PRs |
+Apache-2.0. See `LICENSE`, `NOTICE`, and `CONTRIBUTING.md`.

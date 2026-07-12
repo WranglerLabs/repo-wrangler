@@ -1,33 +1,12 @@
-# repo-wrangler — Claude Code
+# RepoWrangler — Claude Code
 
 @AGENTS.md
 
-<!--
-  This file is a thin shim. All cross-tool repo instructions live in AGENTS.md,
-  imported above via Claude Code's @path syntax (inlined at session launch).
-  Keep only genuinely Claude-Code-specific notes below.
--->
+This file is a thin shim: all cross-tool repo guidance lives in `AGENTS.md`,
+imported above. Keep only Claude-Code-specific notes here.
 
-## Claude Code notes
+## Notes
 
-- Subagents, skills, and hooks for this repo live in `.claude/`. The repo-level MCP config is `.mcp.json`.
-- Use **plan mode** before broad, repo-wide changes.
-- Follow the `.ai/` session protocol: read `.ai/state/*` at session start, and update `.ai/state/HANDOFF.md` before ending a session.
-- See the [agents standard](https://platform.hybridsolutions.cloud/standards/agents/) for the full multi-model model.
-
-
-## Claude Code actions in this repo
-
-**Run autonomously:**
-- Read, search, and grep any file in this repo
-- Write and edit files in this repo
-- `git add`, `git commit`, `git push`
-- `gh issue`, `gh pr`, `gh run` CLI commands
-- `npm install`, `npm run build`, `npm test`
-
-**Always confirm before:**
-- Creating or deleting Azure resources
-- Any `az` CLI write operation that modifies Azure state
-- Running destructive operations
-- Making API calls to external services
-- Installing software
+- Use plan mode before broad, repo-wide changes.
+- After non-trivial changes, run `pnpm -r run typecheck` and `pnpm test`.
+- Demo mode (`pnpm dev`, no secrets) is the fastest way to exercise the UI.

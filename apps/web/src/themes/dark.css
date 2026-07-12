@@ -1,0 +1,21 @@
+/* Theme: Dark — the forest palette dimmed for low light. */
+[data-theme='dark'] {
+  --rw-green: #2a6a4f;
+  --rw-green-strong: #1d4f3a;
+  --rw-blue: #5f9ce0;
+  --rw-gold: #e0b45e;
+  --rw-bg: #141815;
+  --rw-surface: #1d231f;
+  --rw-surface-2: #262e28;
+  --rw-text: #e8e6dd;
+  --rw-text-muted: #a2aaa3;
+  --rw-border: #364138;
+  --rw-critical: #e5484d;
+  --rw-high: #e0863a;
+  --rw-medium: #d9a441;
+  --rw-low: #6aa0e0;
+  --rw-healthy: #4caf7d;
+  --rw-unknown: #8a938c;
+  --rw-radius: 8px;
+  color-scheme: dark;
+}

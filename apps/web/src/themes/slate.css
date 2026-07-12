@@ -1,0 +1,21 @@
+/* Theme: Slate — neutral graphite dark palette with a muted teal accent. */
+[data-theme='slate'] {
+  --rw-green: #4a8f7a;
+  --rw-green-strong: #3a7060;
+  --rw-blue: #5f9ce0;
+  --rw-gold: #d9b364;
+  --rw-bg: #17191c;
+  --rw-surface: #202329;
+  --rw-surface-2: #2a2e35;
+  --rw-text: #e6e8ea;
+  --rw-text-muted: #9aa0a8;
+  --rw-border: #333840;
+  --rw-critical: #e5484d;
+  --rw-high: #e0863a;
+  --rw-medium: #d9a441;
+  --rw-low: #6aa0e0;
+  --rw-healthy: #4caf7d;
+  --rw-unknown: #868d96;
+  --rw-radius: 8px;
+  color-scheme: dark;
+}
