@@ -71,7 +71,10 @@ function run(
   return { status: 'completed', conclusion: 'success', ...overrides };
 }
 
-const DEMO_REPOS: DemoRepo[] = [
+// Built lazily inside a request context: Workers return Date.now() === 0
+// during module evaluation, which would bake 1970 timestamps into the estate.
+function buildDemoRepos(): DemoRepo[] {
+  return [
   {
     id: 'demo-r1',
     workspaceSlug: 'saguaro-systems',
@@ -398,7 +401,14 @@ const DEMO_REPOS: DemoRepo[] = [
     securityFindings: [],
     status: 'inaccessible',
   },
-];
+  ];
+}
+
+let demoRepoCache: DemoRepo[] | undefined;
+function getDemoRepos(): DemoRepo[] {
+  demoRepoCache ??= buildDemoRepos();
+  return demoRepoCache;
+}
 
 const WORKSPACES: Array<{
   id: string;
@@ -475,11 +485,11 @@ function toListItem(repo: DemoRepo): RepositoryListItemDto {
 }
 
 export function demoRepositories(): RepositoryListItemDto[] {
-  return DEMO_REPOS.map(toListItem);
+  return getDemoRepos().map(toListItem);
 }
 
 export function demoRepositoryDetail(id: string): RepositoryDetailDto | undefined {
-  const repo = DEMO_REPOS.find((r) => r.id === id);
+  const repo = getDemoRepos().find((r) => r.id === id);
   if (!repo) return undefined;
   const health = evaluateRepositoryHealth(healthInput(repo));
   return {
@@ -577,7 +587,7 @@ export function demoRepositoryDetail(id: string): RepositoryDetailDto | undefine
 
 export function demoEstateBranches(): EstateBranchDto[] {
   const items: EstateBranchDto[] = [];
-  for (const repo of DEMO_REPOS) {
+  for (const repo of getDemoRepos()) {
     if (repo.status === 'inaccessible') continue;
     for (const b of repo.branches) {
       if (b.isDefault || b.excluded) continue;
@@ -601,7 +611,7 @@ export function demoEstateBranches(): EstateBranchDto[] {
 
 export function demoEstateChangeRequests(): EstateChangeRequestDto[] {
   const items: EstateChangeRequestDto[] = [];
-  for (const repo of DEMO_REPOS) {
+  for (const repo of getDemoRepos()) {
     if (repo.status === 'inaccessible') continue;
     for (const cr of repo.openChangeRequests) {
       if (cr.state !== 'open') continue;
@@ -658,7 +668,7 @@ export function demoWorkspaces(): WorkspaceDto[] {
 
 export function demoAttention(): AttentionItemDto[] {
   const items: AttentionItemDto[] = [];
-  for (const repo of DEMO_REPOS) {
+  for (const repo of getDemoRepos()) {
     const health = evaluateRepositoryHealth(healthInput(repo));
     for (const finding of health.findings) {
       if (finding.severity === 'info') continue;
@@ -683,7 +693,7 @@ export function demoOverview(): OverviewDto {
   const active = items.filter((r) => r.status === 'active');
   const counts: Record<string, number> = {};
   for (const r of active) counts[r.attentionLevel] = (counts[r.attentionLevel] ?? 0) + 1;
-  const securityCount = DEMO_REPOS.flatMap((r) => r.securityFindings ?? []).filter(
+  const securityCount = getDemoRepos().flatMap((r) => r.securityFindings ?? []).filter(
     (f) => f.state === 'open',
   ).length;
   return {
@@ -696,7 +706,7 @@ export function demoOverview(): OverviewDto {
     branchesAhead: active.reduce((sum, r) => sum + r.branchesAhead, 0),
     securityFindings: { state: 'available', count: securityCount },
     budgetWarnings: { state: 'unsupported_by_plan' },
-    newRepositories7d: DEMO_REPOS.filter(
+    newRepositories7d: getDemoRepos().filter(
       (r) => r.firstSeenDaysAgo !== undefined && r.firstSeenDaysAgo <= 7,
     ).length,
     inaccessibleRepositories: items.filter((r) => r.status === 'inaccessible').length,
