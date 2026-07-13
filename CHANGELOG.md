@@ -6,6 +6,34 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-13
+
+### Added
+
+- **Secret provider seam (`secrets-core`, PN-4, ADR-017):** secrets are read
+  through an `ISecretProvider` selected by `SECRET_SOURCE` — environment variables,
+  Docker/Kubernetes mounted files, Azure Key Vault, **HashiCorp Vault**, **AWS
+  Secrets Manager**, and **GCP Secret Manager** (all SDK-free), plus a composite
+  that layers them. No cloud is required.
+- **Scheduler drivers (PN-3, ADR-018):** `SCHEDULER_MODE=in-process|external|off`
+  plus a token-guarded `POST /internal/cron/run`, so Linux cron, a Kubernetes
+  `CronJob`, GitHub Actions, or an Azure Functions timer can drive sync over HTTP.
+- **Authentication provider registry (PN-5, ADR-019):** GitHub, GitLab, Entra,
+  Google, and local-dev are peer sign-in providers behind one signed session
+  cookie, enabled in any combination via `AUTH_PROVIDERS`; `/auth/config` lists
+  each so the SPA renders a button per provider.
+- **Deploy recipes** now wire the new knobs (K8s `CronJob` + `SECRET_SOURCE` /
+  `AUTH_PROVIDERS`; Azure Container Apps `AUTH_PROVIDERS`; compose Docker-secrets).
+- **Fun demo estate:** synthetic data themed after *Back to the Future* (GitHub)
+  and *Pinky and the Brain* (GitLab), with the domain health engine unchanged.
+
+### Changed
+
+- CI runs checks only (typecheck + unit tests) — no build/bundle/boot steps.
+- Credits page states plainly that no upstream code was copied (references only).
+
+## [0.3.0-post] - PostgreSQL adapter, Entra ID, and the documentation suite
+
 ### Added
 
 - **PostgreSQL storage adapter (`persistence-postgres`, ADR-015):** a

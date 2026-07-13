@@ -7,8 +7,9 @@ export function Credits() {
     <>
       <h1 className="page-title">About &amp; Credits</h1>
       <p className="page-subtitle">
-        RepoWrangler is open source under the Apache License 2.0. It stands on the shoulders of
-        these projects.
+        RepoWrangler is open source under the Apache License 2.0. No code from these projects was
+        copied — they were studied as references and inspiration while RepoWrangler was built from
+        scratch. Credited here with thanks.
       </p>
 
       {credits.data?.projects.map((project) => (
