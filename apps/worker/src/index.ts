@@ -64,3 +64,8 @@ export default {
     ctx.waitUntil(runScheduled(env, controller.cron));
   },
 } satisfies ExportedHandler<Env>;
+
+// Re-exported so a non-Cloudflare host (apps/server) can run the same app and
+// scheduler on any runtime. Portability seam — see ADR / design Portability.
+export { app, runScheduled };
+export type { Env };
