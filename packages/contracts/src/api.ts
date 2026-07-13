@@ -357,3 +357,11 @@ export const sessionUserSchema = z.object({
   demo: z.boolean().optional(),
 });
 export type SessionUserDto = z.infer<typeof sessionUserSchema>;
+
+export const savedViewSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  definition: z.string(),
+  createdAt: z.string(),
+});
+export type SavedViewDto = z.infer<typeof savedViewSchema>;

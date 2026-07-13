@@ -1,9 +1,21 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { useRepositories } from '../api/client';
+import {
+  createSavedView,
+  deleteSavedView,
+  useRepositories,
+  useSavedViews,
+} from '../api/client';
 import { AttentionBadge, BranchStatusBadge, RunBadge } from '../components/Badges';
 import { timeAgo } from '../lib/format';
 import { exportCsv, exportJson, exportMarkdown } from '../lib/export';
+
+interface ViewDefinition {
+  search: string;
+  level: (typeof LEVELS)[number];
+  includeArchived: boolean;
+}
 
 const LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'healthy', 'unknown'] as const;
 
@@ -12,6 +24,39 @@ export function Repositories() {
   const [search, setSearch] = useState('');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('all');
   const repositories = useRepositories(includeArchived);
+
+  const queryClient = useQueryClient();
+  const savedViews = useSavedViews();
+  const [viewId, setViewId] = useState('');
+
+  function applyView(id: string) {
+    setViewId(id);
+    const view = savedViews.data?.find((v) => v.id === id);
+    if (!view) return;
+    try {
+      const def = JSON.parse(view.definition) as Partial<ViewDefinition>;
+      if (typeof def.search === 'string') setSearch(def.search);
+      if (def.level) setLevel(def.level);
+      if (typeof def.includeArchived === 'boolean') setIncludeArchived(def.includeArchived);
+    } catch {
+      /* ignore a malformed saved definition */
+    }
+  }
+
+  async function saveView() {
+    const name = window.prompt('Name this view:')?.trim();
+    if (!name) return;
+    const definition: ViewDefinition = { search, level, includeArchived };
+    await createSavedView(name, definition);
+    await queryClient.invalidateQueries({ queryKey: ['saved-views'] });
+  }
+
+  async function removeView() {
+    if (!viewId) return;
+    await deleteSavedView(viewId);
+    setViewId('');
+    await queryClient.invalidateQueries({ queryKey: ['saved-views'] });
+  }
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -62,6 +107,26 @@ export function Repositories() {
             Markdown
           </button>
         </span>
+      </div>
+
+      <div className="toolbar">
+        <span className="muted">Saved views:</span>
+        <select value={viewId} onChange={(e) => applyView(e.target.value)}>
+          <option value="">— select a view —</option>
+          {(savedViews.data ?? []).map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        <button className="ghost" onClick={saveView}>
+          Save current view
+        </button>
+        {viewId && (
+          <button className="ghost" onClick={removeView}>
+            Delete
+          </button>
+        )}
       </div>
 
       <div className="panel table-scroll">

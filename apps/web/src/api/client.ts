@@ -12,6 +12,7 @@ import type {
   PlatformHealthDto,
   RepositoryDetailDto,
   RepositoryListItemDto,
+  SavedViewDto,
   SessionUserDto,
   WorkspaceDto,
 } from '@repo-wrangler/contracts';
@@ -161,6 +162,32 @@ export function useSessionUser() {
     queryFn: () => apiGet('/auth/me'),
     retry: false,
   });
+}
+
+export function useSavedViews() {
+  return useQuery<SavedViewDto[]>({
+    queryKey: ['saved-views'],
+    queryFn: () => apiGet('/api/v1/views'),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export async function createSavedView(name: string, definition: unknown): Promise<void> {
+  const response = await fetch(apiUrl('/api/v1/views'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name, definition }),
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Could not save view');
+}
+
+export async function deleteSavedView(id: string): Promise<void> {
+  const response = await fetch(apiUrl(`/api/v1/views/${id}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!response.ok) throw new ApiError(response.status, 'Could not delete view');
 }
 
 export async function triggerManualSync(): Promise<void> {

@@ -40,6 +40,9 @@ import {
   listWorkspaceRows,
   enqueueSyncJob,
   recordAuditEvent,
+  listSavedViews,
+  createSavedView,
+  deleteSavedView,
   type RepositoryListRow,
 } from '@repo-wrangler/persistence-d1';
 import {
@@ -488,5 +491,33 @@ apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   const user = c.get('user');
   await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
   await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery enqueued');
+  return c.json({ ok: true });
+});
+
+// FR-012 saved views — instance-scoped, shareable within the deployment.
+apiRoutes.get('/views', async (c) => {
+  const rows = await listSavedViews(c.env.DB);
+  return c.json(
+    rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      definition: r.definition,
+      createdAt: r.created_at,
+    })),
+  );
+});
+
+apiRoutes.post('/views', async (c) => {
+  if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
+  const body = await c.req.json<{ name?: string; definition?: unknown }>();
+  const name = body.name?.trim();
+  if (!name) return c.json({ error: 'name is required' }, 400);
+  const id = await createSavedView(c.env.DB, name, JSON.stringify(body.definition ?? {}));
+  return c.json({ id });
+});
+
+apiRoutes.delete('/views/:id', async (c) => {
+  if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
+  await deleteSavedView(c.env.DB, c.req.param('id'));
   return c.json({ ok: true });
 });
