@@ -173,6 +173,8 @@ export interface AuthProviderOption {
 export interface AuthConfigDto {
   demo: boolean;
   providers: AuthProviderOption[];
+  /** Deployed application version (e.g. "0.4.0"). */
+  version?: string;
 }
 
 export function useAuthConfig() {

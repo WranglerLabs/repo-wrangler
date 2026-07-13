@@ -48,6 +48,14 @@ export function Layout() {
           <img src="/lasso.svg" alt="" width={26} height={26} />
           RepoWrangler
         </div>
+        {authConfig?.version ? (
+          <div
+            className="brand-version"
+            style={{ fontSize: '0.7rem', opacity: 0.6, margin: '-0.4rem 0 0.5rem 2.35rem' }}
+          >
+            v{authConfig.version}
+          </div>
+        ) : null}
         <nav>
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}>
