@@ -20,6 +20,12 @@ services:
       # Public default: demo mode, mock data, no secrets. Set to "false" and
       # supply the GitHub App secrets below (via .env) for a real instance.
       DEMO_MODE: "true"
+      # Sign-in providers (PN-5): CSV of github,gitlab,entra,google,local.
+      AUTH_PROVIDERS: "github"
+      # Secret source (PN-4): env (default). Uncomment the block below to read
+      # secrets from Docker secrets files instead (SECRET_SOURCE=file).
+      # SECRET_SOURCE: "file"
+      # SECRETS_DIR: "/run/secrets"
     # Real-instance configuration and secrets live here (git-ignored). Optional
     # in demo mode — compose tolerates a missing file.
     env_file:
@@ -27,7 +33,18 @@ services:
         required: false
     volumes:
       - rw-data:/app/data
+    # Docker secrets alternative to .env (PN-4, SECRET_SOURCE=file): mount files
+    # named after each secret (e.g. session-secret) under /run/secrets.
+    # secrets:
+    #   - session-secret
+    #   - github-client-secret
     restart: unless-stopped
 
 volumes:
   rw-data:
+
+# secrets:
+#   session-secret:
+#     file: ./secrets/session-secret
+#   github-client-secret:
+#     file: ./secrets/github-client-secret

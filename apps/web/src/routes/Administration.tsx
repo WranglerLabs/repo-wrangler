@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  signInFor,
+  signInOptions,
   triggerManualSync,
   useAuthConfig,
   usePlatformHealth,
@@ -13,7 +13,7 @@ const REPO_URL = 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler';
 export function Administration() {
   const { data: user } = useSessionUser();
   const { data: authConfig } = useAuthConfig();
-  const signIn = signInFor(authConfig);
+  const signIns = signInOptions(authConfig);
   const health = usePlatformHealth();
   const [syncState, setSyncState] = useState<'idle' | 'ok' | 'error'>('idle');
 
@@ -46,11 +46,15 @@ export function Administration() {
           </p>
         ) : (
           <p className="muted">
-            Not signed in.{' '}
-            <a href={signIn.href} style={{ color: 'inherit' }}>
-              {signIn.label}
-            </a>{' '}
-            to access administrative actions.
+            Not signed in. Sign in to access administrative actions:{' '}
+            {signIns.map((s, i) => (
+              <span key={s.href}>
+                {i > 0 ? ' · ' : ''}
+                <a href={s.href} style={{ color: 'inherit' }}>
+                  {s.label}
+                </a>
+              </span>
+            ))}
           </p>
         )}
       </div>

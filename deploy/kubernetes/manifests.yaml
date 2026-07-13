@@ -25,10 +25,19 @@ metadata:
 data:
   PORT: "8080"
   SQLITE_PATH: "/app/data/repo-wrangler.db"
+  # Sign-in providers (PN-5): ordered CSV of github,gitlab,entra,google,local.
+  # Each appears only when also configured. Falls back to AUTH_MODE if empty.
+  AUTH_PROVIDERS: "github"
   AUTH_MODE: "github_app"
   # Demo mode: mock data, no secrets. Set to "false" and fill the Secret below.
   DEMO_MODE: "true"
   ENABLE_SCHEDULER: "true"
+  # Scheduler driver (PN-3): in-process (single replica) | external (the CronJob
+  # below POSTs /internal/cron/run — use with a shared Postgres + >1 replica) | off.
+  SCHEDULER_MODE: "in-process"
+  # Secret source (PN-4): env (default) | file (mount secrets, set SECRETS_DIR) |
+  # keyvault (KEY_VAULT_URI + workload identity) | composite.
+  SECRET_SOURCE: "env"
   ALLOWED_GITHUB_USERS: ""
   PUBLIC_BASE_URL: ""
   CORS_ALLOWED_ORIGINS: ""
@@ -48,6 +57,8 @@ stringData:
   GITHUB_CLIENT_ID: ""
   GITHUB_CLIENT_SECRET: ""
   SESSION_SECRET: "change-me-to-a-long-random-string"
+  # Only needed when SCHEDULER_MODE=external (authorises the CronJob below).
+  CRON_TRIGGER_TOKEN: ""
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -118,6 +129,38 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: repo-wrangler-scheduler
+  namespace: repo-wrangler
+  # External-tick scheduler driver (PN-3, ADR-018). Enable this ONLY when the
+  # Deployment runs SCHEDULER_MODE=external (e.g. a multi-replica Postgres setup):
+  # it drives the same sync work over HTTP so no replica needs an in-process timer.
+  # Leave SCHEDULER_MODE=in-process (default) on a single SQLite replica and this
+  # CronJob is harmless (the endpoint returns 404 unless external mode is on).
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: tick
+              image: curlimages/curl:8.11.0
+              env:
+                - name: TOKEN
+                  valueFrom:
+                    secretKeyRef: { name: repo-wrangler-secrets, key: CRON_TRIGGER_TOKEN }
+              command: ["sh", "-c"]
+              args:
+                - >-
+                  curl -fsS -X POST
+                  -H "authorization: Bearer $TOKEN"
+                  "http://repo-wrangler.repo-wrangler.svc.cluster.local/internal/cron/run?job=periodic"
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

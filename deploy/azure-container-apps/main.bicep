@@ -29,6 +29,9 @@ param demoMode bool = true
 @description('Comma-separated GitHub logins allowed to sign in (first = owner).')
 param allowedGithubUsers string = ''
 
+@description('Enabled sign-in providers (PN-5), ordered CSV of github,gitlab,entra,google,local.')
+param authProviders string = 'github'
+
 @description('Public URL the instance is reachable at (OAuth callbacks/links).')
 param publicBaseUrl string = ''
 
@@ -126,6 +129,8 @@ var baseEnv = [
   { name: 'PORT', value: '8080' }
   { name: 'SQLITE_PATH', value: '/app/data/repo-wrangler.db' }
   { name: 'DEMO_MODE', value: string(demoMode) }
+  // Sign-in providers (PN-5). AUTH_MODE stays as the legacy fallback.
+  { name: 'AUTH_PROVIDERS', value: authProviders }
   { name: 'AUTH_MODE', value: 'github_app' }
   { name: 'ALLOWED_GITHUB_USERS', value: allowedGithubUsers }
   { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
@@ -162,7 +167,11 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       // Real-mode secrets are Key Vault references resolved by the managed
-      // identity at runtime; they never appear in the template or logs.
+      // identity at runtime; they never appear in the template or logs. The app
+      // then reads them as env (SECRET_SOURCE=env). Alternatively, set
+      // SECRET_SOURCE=keyvault|vault|aws|gcp to have the app pull directly from
+      // Azure Key Vault, HashiCorp Vault, AWS Secrets Manager, or GCP Secret
+      // Manager (ADR-017) — no cloud is required.
       secrets: realMode ? kvSecrets : []
     }
     template: {
