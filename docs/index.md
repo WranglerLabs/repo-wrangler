@@ -10,6 +10,9 @@ hero:
     writes to your repos.
   actions:
     - theme: brand
+      text: Try the live demo
+      link: https://repo-wrangler.hybridsolutionscloud.workers.dev
+    - theme: alt
       text: Get started
       link: /getting-started
     - theme: alt
@@ -57,6 +60,9 @@ features:
 
 ## Where to next
 
+- **Want to see it first?** Explore the
+  [**live demo**](https://repo-wrangler.hybridsolutionscloud.workers.dev) — the
+  whole product on mock data, no sign-in, no secrets.
 - **New here?** Start with [Getting started](/getting-started) — a running
   instance in a few minutes.
 - **Choosing where to run it?** The [deployment guide](/deployment) has a
