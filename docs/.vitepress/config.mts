@@ -19,7 +19,13 @@ export default withMermaid({
   // the site build on them.
   ignoreDeadLinks: true,
 
-  head: [['meta', { name: 'theme-color', content: '#e0b45e' }]],
+  head: [
+    ['meta', { name: 'theme-color', content: '#1f4d3a' }],
+    ['link', { rel: 'icon', href: '/repo-wrangler/favicon.ico', sizes: 'any' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/repo-wrangler/lasso.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/repo-wrangler/favicon-32x32.png' }],
+    ['link', { rel: 'apple-touch-icon', href: '/repo-wrangler/apple-touch-icon.png' }],
+  ],
 
   themeConfig: {
     siteTitle: 'RepoWrangler',
