@@ -27,9 +27,16 @@ import {
 } from '@repo-wrangler/domain';
 
 /**
- * Synthetic demo estate. All attention levels are computed by the real
- * domain health engine so demo mode exercises the same rules as production.
- * No real organizations, repositories, or people appear here.
+ * Synthetic demo estate — deliberately, unmistakably fictional and a bit of fun.
+ * The GitHub side is themed after *Back to the Future* (orgs Hill Valley Labs and
+ * Twin Pines, user doc-brown; repos flux-capacitor, delorean-dashboard,
+ * hoverboard-firmware, mr-fusion-cli …), and the GitLab side after *Pinky and the
+ * Brain* (group Acme Labs; repos world-domination-api and brain-schemes). None of
+ * it is real — no real organization, repository, or person appears here.
+ *
+ * Everything else is production-faithful: all attention levels are computed by the
+ * real domain health engine, so demo mode exercises the exact same rules as a live
+ * estate. Change the names, keep the behaviour.
  */
 
 function daysAgo(days: number): string {
@@ -81,9 +88,9 @@ function buildDemoRepos(): DemoRepo[] {
   return [
   {
     id: 'demo-r1',
-    workspaceSlug: 'saguaro-systems',
-    name: 'trailhead-api',
-    description: 'Core REST API for the Trailhead platform.',
+    workspaceSlug: 'hill-valley-labs',
+    name: 'flux-capacitor',
+    description: 'Time-circuit flux capacitor control service — 1.21 GW.',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 0,
@@ -93,7 +100,7 @@ function buildDemoRepos(): DemoRepo[] {
     branches: [
       branch({ name: 'main', isDefault: true, isProtected: true, comparisonStatus: 'identical' }),
       branch({
-        name: 'feature/rate-limits',
+        name: 'feature/flux-calibration',
         comparisonStatus: 'ahead',
         aheadBy: 4,
         behindBy: 0,
@@ -108,18 +115,18 @@ function buildDemoRepos(): DemoRepo[] {
       branch: 'main',
       runStartedAt: daysAgo(0.1),
       durationSeconds: 412,
-      url: 'https://github.com/saguaro-systems/trailhead-api/actions',
+      url: 'https://github.com/hill-valley-labs/flux-capacitor/actions',
     }),
     openChangeRequests: [
       {
         number: 218,
-        title: 'Add per-tenant rate limits',
-        author: 'mesquite-dev',
+        title: 'Add per-timeline flux calibration',
+        author: 'marty-mcfly',
         isDraft: false,
         state: 'open',
         baseRef: 'main',
-        headRef: 'feature/rate-limits',
-        requestedReviewers: ['ocotillo-lee'],
+        headRef: 'feature/flux-calibration',
+        requestedReviewers: ['doc-brown'],
         mergeableState: 'clean',
         checksStatus: 'failing',
         createdAt: daysAgo(2),
@@ -130,9 +137,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r2',
-    workspaceSlug: 'saguaro-systems',
-    name: 'trailhead-web',
-    description: 'Customer-facing web application.',
+    workspaceSlug: 'hill-valley-labs',
+    name: 'delorean-dashboard',
+    description: 'Customer-facing DeLorean control dashboard.',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 1,
@@ -150,16 +157,16 @@ function buildDemoRepos(): DemoRepo[] {
         state: 'open',
         ruleId: 'cloud_provider_key',
         summary: 'Cloud provider access key detected in repository history.',
-        url: 'https://github.com/saguaro-systems/trailhead-web/security',
+        url: 'https://github.com/hill-valley-labs/delorean-dashboard/security',
         createdAt: daysAgo(0.3),
       },
     ],
   },
   {
     id: 'demo-r3',
-    workspaceSlug: 'saguaro-systems',
-    name: 'infra-modules',
-    description: 'Terraform modules for platform infrastructure.',
+    workspaceSlug: 'hill-valley-labs',
+    name: 'hill-valley-grid',
+    description: 'Terraform modules for the Hill Valley power grid.',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 6,
@@ -168,7 +175,7 @@ function buildDemoRepos(): DemoRepo[] {
     branches: [
       branch({ name: 'main', isDefault: true, isProtected: true, comparisonStatus: 'identical' }),
       branch({
-        name: 'spike/vnet-redesign',
+        name: 'spike/time-circuit-redesign',
         comparisonStatus: 'ahead',
         aheadBy: 19,
         behindBy: 0,
@@ -181,9 +188,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r4',
-    workspaceSlug: 'saguaro-systems',
-    name: 'legacy-billing',
-    description: 'Legacy billing integration, migration pending.',
+    workspaceSlug: 'hill-valley-labs',
+    name: 'timeline-1955',
+    description: 'Legacy 1955-timeline ledger bridge, migration pending.',
     visibility: 'private',
     defaultBranch: 'master',
     pushedDaysAgo: 240,
@@ -191,7 +198,7 @@ function buildDemoRepos(): DemoRepo[] {
     branches: [
       branch({ name: 'master', isDefault: true, comparisonStatus: 'identical' }),
       branch({
-        name: 'hotfix/2019-rounding',
+        name: 'hotfix/1955-rounding',
         comparisonStatus: 'diverged',
         aheadBy: 3,
         behindBy: 88,
@@ -201,12 +208,12 @@ function buildDemoRepos(): DemoRepo[] {
     openChangeRequests: [
       {
         number: 77,
-        title: 'Migrate invoice export to new API',
-        author: 'cholla-ops',
+        title: 'Bridge the 1955 ledger to the new timeline',
+        author: 'biff-tannen',
         isDraft: false,
         state: 'open',
         baseRef: 'master',
-        headRef: 'feature/invoice-export',
+        headRef: 'feature/ledger-bridge',
         requestedReviewers: [],
         mergeableState: 'dirty',
         checksStatus: 'unknown',
@@ -228,9 +235,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r5',
-    workspaceSlug: 'copperline-labs',
-    name: 'kiln-scheduler',
-    description: 'Batch job scheduler experiments.',
+    workspaceSlug: 'twin-pines',
+    name: 'hoverboard-firmware',
+    description: 'Mattel hoverboard control firmware experiments.',
     visibility: 'public',
     defaultBranch: 'main',
     pushedDaysAgo: 2,
@@ -254,9 +261,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r6',
-    workspaceSlug: 'copperline-labs',
-    name: 'forge-cli',
-    description: 'Internal developer CLI.',
+    workspaceSlug: 'twin-pines',
+    name: 'mr-fusion-cli',
+    description: 'Mr. Fusion home energy reactor CLI.',
     visibility: 'public',
     defaultBranch: 'main',
     pushedDaysAgo: 3,
@@ -278,9 +285,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r7',
-    workspaceSlug: 'copperline-labs',
-    name: 'docs-site',
-    description: 'Documentation for Copperline tooling.',
+    workspaceSlug: 'twin-pines',
+    name: 'twin-pines-docs',
+    description: 'Documentation for Twin Pines tooling.',
     visibility: 'public',
     isArchived: true,
     defaultBranch: 'main',
@@ -292,9 +299,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r8',
-    workspaceSlug: 'high-desert',
-    name: 'ranch-inventory',
-    description: 'Personal inventory tracker.',
+    workspaceSlug: 'doc-brown',
+    name: 'einstein-tracker',
+    description: 'Personal experiment log (property of E. Brown).',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 9,
@@ -302,7 +309,7 @@ function buildDemoRepos(): DemoRepo[] {
     branches: [
       branch({ name: 'main', isDefault: true, comparisonStatus: 'identical' }),
       branch({
-        name: 'feature/barcode-scan',
+        name: 'feature/self-lacing',
         comparisonStatus: 'ahead',
         aheadBy: 7,
         behindBy: 0,
@@ -314,12 +321,12 @@ function buildDemoRepos(): DemoRepo[] {
     openChangeRequests: [
       {
         number: 12,
-        title: 'Add barcode scanning',
-        author: 'high-desert',
+        title: 'Add self-lacing calibration',
+        author: 'doc-brown',
         isDraft: true,
         state: 'open',
         baseRef: 'main',
-        headRef: 'feature/barcode-scan',
+        headRef: 'feature/self-lacing',
         requestedReviewers: [],
         mergeableState: 'clean',
         checksStatus: 'passing',
@@ -333,9 +340,9 @@ function buildDemoRepos(): DemoRepo[] {
   {
     id: 'demo-r10',
     provider: 'gitlab',
-    workspaceSlug: 'mesa-verde',
-    name: 'switchyard-api',
-    description: 'Internal integration API (GitLab).',
+    workspaceSlug: 'acme-labs',
+    name: 'world-domination-api',
+    description: 'Nightly plan to take over the world (GitLab).',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 1,
@@ -343,7 +350,7 @@ function buildDemoRepos(): DemoRepo[] {
     branches: [
       branch({ name: 'main', isDefault: true, isProtected: true, comparisonStatus: 'identical' }),
       branch({
-        name: 'feature/webhooks',
+        name: 'feature/takeover-webhooks',
         comparisonStatus: 'ahead',
         aheadBy: 3,
         behindBy: 0,
@@ -355,12 +362,12 @@ function buildDemoRepos(): DemoRepo[] {
     openChangeRequests: [
       {
         number: 31,
-        title: 'Add outbound webhooks',
-        author: 'mesa-dev',
+        title: 'Add outbound world-takeover webhooks',
+        author: 'the-brain',
         isDraft: false,
         state: 'open',
         baseRef: 'main',
-        headRef: 'feature/webhooks',
+        headRef: 'feature/takeover-webhooks',
         requestedReviewers: [],
         mergeableState: 'clean',
         checksStatus: 'passing',
@@ -373,9 +380,9 @@ function buildDemoRepos(): DemoRepo[] {
   {
     id: 'demo-r11',
     provider: 'gitlab',
-    workspaceSlug: 'mesa-verde',
-    name: 'ops-runbooks',
-    description: 'Operational runbooks (GitLab).',
+    workspaceSlug: 'acme-labs',
+    name: 'brain-schemes',
+    description: 'World-domination schemes and runbooks (GitLab).',
     visibility: 'private',
     defaultBranch: 'main',
     pushedDaysAgo: 20,
@@ -393,9 +400,9 @@ function buildDemoRepos(): DemoRepo[] {
   },
   {
     id: 'demo-r9',
-    workspaceSlug: 'high-desert',
-    name: 'old-blog',
-    description: 'Retired blog source.',
+    workspaceSlug: 'doc-brown',
+    name: 'outatime-blog',
+    description: 'Retired OUTATIME blog source.',
     visibility: 'public',
     defaultBranch: 'main',
     pushedDaysAgo: 500,
@@ -421,10 +428,10 @@ const WORKSPACES: Array<{
   kind: 'organization' | 'user' | 'group';
   provider: 'github' | 'gitlab';
 }> = [
-  { id: 'demo-w1', slug: 'saguaro-systems', displayName: 'Saguaro Systems', kind: 'organization', provider: 'github' },
-  { id: 'demo-w2', slug: 'copperline-labs', displayName: 'Copperline Labs', kind: 'organization', provider: 'github' },
-  { id: 'demo-w3', slug: 'high-desert', displayName: 'high-desert', kind: 'user', provider: 'github' },
-  { id: 'demo-w4', slug: 'mesa-verde', displayName: 'Mesa Verde Group', kind: 'group', provider: 'gitlab' },
+  { id: 'demo-w1', slug: 'hill-valley-labs', displayName: 'Hill Valley Labs', kind: 'organization', provider: 'github' },
+  { id: 'demo-w2', slug: 'twin-pines', displayName: 'Twin Pines', kind: 'organization', provider: 'github' },
+  { id: 'demo-w3', slug: 'doc-brown', displayName: 'doc-brown', kind: 'user', provider: 'github' },
+  { id: 'demo-w4', slug: 'acme-labs', displayName: 'Acme Labs Group', kind: 'group', provider: 'gitlab' },
 ];
 
 function repoUrl(repo: DemoRepo): string {
@@ -564,20 +571,20 @@ export function demoRepositoryDetail(id: string): RepositoryDetailDto | undefine
       files: {
         readme: true,
         license: Boolean(repo.license),
-        contributing: repo.workspaceSlug === 'saguaro-systems',
-        codeOfConduct: repo.workspaceSlug === 'saguaro-systems',
+        contributing: repo.workspaceSlug === 'hill-valley-labs',
+        codeOfConduct: repo.workspaceSlug === 'hill-valley-labs',
       },
       healthPercentage: repo.license ? 85 : 55,
     },
     budgets:
-      repo.workspaceSlug === 'saguaro-systems'
+      repo.workspaceSlug === 'hill-valley-labs'
         ? {
             state: 'available',
             items: [
               {
                 product: 'actions',
                 scopeType: 'organization',
-                scopeTarget: 'saguaro-systems',
+                scopeTarget: 'hill-valley-labs',
                 amount: 50,
                 unit: 'USD',
                 preventFurtherUsage: true,
@@ -767,22 +774,22 @@ export function demoEstateBudgets(): EstateBudgetsDto {
     state: 'available',
     items: [
       {
-        workspaceSlug: 'saguaro-systems',
+        workspaceSlug: 'hill-valley-labs',
         provider: 'github',
         product: 'actions',
         scopeType: 'organization',
-        scopeTarget: 'saguaro-systems',
+        scopeTarget: 'hill-valley-labs',
         amount: 50,
         unit: 'USD',
         preventFurtherUsage: true,
         alertStatus: '92% consumed',
       },
       {
-        workspaceSlug: 'saguaro-systems',
+        workspaceSlug: 'hill-valley-labs',
         provider: 'github',
         product: 'git_lfs',
         scopeType: 'organization',
-        scopeTarget: 'saguaro-systems',
+        scopeTarget: 'hill-valley-labs',
         amount: 10,
         unit: 'USD',
         preventFurtherUsage: false,
@@ -794,13 +801,13 @@ export function demoEstateBudgets(): EstateBudgetsDto {
 
 export function demoActivity(): ActivityEventDto[] {
   return [
-    { at: daysAgo(0.01), kind: 'sync', message: 'Enrichment completed for saguaro-systems/trailhead-api.' },
-    { at: daysAgo(0.02), kind: 'health', message: 'saguaro-systems/trailhead-web escalated to critical (secret scanning alert).' },
+    { at: daysAgo(0.01), kind: 'sync', message: 'Enrichment completed for hill-valley-labs/flux-capacitor.' },
+    { at: daysAgo(0.02), kind: 'health', message: 'hill-valley-labs/delorean-dashboard escalated to critical (secret scanning alert).' },
     { at: daysAgo(0.05), kind: 'sync', message: 'Discovery reconciliation completed — 10 repositories seen, 1 inaccessible.' },
-    { at: daysAgo(0.4), kind: 'discovery', message: 'New repository discovered: copperline-labs/forge-cli.' },
-    { at: daysAgo(0.6), kind: 'webhook', message: 'workflow_run webhook applied for saguaro-systems/trailhead-api (failure).' },
+    { at: daysAgo(0.4), kind: 'discovery', message: 'New repository discovered: twin-pines/mr-fusion-cli.' },
+    { at: daysAgo(0.6), kind: 'webhook', message: 'workflow_run webhook applied for hill-valley-labs/flux-capacitor (failure).' },
     { at: daysAgo(1.1), kind: 'admin', actor: 'demo', message: 'Manual discovery requested from Administration.' },
-    { at: daysAgo(2), kind: 'billing', message: 'Budget sync completed for saguaro-systems (2 budgets).' },
+    { at: daysAgo(2), kind: 'billing', message: 'Budget sync completed for hill-valley-labs (2 budgets).' },
   ];
 }
 
