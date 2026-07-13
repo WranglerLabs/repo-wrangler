@@ -17,6 +17,8 @@ const TABS = [
   'Security',
   'Governance',
   'Budgets',
+  'Activity',
+  'Capabilities',
 ] as const;
 
 export function RepositoryDetail() {
@@ -387,6 +389,76 @@ export function RepositoryDetail() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {tab === 'Activity' && (
+        <div className="panel">
+          <h2>Activity &amp; sync history</h2>
+          <table className="data">
+            <tbody>
+              <tr>
+                <td className="muted" style={{ width: 240 }}>
+                  Last push (provider)
+                </td>
+                <td>{timeAgo(repository.pushedAt)}</td>
+              </tr>
+              <tr>
+                <td className="muted">Latest default-branch run</td>
+                <td>{timeAgo(repository.latestRunAt)}</td>
+              </tr>
+              <tr>
+                <td className="muted">Last synced by RepoWrangler</td>
+                <td>{timeAgo(repository.lastSyncedAt)}</td>
+              </tr>
+              <tr>
+                <td className="muted">Monitoring state</td>
+                <td className="mono">{repository.status}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="muted" style={{ marginTop: 12 }}>
+            Freshness is snapshot-based: data is served from the last successful sync, so a stale
+            timestamp signals a sync problem — not missing activity.
+          </p>
+        </div>
+      )}
+
+      {tab === 'Capabilities' && (
+        <div className="panel">
+          <h2>Provider capabilities</h2>
+          <p className="muted" style={{ marginBottom: 12 }}>
+            Each capability reports its own state. &ldquo;Not authorized&rdquo; or
+            &ldquo;unsupported&rdquo; is never shown as a count of zero.
+          </p>
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: 'Security findings', state: security.state },
+                { label: 'Governance', state: governance?.state ?? 'not_configured' },
+                { label: 'Budgets & usage', state: budgets.state },
+              ].map((row) => (
+                <tr key={row.label}>
+                  <td>{row.label}</td>
+                  <td>
+                    {row.state === 'available' ? (
+                      <span className="badge healthy">available</span>
+                    ) : (
+                      <span className="capability">
+                        {CAPABILITY_LABELS[row.state] ?? row.state}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </>

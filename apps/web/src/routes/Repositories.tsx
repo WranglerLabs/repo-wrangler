@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useRepositories } from '../api/client';
 import { AttentionBadge, BranchStatusBadge, RunBadge } from '../components/Badges';
 import { timeAgo } from '../lib/format';
+import { exportCsv, exportJson, exportMarkdown } from '../lib/export';
 
 const LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'healthy', 'unknown'] as const;
 
@@ -20,16 +21,6 @@ export function Repositories() {
       return true;
     });
   }, [repositories.data, search, level]);
-
-  function exportJson() {
-    const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'repo-wrangler-inventory.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
   return (
     <>
@@ -60,9 +51,17 @@ export function Repositories() {
           />
           Include archived
         </label>
-        <button className="ghost" onClick={exportJson} style={{ marginLeft: 'auto' }}>
-          Export JSON
-        </button>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button className="ghost" onClick={() => exportJson(filtered)}>
+            Export JSON
+          </button>
+          <button className="ghost" onClick={() => exportCsv(filtered)}>
+            CSV
+          </button>
+          <button className="ghost" onClick={() => exportMarkdown(filtered)}>
+            Markdown
+          </button>
+        </span>
       </div>
 
       <div className="panel table-scroll">
