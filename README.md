@@ -3,15 +3,19 @@
 **Wrangle every repository into one clear view.**
 
 RepoWrangler is an open-source repository estate dashboard. It automatically
-discovers repositories across your GitHub organizations (GitLab planned),
+discovers repositories across your GitHub organizations and GitLab groups,
 continuously evaluates their operational health, and puts the work that needs
 attention on one screen: failing pipelines, blocked and stale pull requests,
 branches ahead of `main` with no PR, security findings, new and disappeared
 repositories.
 
-It runs as a **single Cloudflare Worker** (API + React SPA + D1 database),
-designed to fit the **Cloudflare free tier** for a normal personal estate, and
-it is **read-only** toward your providers by design.
+**Deploy anywhere. Own your data.** RepoWrangler is platform-neutral: the same app
+runs on a laptop, a self-hosted Docker container, Kubernetes, Azure, or Cloudflare —
+infrastructure is a swappable adapter, not a requirement. A **single Cloudflare
+Worker + D1** on the free tier is the *reference* deployment (the simplest, cheapest
+path), not a dependency — see [docs/design/platform-neutrality.md](docs/design/platform-neutrality.md)
+and [docs/design/infrastructure-deployment.md](docs/design/infrastructure-deployment.md).
+It is **read-only** toward your providers by design.
 
 ## Highlights
 
@@ -27,7 +31,7 @@ it is **read-only** toward your providers by design.
   ahead/behind/diverged comparison of active branches, with change-request
   tracking and bot-branch exclusions (FR-005 semantics).
 - **Provider-neutral core** — the domain model knows workspaces, repositories,
-  change requests, and pipelines; GitHub is an adapter, GitLab is next.
+  change requests, and pipelines; GitHub and GitLab are provider adapters.
 - **Demo mode out of the box** — deploy with zero secrets and explore a
   synthetic estate evaluated by the real health rules engine.
 

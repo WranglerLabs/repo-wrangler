@@ -1,10 +1,12 @@
 # Contributor & agent guide
 
 RepoWrangler is an open-source repository-estate dashboard: it discovers repos
-across GitHub organizations/accounts (GitLab supported), evaluates their
-operational health, and surfaces what needs attention on one screen. It runs as a
-single Cloudflare Worker (API + React SPA + D1) and is **read-only** toward
-providers by design.
+across GitHub organizations/accounts and GitLab groups, evaluates their
+operational health, and surfaces what needs attention on one screen. It is
+**platform-neutral** (Deploy Anywhere, Own Your Data): infrastructure is a swappable
+adapter, and a single Cloudflare Worker + D1 is the *reference* deployment, not a
+requirement (see `docs/design/platform-neutrality.md` and
+`docs/design/infrastructure-deployment.md`). It is **read-only** toward providers by design.
 
 This file orients humans and AI coding agents working in the repo. It describes
 only this project — there is no external configuration to fetch.
