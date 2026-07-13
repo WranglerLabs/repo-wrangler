@@ -1,0 +1,10 @@
+# Code owners for RepoWrangler.
+#
+# The owner is automatically requested for review on every pull request and,
+# with branch protection's "require review from Code Owners" enabled, is the
+# required approver for changes to protected branches.
+#
+# Docs: https://docs.github.com/articles/about-code-owners
+
+# Everything is owned by the maintainer.
+*       @kristopherjturner

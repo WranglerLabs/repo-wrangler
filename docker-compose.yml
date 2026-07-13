@@ -1,0 +1,33 @@
+# RepoWrangler — self-hosted, zero Cloudflare.
+#
+# The Node server host serves the SPA and the API on one port, backed by a
+# SQLite file in the `rw-data` volume. Runs in demo mode out of the box (mock
+# data, no secrets). To connect a real GitHub App, copy .env.example → .env,
+# fill it in, and `docker compose up -d --build` again.
+#
+#   docker compose up --build        # http://localhost:8080
+#
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: repo-wrangler-server:local
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      # Public default: demo mode, mock data, no secrets. Set to "false" and
+      # supply the GitHub App secrets below (via .env) for a real instance.
+      DEMO_MODE: "true"
+    # Real-instance configuration and secrets live here (git-ignored). Optional
+    # in demo mode — compose tolerates a missing file.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - rw-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  rw-data:

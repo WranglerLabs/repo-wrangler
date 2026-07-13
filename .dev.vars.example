@@ -14,6 +14,12 @@ DEMO_MODE=true
 # (Mode A). Comma-separated exact SPA origins, e.g.
 # https://you.github.io,https://repo-wrangler.example.com
 CORS_ALLOWED_ORIGINS=
+# Microsoft Entra ID sign-in (set AUTH_MODE=entra) — leave empty for GitHub
+AUTH_MODE=github_app
+ENTRA_TENANT_ID=
+ENTRA_CLIENT_ID=
+ENTRA_CLIENT_SECRET=
+ENTRA_ALLOWED_USERS=
 # GitLab (Phase 4) — leave empty to disable
 GITLAB_TOKEN=
 GITLAB_BASE_URL=https://gitlab.com

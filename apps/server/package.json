@@ -1,0 +1,26 @@
+{
+  "name": "@repo-wrangler/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "description": "Node server host — runs RepoWrangler's API and scheduler on SQLite, with zero Cloudflare.",
+  "scripts": {
+    "start": "node --experimental-sqlite --import tsx src/index.ts",
+    "dev": "node --experimental-sqlite --import tsx --watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.0",
+    "@repo-wrangler/persistence-postgres": "workspace:*",
+    "@repo-wrangler/persistence-sqlite": "workspace:*",
+    "@repo-wrangler/worker": "workspace:*",
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.3"
+  }
+}

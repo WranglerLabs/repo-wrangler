@@ -7,6 +7,13 @@ coverage/
 .wrangler/
 .dev.vars
 
+# Self-hosted Node host runtime data (SQLite database, env file)
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+
 # Per-deployment overrides — your D1 id / instance config, never committed
 wrangler.local.jsonc
 wrangler.*.local.jsonc

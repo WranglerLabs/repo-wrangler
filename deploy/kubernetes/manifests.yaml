@@ -1,0 +1,140 @@
+# RepoWrangler — Kubernetes deployment (self-hosted, zero Cloudflare).
+#
+# Runs the apps/server container (SPA + API + scheduler) on SQLite, with the
+# database on a PersistentVolumeClaim. This is the same verified container that
+# `docker compose up` runs. Deploy with:
+#
+#   kubectl apply -f deploy/kubernetes/manifests.yaml
+#
+# Edit the image, ingress host, and (for real mode) the Secret below first — or
+# use the Helm chart in ./chart for templated values.
+#
+# SQLite is single-writer, so this runs a single replica with Recreate strategy.
+# Multi-replica scale is the Postgres adapter's job (roadmap PN-1).
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: repo-wrangler
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: repo-wrangler-config
+  namespace: repo-wrangler
+data:
+  PORT: "8080"
+  SQLITE_PATH: "/app/data/repo-wrangler.db"
+  AUTH_MODE: "github_app"
+  # Demo mode: mock data, no secrets. Set to "false" and fill the Secret below.
+  DEMO_MODE: "true"
+  ENABLE_SCHEDULER: "true"
+  ALLOWED_GITHUB_USERS: ""
+  PUBLIC_BASE_URL: ""
+  CORS_ALLOWED_ORIGINS: ""
+---
+# Real mode only — replace the placeholders and set DEMO_MODE=false above.
+# In demo mode this Secret is unused (the app tolerates missing values).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-wrangler-secrets
+  namespace: repo-wrangler
+type: Opaque
+stringData:
+  GITHUB_APP_ID: ""
+  GITHUB_APP_PRIVATE_KEY: ""
+  GITHUB_WEBHOOK_SECRET: ""
+  GITHUB_CLIENT_ID: ""
+  GITHUB_CLIENT_SECRET: ""
+  SESSION_SECRET: "change-me-to-a-long-random-string"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: repo-wrangler-data
+  namespace: repo-wrangler
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: repo-wrangler
+  namespace: repo-wrangler
+  labels: { app: repo-wrangler }
+spec:
+  replicas: 1
+  # SQLite = single writer: never run two pods against the same volume.
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: repo-wrangler }
+  template:
+    metadata:
+      labels: { app: repo-wrangler }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: server
+          # Replace with your registry image built from apps/server/Dockerfile.
+          image: ghcr.io/OWNER/repo-wrangler-server:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: repo-wrangler-config }
+            - secretRef: { name: repo-wrangler-secrets }
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          livenessProbe:
+            httpGet: { path: /health/live, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: { path: /health/ready, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits: { cpu: "1", memory: "1Gi" }
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: repo-wrangler-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: repo-wrangler
+  namespace: repo-wrangler
+spec:
+  selector: { app: repo-wrangler }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: repo-wrangler
+  namespace: repo-wrangler
+  annotations:
+    # Adjust for your ingress controller / cert-manager setup.
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+    - host: repo-wrangler.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: repo-wrangler
+                port: { number: 80 }

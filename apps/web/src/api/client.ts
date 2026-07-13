@@ -164,6 +164,27 @@ export function useSessionUser() {
   });
 }
 
+export interface AuthConfigDto {
+  mode: 'github_app' | 'entra';
+  demo: boolean;
+}
+
+export function useAuthConfig() {
+  return useQuery<AuthConfigDto>({
+    queryKey: ['auth-config'],
+    queryFn: () => apiGet('/auth/config'),
+    staleTime: Infinity,
+  });
+}
+
+/** Sign-in link and label for the configured provider. */
+export function signInFor(config: AuthConfigDto | undefined): { href: string; label: string } {
+  if (config?.mode === 'entra') {
+    return { href: '/auth/entra/login', label: 'Sign in with Microsoft' };
+  }
+  return { href: '/auth/github/login', label: 'Sign in with GitHub' };
+}
+
 export function useSavedViews() {
   return useQuery<SavedViewDto[]>({
     queryKey: ['saved-views'],

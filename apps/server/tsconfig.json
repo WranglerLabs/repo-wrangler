@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Cloudflare types supply the `Env` shape (D1Database, Fetcher,
+    // ExecutionContext) the shared app is written against; node types supply the
+    // runtime this host actually uses.
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src"]
+}

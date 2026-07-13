@@ -37,6 +37,8 @@ It is **read-only** toward your providers by design.
 
 ## Quick start (demo mode, no secrets)
 
+On Cloudflare's local runtime:
+
 ```bash
 pnpm install
 cp .dev.vars.example .dev.vars        # DEMO_MODE=true is the default
@@ -44,6 +46,25 @@ pnpm db:migrate:local
 pnpm build
 pnpm dev                              # http://localhost:8787
 ```
+
+Or **self-hosted with zero Cloudflare** — the whole product on Node + SQLite in
+one container:
+
+```bash
+docker compose up --build             # http://localhost:8080
+```
+
+See [`apps/server`](apps/server/README.md) and the
+[`deploy/docker/`](deploy/docker/) recipe (topology **C — Self-hosted**).
+
+## Documentation
+
+Full documentation is in **[`docs/`](docs/README.md)** — start there. Highlights:
+
+- [Getting started](docs/getting-started.md) · [Deployment guide](docs/deployment.md) (capability matrix + decision flowchart)
+- [Configuration reference](docs/configuration.md) · [Architecture](docs/architecture.md) · [API reference](docs/api.md)
+- Providers: [GitHub App](docs/providers/github-app.md) · [GitLab](docs/providers/gitlab.md) · [Entra ID sign-in](docs/providers/entra.md)
+- [Operations](docs/operations.md) · [Security](docs/security.md) · [Developer guide](docs/developer.md) · [Troubleshooting](docs/troubleshooting.md)
 
 ## Deploying your own instance
 

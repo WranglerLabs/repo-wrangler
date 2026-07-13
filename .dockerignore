@@ -1,0 +1,15 @@
+# Keep the build context small and reproducible. Dependencies are installed
+# inside the image; build artefacts and local state never belong in it.
+**/node_modules
+.git
+.github
+**/dist
+**/.wrangler
+**/.turbo
+**/coverage
+**/data
+*.log
+.env
+.dev.vars
+**/wrangler.local.jsonc
+.DS_Store

@@ -1,0 +1,20 @@
+{
+  "name": "@repo-wrangler/persistence-postgres",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "D1-compatible storage adapter over PostgreSQL — the horizontal-scale storage option for the Node host.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.8.3"
+  }
+}

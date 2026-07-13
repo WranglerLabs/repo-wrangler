@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { useSessionUser } from '../api/client';
+import { signInFor, useAuthConfig, useSessionUser } from '../api/client';
 import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
 import {
   CUSTOM_THEME_ID,
@@ -38,6 +38,8 @@ function useTheme(): [string, (id: string) => void] {
 export function Layout() {
   const [theme, setTheme] = useTheme();
   const { data: user } = useSessionUser();
+  const { data: authConfig } = useAuthConfig();
+  const signIn = signInFor(authConfig);
 
   return (
     <div className="layout">
@@ -59,8 +61,8 @@ export function Layout() {
               {user.login} ({user.role}){user.demo ? ' · demo' : ''}
             </div>
           ) : (
-            <a href="/auth/github/login" style={{ color: '#e0b45e' }}>
-              Sign in with GitHub
+            <a href={signIn.href} style={{ color: '#e0b45e' }}>
+              {signIn.label}
             </a>
           )}
           <label className="theme-picker">

@@ -19,6 +19,9 @@ Standalone ADRs in this directory:
 11. [ADR-011 — Host-agnostic frontend and two deployment topologies](ADR-011-host-agnostic-frontend.md)
 12. [ADR-012 — Drop-in theming (Hugo/Jekyll-style)](ADR-012-theming.md)
 13. [ADR-013 — Platform-neutral architecture (Cloudflare = reference, not required)](ADR-013-platform-neutral-architecture.md)
+14. [ADR-014 — Node server host for zero-Cloudflare deployment](ADR-014-node-server-host.md)
+15. [ADR-015 — PostgreSQL storage adapter](ADR-015-postgres-storage-adapter.md)
+16. [ADR-016 — Microsoft Entra ID sign-in](ADR-016-entra-id-authentication.md)
 
 New ADRs get their own numbered Markdown file in this directory
 (`ADR-011-<slug>.md` onward) using the same Context / Decision / Consequences

@@ -1,10 +1,9 @@
-# RepoWrangler solution design is complete
+# RepoWrangler core decisions
 
-I created a full Markdown planning and architecture pack containing **29 Markdown documents**, including a combined 102 KB edition, **10 ADRs**, **15 research spikes**, platform requirements, security design, UX plans, data models, roadmap, licensing strategy, attribution requirements, and expected c([Cloudflare Docs][1])D([Cloudflare Docs][1])r solution pack](sandbox:/mnt/data/RepoWrangler-Solution-Design.zip)
-
-[Read the combined RepoWrangler solution design](sandbox:/mnt/data/RepoWrangler-Solution-Design/RepoWrangler-Solution-Design.md)
-
-[Open the document index](sandbox:/mnt/data/RepoWrangler-Solution-Design/README.md)
+A distilled summary of the key decisions from the RepoWrangler design. The full
+pack — product requirements, architecture, security, data model, roadmap, and the
+ADRs — is the [combined solution design](RepoWrangler-Solution-Design.md); the
+[design pack index](design-pack-index.md) is the entry point.
 
 ## Core decisions
 

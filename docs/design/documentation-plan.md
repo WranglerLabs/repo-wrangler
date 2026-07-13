@@ -63,6 +63,26 @@ Configuration examples · Deployment validation · Operational validation · Bac
 recovery · Upgrade procedure · Scaling guidance · Troubleshooting · Known limitations ·
 Removal/cleanup. Exact examples/commands/env-var names/expected responses once code exists.
 
+## Deployment decision aids (for non-experts choosing a platform)
+
+Two artifacts live in the deployment guide (`docs/deployment.md`) so an admin who
+is *not* a specialist can pick a target without reading every guide:
+
+- **Capability matrix (features × platforms).** A table with capabilities down
+  the left (cost floor, backend store, managed secrets, persistence, horizontal
+  scale, custom domain, offline, no-Cloudflare-required, …) and each deployment
+  platform across the top; every cell states how that platform delivers the
+  capability. This is the at-a-glance comparison an evaluator scans first.
+- **"Choose your deployment" decision flowchart.** A formal decision tree
+  (Mermaid `flowchart`) that walks a person start-to-finish — trying it out vs a
+  real instance, Cloudflare vs self-host, which self-host target, then the
+  real-mode (GitHub App + secrets) steps — ending at the exact recipe to run.
+  A "choose-your-own-adventure" path from *"I want to run this"* to *"it's
+  running."*
+
+Keep both in sync with the recipe set and the capability matrix in
+`deploy/README.md`; regenerate when a platform or capability is added.
+
 ## Architecture docs (C4-style, multi-level)
 
 Context, logical, component (each component: responsibility, inputs, outputs,
@@ -142,8 +162,10 @@ README · docs index · product overview · architecture overview · complete so
 quick-starts · detailed deployment guides · provider setup guides · security architecture ·
 operations guide · backup/recovery guide · troubleshooting guide · developer guide ·
 contributor guide · API reference plan · configuration reference · service catalog ·
-provider capability matrix · ADR collection · research-spike collection · roadmap · credits/
-third-party notices · Mermaid diagram library · Lucidchart diagram plan · publishing plan.
+provider capability matrix · **deployment capability matrix (features × platforms)** ·
+**deployment decision flowchart (choose-your-own-adventure)** · ADR collection ·
+research-spike collection · roadmap · credits/third-party notices · Mermaid diagram
+library · Lucidchart diagram plan · publishing plan.
 
 ## Documentation quality gates
 

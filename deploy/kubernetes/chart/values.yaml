@@ -1,0 +1,48 @@
+# RepoWrangler Helm values.
+image:
+  repository: ghcr.io/OWNER/repo-wrangler-server
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Demo mode: mock data, no secrets. Set false and provide `secrets` for real mode.
+demoMode: true
+
+config:
+  port: 8080
+  sqlitePath: /app/data/repo-wrangler.db
+  authMode: github_app
+  enableScheduler: true
+  allowedGithubUsers: ""
+  publicBaseUrl: ""
+  corsAllowedOrigins: ""
+
+# Real-mode GitHub App secrets. Leave empty in demo mode. For production prefer
+# an external secrets operator over inlining these; when set here they render
+# into a Kubernetes Secret.
+secrets:
+  githubAppId: ""
+  githubAppPrivateKey: ""
+  githubWebhookSecret: ""
+  githubClientId: ""
+  githubClientSecret: ""
+  sessionSecret: ""
+# Or reference an existing Secret with the same keys instead of the above:
+existingSecret: ""
+
+persistence:
+  size: 2Gi
+  storageClass: ""       # "" = cluster default
+
+service:
+  port: 80
+
+ingress:
+  enabled: true
+  className: ""
+  host: repo-wrangler.example.com
+  tls: false
+  annotations: {}
+
+resources:
+  requests: { cpu: "250m", memory: "256Mi" }
+  limits: { cpu: "1", memory: "1Gi" }

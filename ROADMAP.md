@@ -11,43 +11,65 @@ Make every infrastructure concern an interface with swappable adapters so the
 same app runs on Cloudflare, Azure, Docker/self-hosted, or a home lab unchanged.
 
 - **PN-1 Storage (`IDataStore`):** `persistence-core` seam ✅ + D1-compatible
-  **SQLite adapter** ✅. Remaining: wire the API through the seam (not raw D1),
-  add a PostgreSQL adapter.
-- **PN-2 Host:** a Node/Hono server host (SQLite/Postgres) so the backend runs
-  with no Cloudflare — deployable to Docker, Azure Container Apps/App Service,
-  Kubernetes. *Not yet built.*
+  **SQLite adapter** ✅ + D1-compatible **PostgreSQL adapter** ✅
+  (`persistence-postgres`, selected by `DATABASE_URL`; shared migrations via
+  compatibility `datetime()` functions + a unit-tested translator; runtime-verified
+  against a real PostgreSQL engine — [ADR-015](docs/adr/ADR-015-postgres-storage-adapter.md)).
+  This unlocks **multi-replica** self-hosted deployments.
+- **PN-2 Host:** a Node/Hono server host (`apps/server`) so the backend runs
+  with no Cloudflare ✅ — SQLite storage, auto-applied migrations, self-served
+  SPA, in-process cron, and Docker/compose packaging (one-command demo). See
+  [ADR-014](docs/adr/ADR-014-node-server-host.md). Postgres storage (PN-1) ✅ now
+  supports multi-replica hosts; a dedicated scheduler process (PN-3) is a later
+  refinement (`ENABLE_SCHEDULER=false` already runs one scheduler across replicas).
 - **PN-3 Scheduling (`IScheduler`):** abstract Cron; add Linux-cron / external-tick
   drivers for non-Cloudflare hosts. *Not yet built.*
 - **PN-4 Secrets (`ISecretProvider`):** abstract secret access; env-vars + Azure
   Key Vault + Docker/K8s implementations. *Not yet built.*
-- **PN-5 Auth (`IAuthenticationProvider`):** GitHub OAuth today; add Entra ID,
-  GitLab, Google, local-dev. *Not yet built.*
+- **PN-5 Auth (`IAuthenticationProvider`):** GitHub OAuth ✅ + **Microsoft Entra
+  ID (OIDC)** ✅ (`AUTH_MODE=entra`; same signed session cookie, `/auth/config`
+  drives the SPA button — [ADR-016](docs/adr/ADR-016-entra-id-authentication.md)).
+  Remaining: GitLab, Google, local-dev sign-in behind the same seam.
 - **PN-6 Cache/Notify/Jobs (`ICacheProvider`/`INotificationProvider`/`IBackgroundJobProvider`):**
   formalize interfaces; Redis, Teams/Slack/Discord, queue/Hangfire adapters. *Roadmap.*
-- **PN-7 Per-target deploy recipes + adapter-matrix CI.** *Roadmap.*
+- **PN-7 Per-target deploy recipes + adapter-matrix CI.** Recipes ✅ for
+  Cloudflare, GitHub Pages, Azure SWA, **Docker/compose, Azure Container Apps
+  (bicep + `az acr build` + Azure Files + Key Vault), and Kubernetes (manifests +
+  Helm chart)** — all Mode C targets deploy the verified `apps/server` SQLite
+  container (or PostgreSQL via `DATABASE_URL`, PN-1 ✅). Remaining: an
+  adapter-matrix CI job running the suite against SQLite and PostgreSQL.
 
-## Documentation suite (in progress, parallel workstream)
+## Documentation suite (core deliverables ✅)
 
 Deliver RepoWrangler as a **fully documented open-source product** — see
-[docs/design/documentation-plan.md](docs/design/documentation-plan.md). Cloudflare is
-documented as the reference implementation, not a requirement.
+[docs/design/documentation-plan.md](docs/design/documentation-plan.md) and the
+[docs index](docs/README.md). Cloudflare is documented as the reference
+implementation, not a requirement.
 
-- **DOC-1 Structure & index:** stand up the full `docs/` tree (getting-started,
-  architecture, deployment, configuration, providers, operations, security,
-  development, reference, design, open-source, troubleshooting) + a docs index.
-- **DOC-2 Quick-starts:** Local Docker, Cloudflare free tier, Azure (SWA + Container
-  Apps), Kubernetes — each with prerequisites, cost, validation, cleanup.
-- **DOC-3 Deployment guides:** one per target profile, using the standard section set.
-- **DOC-4 Architecture set:** C4-style context/logical/component/data/deployment/
-  security/synchronization docs + the Mermaid diagram library (Lucid plan on top).
-- **DOC-5 Reference:** OpenAPI/API reference, configuration reference, service catalog,
-  provider capability matrix, database schema, health rules, glossary.
-- **DOC-6 Operations & security:** runbooks, backup/restore/DR, threat model, secure
-  deployment, vulnerability reporting.
-- **DOC-7 Developer/contributor:** dev setup, adding provider/storage/auth/scheduler/
-  notification adapters, migrations, releases, ADR authoring.
-- **DOC-8 Docs website:** evaluate Docusaurus/VitePress/MkDocs Material/Astro Starlight;
-  publish free via GitHub Actions, decoupled from the app host.
+- **DOC-1 Structure & index** ✅: full `docs/` tree + [docs index](docs/README.md)
+  linking getting-started, deployment, configuration, providers, architecture,
+  reference, operations, security, developer, troubleshooting, and design.
+- **DOC-2 Quick-starts** ✅: [getting-started.md](docs/getting-started.md)
+  (Docker one-command + local dev) and per-target quick-starts in the
+  [deployment guide](docs/deployment.md) and each [`deploy/*/README.md`](deploy/).
+- **DOC-3 Deployment guides** ✅: [deployment.md](docs/deployment.md) with the
+  capability matrix + decision flowchart; one recipe per target under `deploy/`.
+- **DOC-4 Architecture set** ✅: [architecture.md](docs/architecture.md) — C4
+  context/container/component views + Mermaid diagrams + the three portability seams.
+- **DOC-5 Reference** ✅: [API reference](docs/api.md),
+  [configuration reference](docs/configuration.md),
+  [service catalog](docs/service-catalog.md),
+  [provider capability matrix](docs/provider-capability-matrix.md), and the
+  database schema ([`migrations/`](migrations/)).
+- **DOC-6 Operations & security** ✅: [operations.md](docs/operations.md)
+  (sync/backup/restore/DR/upgrade/migrations + runbooks) and
+  [security.md](docs/security.md) (trust boundaries, secret storage, hardening,
+  disclosure).
+- **DOC-7 Developer/contributor** ✅: [developer.md](docs/developer.md) — layout,
+  adding a provider/storage/auth adapter, migrations, releases, ADR authoring.
+- **DOC-8 Docs website:** the `docs/` tree is portable Markdown ready for a static
+  site; publishing via GitHub Actions (Starlight/VitePress/MkDocs) remains an
+  optional follow-up, decoupled from the app host.
 - **DOC-quality-gate:** a feature is not complete until its user/admin/config/security/
   deployment docs, validation steps, troubleshooting, diagrams, API docs, and credits are
   updated. PRs require doc changes when code affects behavior/deploy/config/security/arch.

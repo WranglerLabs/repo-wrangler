@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { CREDITS } from '@repo-wrangler/credits';
-import { APP_VERSION, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
+import { APP_VERSION, authMode, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
 import { authRoutes } from './auth/github';
+import { entraRoutes } from './auth/entra';
 import { setupRoutes } from './setup/manifest';
 import { githubWebhookRoutes } from './webhooks/github';
 import { gitlabWebhookRoutes } from './webhooks/gitlab';
@@ -50,7 +51,12 @@ app.get('/health/ready', async (c) => {
 // Public credits endpoint: attribution stays visible without a session.
 app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
+// Public sign-in configuration so the SPA renders the right sign-in button
+// (GitHub vs Microsoft) without a session.
+app.get('/auth/config', (c) => c.json({ mode: authMode(c.env), demo: isDemoMode(c.env) }));
+
 app.route('/auth', authRoutes);
+app.route('/auth', entraRoutes);
 app.route('/setup', setupRoutes);
 app.route('/webhooks', githubWebhookRoutes);
 app.route('/webhooks', gitlabWebhookRoutes);

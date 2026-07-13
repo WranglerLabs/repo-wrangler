@@ -8,6 +8,38 @@ semantic versioning.
 
 ### Added
 
+- **PostgreSQL storage adapter (`persistence-postgres`, ADR-015):** a
+  D1-compatible adapter over PostgreSQL, selected on the Node host by setting
+  `DATABASE_URL`. It runs the *same* persistence SQL and the *same* `migrations/`
+  as SQLite/D1 via compatibility `datetime()` functions plus a small, unit-tested
+  SQL translator (`?N`→`$N`, `INSERT OR IGNORE`→`ON CONFLICT DO NOTHING`,
+  case-preserving aliases). This unlocks **multi-replica** self-hosted deployments
+  (Azure Container Apps, Kubernetes) behind one shared database — run the scheduler
+  on one replica with `ENABLE_SCHEDULER=false` on the rest. Runtime-verified
+  against a real PostgreSQL engine. Closes roadmap **PN-1**.
+- **Microsoft Entra ID sign-in (ADR-016):** an OpenID Connect
+  authorization-code sign-in provider selected by `AUTH_MODE=entra`, alongside the
+  default GitHub sign-in. It issues the same signed session cookie (roles,
+  `/auth/me`, and the SPA unchanged), gates access by `ENTRA_ALLOWED_USERS`, and a
+  new public `/auth/config` endpoint drives the SPA's sign-in button
+  ("Sign in with Microsoft"). Web-Crypto-only, so it runs on both the Worker and
+  the Node host. Closes roadmap **PN-5** (Entra).
+- **Documentation suite (DOC-1…8):** a full `docs/` tree with an
+  [index](docs/README.md) — getting-started, deployment (capability matrix +
+  decision flowchart), configuration reference, provider guides (GitHub/GitLab/
+  Entra), architecture (C4 + Mermaid), API reference, operations (backup/restore/
+  DR/upgrade/migrations), security, developer guide, troubleshooting, service
+  catalog, and provider capability matrix.
+- **Node server host — zero Cloudflare (`apps/server`, ADR-014):** run the whole
+  product (SPA + API + webhooks + auth + scheduler) on a plain Node 22 process
+  backed by SQLite, with no Cloudflare account. It imports the *same* Hono app
+  the Worker runs, over the `node:sqlite` D1 adapter; serves `apps/web/dist` with
+  SPA fallback; applies migrations at boot; and fires the same two cron
+  expressions in-process. Ships with a `Dockerfile` and a root
+  `docker-compose.yml` — `docker compose up --build` boots the product in demo
+  mode on `http://localhost:8080`. New deploy recipe `deploy/docker/` (topology
+  **C — Self-hosted**). Closes roadmap **PN-2**.
+
 - **Design-completeness pass** — closed the remaining functional-requirement gaps
   found in an audit against the solution design: **saved views** (FR-012, D1-backed,
   shareable within the instance), **CSV + Markdown report export** (FR-014, alongside

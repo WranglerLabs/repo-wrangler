@@ -22,23 +22,22 @@ The private operations repository is **not** a private fork of the application a
 
 ## Documents
 
-1. [Executive summary](00-executive-summary.md)
-2. [Product requirements](01-product-requirements.md)
-3. [Solution architecture](02-solution-architecture.md)
-4. [Platform requirements](03-platform-requirements.md)
-5. [Free-tier capacity and cost](04-free-tier-capacity-and-cost.md)
-6. [Security and authentication](05-security-and-authentication.md)
-7. [Data model and synchronization](06-data-model-and-synchronization.md)
-8. [Dashboard and user experience](07-dashboard-and-user-experience.md)
-9. [Repository and open-source strategy](08-repository-and-open-source-strategy.md)
-10. [Upstream reuse and attribution](09-upstream-reuse-and-attribution.md)
-11. [Research spikes](10-research-spikes.md)
-12. [Roadmap and backlog](11-roadmap-and-backlog.md)
-13. [Expected code structure](12-expected-code-structure.md)
-14. [Diagrams and Lucid plan](13-diagrams-and-lucid-plan.md)
-15. [Implementation readiness checklist](14-implementation-readiness-checklist.md)
-16. [Sources](SOURCES.md)
-17. [Architectural decision records](../adr/README.md)
+The full design pack is consolidated into a single document:
+
+- **[RepoWrangler Solution Design](RepoWrangler-Solution-Design.md)** — the complete
+  pack, covering the executive summary, product requirements, solution
+  architecture, platform requirements, free-tier capacity and cost, security and
+  authentication, data model and synchronization, dashboard and user experience,
+  repository and open-source strategy, upstream reuse and attribution, research
+  spikes, roadmap and backlog, expected code structure, diagrams and Lucid plan,
+  implementation readiness checklist, sources, and the architectural decision
+  records (ADR-001…010).
+- **[Core decisions](core-decisions.md)** — the distilled decision summary.
+- **[Architectural decision records](../adr/README.md)** — ADR-001 onward,
+  including the post-design ADR-011…016.
+
+For deployer- and contributor-facing documentation (not design history), start at
+the **[documentation index](../README.md)**.
 
 ## Governing architecture addenda (authoritative — read first)
 
