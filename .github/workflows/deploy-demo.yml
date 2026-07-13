@@ -1,0 +1,42 @@
+name: Deploy demo (on release tag)
+
+# Deploys the live demo Worker when a release tag (vX.Y.Z) is pushed, so the demo
+# always follows the latest release. This is release/CD — deliberately separate
+# from CI (which only checks code and never builds). It runs ONLY on tags.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      # The public repo commits a placeholder D1 id; inject the real one from a
+      # repo secret so it is never in git.
+      - name: Inject D1 database id
+        run: |
+          sed -i "s|<your-d1-database-id>|${{ secrets.CF_D1_DATABASE_ID }}|" wrangler.jsonc
+
+      - name: Build SPA
+        run: pnpm --filter @repo-wrangler/web build
+
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler deploy

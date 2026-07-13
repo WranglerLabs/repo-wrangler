@@ -85,6 +85,7 @@ export default withMermaid({
           { text: 'GitHub App', link: '/providers/github-app' },
           { text: 'GitLab', link: '/providers/gitlab' },
           { text: 'Entra ID sign-in', link: '/providers/entra' },
+          { text: 'Sign-in: GitLab/Google/local', link: '/providers/signin' },
         ],
       },
       {
@@ -102,6 +103,7 @@ export default withMermaid({
         collapsed: false,
         items: [
           { text: 'Operations & runbooks', link: '/operations' },
+          { text: 'Updating your instance', link: '/updating' },
           { text: 'Security', link: '/security' },
           { text: 'Troubleshooting', link: '/troubleshooting' },
         ],
