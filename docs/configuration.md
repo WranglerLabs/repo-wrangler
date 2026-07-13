@@ -106,7 +106,7 @@ See [Providers → GitLab](providers/gitlab.md).
 
 **Real GitHub, self-hosted (SQLite):**
 
-```env
+```ini
 DEMO_MODE=false
 PUBLIC_BASE_URL=https://repowrangler.example.com
 SESSION_SECRET=<openssl rand -base64 48>
@@ -121,7 +121,7 @@ ALLOWED_GITHUB_USERS=your-login
 **Real GitHub + Postgres + Entra sign-in (Azure Container Apps / Kubernetes):**
 add to the above:
 
-```env
+```ini
 DATABASE_URL=postgres://user:pass@db:5432/repowrangler?sslmode=require
 AUTH_MODE=entra
 ENTRA_TENANT_ID=<guid>

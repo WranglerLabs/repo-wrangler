@@ -19,12 +19,18 @@
     "start:server": "pnpm --filter @repo-wrangler/server start",
     "dev:server": "pnpm --filter @repo-wrangler/server dev",
     "db:migrate:local": "wrangler d1 migrations apply repo-wrangler --local",
-    "db:migrate:remote": "wrangler d1 migrations apply repo-wrangler --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply repo-wrangler --remote",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
+    "mermaid": "^11.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.3",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17",
     "vitest": "^3.2.0",
     "wrangler": "^4.20.0"
   }
