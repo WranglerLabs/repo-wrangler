@@ -35,6 +35,23 @@ A user who belongs to many GitHub organizations—and later GitLab groups—cann
 
 RepoWrangler answers these questions with a cross-provider command center and drill-down pages.
 
+## Architecture addenda (authoritative — read alongside this document)
+
+This solution design is amended by two standing addenda. Where they differ from the
+original text, **the addenda govern**:
+
+- **[Platform neutrality](platform-neutrality.md)** ([ADR-013](../adr/ADR-013-platform-neutral-architecture.md)) —
+  no cloud, host, database, or deployment model is a hard requirement. Cloudflare is the
+  **reference implementation, not the required one**; every infrastructure concern
+  (storage, scheduling, secrets, auth, cache, notifications, jobs, repository providers)
+  sits behind an interface with swappable adapters.
+- **[Documentation plan](documentation-plan.md)** — RepoWrangler ships as a **fully
+  documented open-source product**: complete `docs/` suite, per-target deployment guides,
+  quick-starts, architecture/diagrams, reference, operations, security, and developer docs,
+  with documentation quality gates enforced in pull requests.
+
+Both are tracked as parallel workstreams (PN-* and DOC-*) in the [roadmap](../../ROADMAP.md).
+
 ## Primary goals
 
 1. **Automatic discovery:** New GitHub repositories should appear automatically when the GitHub App is installed for all repositories. GitLab projects should be found through group discovery and periodic reconciliation.
