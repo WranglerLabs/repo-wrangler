@@ -49,8 +49,12 @@ original text, **the addenda govern**:
   documented open-source product**: complete `docs/` suite, per-target deployment guides,
   quick-starts, architecture/diagrams, reference, operations, security, and developer docs,
   with documentation quality gates enforced in pull requests.
+- **[Infrastructure & deployment](infrastructure-deployment.md)** — *Build Once. Deploy
+  Anywhere.* Container-first design with deployment profiles A–E (local eval, home lab,
+  Cloudflare reference, Azure, Kubernetes), replaceable infrastructure (DB/cache/scheduler/
+  secrets/storage), **self-hosted as first-class**, and graceful offline/degraded behavior.
 
-Both are tracked as parallel workstreams (PN-* and DOC-*) in the [roadmap](../../ROADMAP.md).
+These addenda are the authoritative design to implement on the owner's command.
 
 ## Primary goals
 
