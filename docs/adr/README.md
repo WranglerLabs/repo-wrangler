@@ -22,6 +22,9 @@ Standalone ADRs in this directory:
 14. [ADR-014 — Node server host for zero-Cloudflare deployment](ADR-014-node-server-host.md)
 15. [ADR-015 — PostgreSQL storage adapter](ADR-015-postgres-storage-adapter.md)
 16. [ADR-016 — Microsoft Entra ID sign-in](ADR-016-entra-id-authentication.md)
+17. [ADR-017 — Secret provider seam (env / file / Key Vault)](ADR-017-secret-provider-seam.md)
+18. [ADR-018 — Scheduler drivers (external-tick)](ADR-018-scheduler-drivers.md)
+19. [ADR-019 — Authentication provider registry (GitHub/GitLab/Entra/Google/local)](ADR-019-authentication-provider-registry.md)
 
 New ADRs get their own numbered Markdown file in this directory
 (`ADR-011-<slug>.md` onward) using the same Context / Decision / Consequences

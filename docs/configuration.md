@@ -27,7 +27,8 @@ everywhere.
 | Setting | Secret | Default | Description |
 |---|---|---|---|
 | `DEMO_MODE` | no | `true` (public default) | `true` = mock data, sign-in bypassed, no secrets. `false` = real mode (a data provider must be configured). Also auto-falls back to demo if no GitHub App is set. |
-| `AUTH_MODE` | no | `github_app` | Sign-in provider: `github_app` or `entra`. See [Entra](providers/entra.md). |
+| `AUTH_PROVIDERS` | no | — | Ordered CSV of enabled sign-in providers: `github,gitlab,entra,google,local` (ADR-019). Supersedes `AUTH_MODE`; a provider appears only if also configured. See [Sign-in providers](#sign-in-providers-pn-5). |
+| `AUTH_MODE` | no | `github_app` | Legacy single-provider selector, used only when `AUTH_PROVIDERS` is empty: `github_app` or `entra`. |
 | `PUBLIC_BASE_URL` | no | request origin | Public URL of this instance; used to build OAuth callback URLs and links. Must match the redirect URI registered with your identity provider. |
 | `SESSION_SECRET` | **yes** | — | Long random string that signs the session cookie (HMAC-SHA-256). Required in real mode. Generate with `openssl rand -base64 48`. |
 | `DEFAULT_RETENTION_DAYS` | no | provider default | Days of pipeline-run / webhook history to retain before compaction. |
@@ -46,6 +47,37 @@ everywhere.
 On Cloudflare, storage is the D1 binding `DB` in `wrangler.jsonc` (`database_id`)
 — not an environment variable.
 
+## Secrets source (PN-4, Node host)
+
+Where the host reads its secrets from ([ADR-017](adr/ADR-017-secret-provider-seam.md)).
+Every non-`env` source falls through to environment variables for anything it does
+not supply.
+
+| Setting | Secret | Default | Description |
+|---|---|---|---|
+| `SECRET_SOURCE` | no | `env` | `env` (environment variables / Cloudflare secrets) · `file` (Docker/Kubernetes mounted secrets) · `keyvault` (Azure Key Vault) · `composite` (file → Key Vault → env). |
+| `SECRETS_DIR` | no | `/run/secrets` | `file`: directory of mounted secret files (one file per secret; env name, lower-kebab, or lower-snake). |
+| `KEY_VAULT_URI` | no | — | `keyvault`/`composite`: Azure Key Vault URI, e.g. `https://my-vault.vault.azure.net`. Read with a **managed identity** — no static credential. Env names map to vault names by lower-kebab (`GITHUB_CLIENT_SECRET` → `github-client-secret`). |
+| `AZURE_CLIENT_ID` | no | — | Optional user-assigned managed-identity client id for the Key Vault adapter. |
+
+## Scheduler driver (PN-3, Node host)
+
+How periodic sync and daily maintenance are triggered
+([ADR-018](adr/ADR-018-scheduler-drivers.md)). On Cloudflare, cron triggers always
+call the `scheduled` handler; this is a Node-host concern.
+
+| Setting | Secret | Default | Description |
+|---|---|---|---|
+| `SCHEDULER_MODE` | no | `in-process` | `in-process` (internal timer) · `external` (no timer; an outside ticker POSTs `/internal/cron/run`) · `off` (no scheduling). |
+| `CRON_TRIGGER_TOKEN` | **yes** | — | Shared bearer token authorizing `POST /internal/cron/run?job=periodic\|daily` when `SCHEDULER_MODE=external`. The endpoint is inert without both. |
+
+Example external ticker (Linux cron, K8s CronJob, GitHub Actions, Azure Functions timer):
+
+```sh
+curl -fsS -X POST -H "authorization: Bearer $CRON_TRIGGER_TOKEN" \
+  "$PUBLIC_BASE_URL/internal/cron/run?job=periodic"
+```
+
 ## GitHub App (data provider)
 
 Required in real mode when monitoring GitHub. See
@@ -61,18 +93,53 @@ Required in real mode when monitoring GitHub. See
 | `ALLOWED_GITHUB_USERS` | no | Comma-separated GitHub logins allowed to sign in; first = owner, rest = admins. |
 | `ALLOWED_GITHUB_ORGS` | no | Comma-separated orgs to scope discovery to (optional). |
 
-## Microsoft Entra ID sign-in (`AUTH_MODE=entra`)
+## Sign-in providers (PN-5)
 
-See [Providers → Entra ID](providers/entra.md).
+Authentication is a set of swappable providers behind one signed session cookie
+([ADR-019](adr/ADR-019-authentication-provider-registry.md)). Enable any
+combination with `AUTH_PROVIDERS` (ordered CSV); each appears on the sign-in
+screen only when it is also configured. For every provider, `*_ALLOWED_USERS` is a
+CSV where the **first principal is the owner** and the rest are admins. Each
+provider registers a redirect URI of `{PUBLIC_BASE_URL}/auth/<id>/callback`.
+
+**GitHub** (`github`) — OAuth via the GitHub App user-authorization flow. Uses
+`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (see GitHub App above) and
+`ALLOWED_GITHUB_USERS`.
+
+**GitLab** (`gitlab`) — OAuth 2.0; works with gitlab.com or self-managed
+(`GITLAB_BASE_URL`), scope `read_user`.
+
+| Setting | Secret | Description |
+|---|---|---|
+| `GITLAB_CLIENT_ID` | no | GitLab OAuth application id. |
+| `GITLAB_CLIENT_SECRET` | **yes** | GitLab OAuth application secret. |
+| `GITLAB_ALLOWED_USERS` | no | Comma-separated GitLab usernames; first = owner. |
+
+**Microsoft Entra ID** (`entra`) — OpenID Connect. Also selectable via the legacy
+`AUTH_MODE=entra`. See [Providers → Entra ID](providers/entra.md).
 
 | Setting | Secret | Description |
 |---|---|---|
 | `ENTRA_TENANT_ID` | no | Directory (tenant) ID, or `organizations` / `common`. |
 | `ENTRA_CLIENT_ID` | no | Application (client) ID. |
 | `ENTRA_CLIENT_SECRET` | **yes** | The Entra app's client secret. |
-| `ENTRA_ALLOWED_USERS` | no | Comma-separated sign-in names (UPN/email) allowed in; first = owner, rest = admins. |
+| `ENTRA_ALLOWED_USERS` | no | Sign-in names (UPN/email); first = owner. |
 
-Register redirect URI `{PUBLIC_BASE_URL}/auth/entra/callback` on the Entra app.
+**Google** (`google`) — OpenID Connect; the verified email is the identity.
+
+| Setting | Secret | Description |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | no | Google OAuth 2.0 client id. |
+| `GOOGLE_CLIENT_SECRET` | **yes** | Google OAuth 2.0 client secret. |
+| `GOOGLE_ALLOWED_USERS` | no | Google account emails; first = owner. |
+
+**Local-dev** (`local`) — **development only**, password-less. Active *only* when
+`local` is in `AUTH_PROVIDERS` **and** `LOCAL_DEV_USERS` is set. Never enable in
+production.
+
+| Setting | Secret | Description |
+|---|---|---|
+| `LOCAL_DEV_USERS` | no | Usernames offered on the local sign-in form; first = owner. |
 
 ## GitLab (data provider, optional)
 
