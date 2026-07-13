@@ -49,6 +49,10 @@ On Cloudflare, storage is the D1 binding `DB` in `wrangler.jsonc` (`database_id`
 
 ## Secrets source (PN-4, Node host)
 
+> **Maturity:** every backend below is implemented and unit-tested and is a
+> supported deployment option. Validate your chosen backend against your real
+> vault before production — pre-1.0.
+
 Where the host reads its secrets from ([ADR-017](adr/ADR-017-secret-provider-seam.md)).
 Every non-`env` source falls through to environment variables for anything it does
 not supply.
@@ -103,6 +107,10 @@ Required in real mode when monitoring GitHub. See
 | `ALLOWED_GITHUB_ORGS` | no | Comma-separated orgs to scope discovery to (optional). |
 
 ## Sign-in providers (PN-5)
+
+> **Maturity:** every provider below is implemented and unit-tested and is a
+> supported sign-in option. Validate the OAuth/OIDC flow against your identity
+> provider before production — pre-1.0.
 
 Authentication is a set of swappable providers behind one signed session cookie
 ([ADR-019](adr/ADR-019-authentication-provider-registry.md)). Enable any
