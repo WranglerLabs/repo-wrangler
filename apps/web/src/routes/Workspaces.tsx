@@ -8,7 +8,7 @@ export function Workspaces() {
   return (
     <>
       <h1 className="page-title">Workspaces</h1>
-      <p className="page-subtitle">GitHub organizations and accounts (GitLab groups later).</p>
+      <p className="page-subtitle">GitHub organizations and accounts, and GitLab groups.</p>
 
       <div className="panel table-scroll">
         <table className="data">
