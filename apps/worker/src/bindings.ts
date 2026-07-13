@@ -79,7 +79,7 @@ export interface Env {
   NOTIFY_WEBHOOK_URL?: string;
 }
 
-export const APP_VERSION = '0.4.0';
+export const APP_VERSION = '0.5.0';
 
 export function isGitLabConfigured(env: Env): boolean {
   return Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);

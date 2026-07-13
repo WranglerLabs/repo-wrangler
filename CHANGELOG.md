@@ -6,6 +6,27 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-13
+
+### Added
+
+- **More secret providers (PN-4):** **Cloudflare KV** (`cloudflare-kv`, REST — with a
+  note that Cloudflare Secrets/Secrets Store is preferred for sensitive values) and
+  **CyberArk** (`cyberark`, Central Credential Provider / AIM). `SECRET_SOURCE` now
+  spans env/file/Azure/Vault/AWS/GCP/Cloudflare-KV/CyberArk/composite — no lock-in.
+- **App version in the UI:** shown under the sidebar title (every page) and on the
+  About & Credits page, served from `/auth/config`.
+- **Docs:** sign-in provider setup guide (GitLab/Google/local), an "Updating your
+  instance" guide, and a pre-1.0 maturity note on the auth + secret sections.
+- **Release CD:** a tag-triggered `deploy-demo` workflow so the live demo follows
+  the latest release (requires `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID`/
+  `CF_D1_DATABASE_ID` repo secrets).
+
+### Changed
+
+- Credits page clarified: no upstream code copied — references/inspiration only.
+- Workspaces subtitle no longer says "GitLab groups later" (GitLab is supported).
+
 ## [0.4.0] - 2026-07-13
 
 ### Added
