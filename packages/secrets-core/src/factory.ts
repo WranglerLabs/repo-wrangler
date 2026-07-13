@@ -24,6 +24,8 @@ import { KeyVaultSecretProvider } from './keyvault';
 import { VaultSecretProvider } from './vault';
 import { AwsSecretsManagerProvider } from './aws';
 import { GcpSecretManagerProvider } from './gcp';
+import { CloudflareKvSecretProvider } from './cloudflare-kv';
+import { CyberArkSecretProvider } from './cyberark';
 
 type Env = Record<string, string | undefined>;
 
@@ -58,6 +60,26 @@ function gcpSecrets(env: Env): SecretProvider | null {
   return project ? new GcpSecretManagerProvider(project) : null;
 }
 
+function cloudflareKv(env: Env): SecretProvider | null {
+  if (!env.CF_ACCOUNT_ID || !env.CF_KV_NAMESPACE_ID || !env.CF_API_TOKEN) return null;
+  return new CloudflareKvSecretProvider({
+    accountId: env.CF_ACCOUNT_ID,
+    namespaceId: env.CF_KV_NAMESPACE_ID,
+    apiToken: env.CF_API_TOKEN,
+    prefix: env.CF_KV_PREFIX,
+  });
+}
+
+function cyberArk(env: Env): SecretProvider | null {
+  if (!env.CYBERARK_BASE_URL || !env.CYBERARK_APP_ID || !env.CYBERARK_SAFE) return null;
+  return new CyberArkSecretProvider({
+    baseUrl: env.CYBERARK_BASE_URL,
+    appId: env.CYBERARK_APP_ID,
+    safe: env.CYBERARK_SAFE,
+    objectPrefix: env.CYBERARK_OBJECT_PREFIX,
+  });
+}
+
 function require1(provider: SecretProvider | null, source: string, need: string): SecretProvider {
   if (!provider) throw new Error(`SECRET_SOURCE=${source} requires ${need}`);
   return provider;
@@ -90,9 +112,26 @@ export function createSecretProvider(env: Env = process.env): SecretProvider {
         require1(gcpSecrets(env), source, 'GCP_PROJECT'),
         envProvider,
       ]);
+    case 'cloudflare-kv':
+      return new CompositeSecretProvider([
+        require1(cloudflareKv(env), source, 'CF_ACCOUNT_ID, CF_KV_NAMESPACE_ID and CF_API_TOKEN'),
+        envProvider,
+      ]);
+    case 'cyberark':
+      return new CompositeSecretProvider([
+        require1(cyberArk(env), source, 'CYBERARK_BASE_URL, CYBERARK_APP_ID and CYBERARK_SAFE'),
+        envProvider,
+      ]);
     case 'composite': {
       const providers: SecretProvider[] = [new FileSecretProvider(dir)];
-      for (const p of [keyVault(env), hashiVault(env), awsSecrets(env), gcpSecrets(env)]) {
+      for (const p of [
+        keyVault(env),
+        hashiVault(env),
+        awsSecrets(env),
+        gcpSecrets(env),
+        cloudflareKv(env),
+        cyberArk(env),
+      ]) {
         if (p) providers.push(p);
       }
       providers.push(envProvider);
@@ -100,7 +139,8 @@ export function createSecretProvider(env: Env = process.env): SecretProvider {
     }
     default:
       throw new Error(
-        `Unknown SECRET_SOURCE '${source}' (env|file|keyvault|vault|aws|gcp|composite)`,
+        `Unknown SECRET_SOURCE '${source}' ` +
+          `(env|file|keyvault|vault|aws|gcp|cloudflare-kv|cyberark|composite)`,
       );
   }
 }

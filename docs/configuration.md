@@ -64,7 +64,7 @@ through to environment variables.
 
 | Setting | Secret | Default | Description |
 |---|---|---|---|
-| `SECRET_SOURCE` | no | `env` | `env` · `file` · `keyvault` (Azure) · `vault` (HashiCorp) · `aws` · `gcp` · `composite` (file → configured vaults → env). |
+| `SECRET_SOURCE` | no | `env` | `env` · `file` · `keyvault` (Azure) · `vault` (HashiCorp) · `aws` · `gcp` · `cloudflare-kv` · `cyberark` · `composite` (file → configured vaults → env). |
 | `SECRETS_DIR` | no | `/run/secrets` | `file`: directory of mounted secret files. Also covers **any CSI driver** (AWS/GCP/Vault) that mounts secrets as files. |
 | `KEY_VAULT_URI` / `AZURE_CLIENT_ID` | no | — | `keyvault`: Azure Key Vault URI (managed identity, no static credential); optional user-assigned identity client id. |
 | `VAULT_ADDR` / `VAULT_TOKEN` | **yes** | — | `vault`: HashiCorp Vault address + token (cloud-neutral, runs anywhere). |
@@ -72,6 +72,8 @@ through to environment variables.
 | `AWS_REGION` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | **yes** | — | `aws`: AWS Secrets Manager (SigV4). Creds from the standard AWS env / instance role. |
 | `AWS_SECRET_PREFIX` | no | — | `aws`: optional secret-id prefix. |
 | `GCP_PROJECT` | no | — | `gcp`: Google Secret Manager project; token from the metadata server / workload identity. |
+| `CF_ACCOUNT_ID` / `CF_KV_NAMESPACE_ID` / `CF_API_TOKEN` / `CF_KV_PREFIX` | **yes** (token) | — | `cloudflare-kv`: Workers KV via REST. Note: Cloudflare **Secrets/Secrets Store** is preferred for sensitive values (encrypted); KV is offered as an option. |
+| `CYBERARK_BASE_URL` / `CYBERARK_APP_ID` / `CYBERARK_SAFE` / `CYBERARK_OBJECT_PREFIX` | no | — | `cyberark`: CyberArk Central Credential Provider (CCP/AIM); application-authenticated, no token. |
 
 ## Scheduler driver (PN-3, Node host)
 

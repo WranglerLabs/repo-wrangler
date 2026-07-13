@@ -4,4 +4,6 @@ export * from './keyvault';
 export * from './vault';
 export * from './aws';
 export * from './gcp';
+export * from './cloudflare-kv';
+export * from './cyberark';
 export * from './factory';
