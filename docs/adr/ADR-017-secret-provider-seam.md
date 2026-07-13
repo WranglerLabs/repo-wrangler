@@ -29,11 +29,18 @@ composite, selected on the Node host by `SECRET_SOURCE`:
 - **`FileSecretProvider`** (`file`) — reads `${SECRETS_DIR}/<name>` (default
   `/run/secrets`), covering both Docker and Kubernetes mounted secrets. Tries the
   exact env name, then the lower-kebab and lower-snake forms.
-- **`KeyVaultSecretProvider`** (`keyvault`) — reads Azure Key Vault over its REST
-  API using a **managed-identity** token from the App Service / Container Apps
-  token endpoint (preferred) or IMDS. Deliberately SDK-free — only `fetch` — so it
-  adds no dependency and runs on any runtime. Env names map to vault names by
-  lower-kebab convention (`GITHUB_CLIENT_SECRET` → `github-client-secret`).
+- **External vaults — no cloud privileged.** All SDK-free (only `fetch` + Web
+  Crypto), each using that platform's native auth:
+  - **`KeyVaultSecretProvider`** (`keyvault`) — Azure Key Vault via managed
+    identity (Container Apps token endpoint → IMDS).
+  - **`VaultSecretProvider`** (`vault`) — HashiCorp Vault KV v2 (the cloud-neutral
+    option; runs self-hosted, on HCP, or any cloud).
+  - **`AwsSecretsManagerProvider`** (`aws`) — AWS Secrets Manager, SigV4-signed
+    with the standard AWS credentials/role.
+  - **`GcpSecretManagerProvider`** (`gcp`) — Google Secret Manager, token from the
+    GCP metadata server / workload identity.
+  Env names map to each vault's key by lower-kebab convention
+  (`GITHUB_CLIENT_SECRET` → `github-client-secret`).
 - **`CompositeSecretProvider`** — tries providers in order, first defined wins.
   `SECRET_SOURCE=file`/`keyvault`/`composite` all fall through to env so local
   overrides and non-secret config keep working.

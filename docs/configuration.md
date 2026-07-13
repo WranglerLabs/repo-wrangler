@@ -53,12 +53,21 @@ Where the host reads its secrets from ([ADR-017](adr/ADR-017-secret-provider-sea
 Every non-`env` source falls through to environment variables for anything it does
 not supply.
 
+No cloud is required — the external-vault options span self-hosted (HashiCorp
+Vault) and every major cloud. Env names map to vault keys by lower-kebab
+(`GITHUB_CLIENT_SECRET` → `github-client-secret`). Every non-`env` source falls
+through to environment variables.
+
 | Setting | Secret | Default | Description |
 |---|---|---|---|
-| `SECRET_SOURCE` | no | `env` | `env` (environment variables / Cloudflare secrets) · `file` (Docker/Kubernetes mounted secrets) · `keyvault` (Azure Key Vault) · `composite` (file → Key Vault → env). |
-| `SECRETS_DIR` | no | `/run/secrets` | `file`: directory of mounted secret files (one file per secret; env name, lower-kebab, or lower-snake). |
-| `KEY_VAULT_URI` | no | — | `keyvault`/`composite`: Azure Key Vault URI, e.g. `https://my-vault.vault.azure.net`. Read with a **managed identity** — no static credential. Env names map to vault names by lower-kebab (`GITHUB_CLIENT_SECRET` → `github-client-secret`). |
-| `AZURE_CLIENT_ID` | no | — | Optional user-assigned managed-identity client id for the Key Vault adapter. |
+| `SECRET_SOURCE` | no | `env` | `env` · `file` · `keyvault` (Azure) · `vault` (HashiCorp) · `aws` · `gcp` · `composite` (file → configured vaults → env). |
+| `SECRETS_DIR` | no | `/run/secrets` | `file`: directory of mounted secret files. Also covers **any CSI driver** (AWS/GCP/Vault) that mounts secrets as files. |
+| `KEY_VAULT_URI` / `AZURE_CLIENT_ID` | no | — | `keyvault`: Azure Key Vault URI (managed identity, no static credential); optional user-assigned identity client id. |
+| `VAULT_ADDR` / `VAULT_TOKEN` | **yes** | — | `vault`: HashiCorp Vault address + token (cloud-neutral, runs anywhere). |
+| `VAULT_KV_MOUNT` / `VAULT_KV_PREFIX` / `VAULT_NAMESPACE` | no | `secret` | `vault`: KV v2 mount, optional key prefix, optional Enterprise/HCP namespace. |
+| `AWS_REGION` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | **yes** | — | `aws`: AWS Secrets Manager (SigV4). Creds from the standard AWS env / instance role. |
+| `AWS_SECRET_PREFIX` | no | — | `aws`: optional secret-id prefix. |
+| `GCP_PROJECT` | no | — | `gcp`: Google Secret Manager project; token from the metadata server / workload identity. |
 
 ## Scheduler driver (PN-3, Node host)
 
