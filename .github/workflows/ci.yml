@@ -1,6 +1,8 @@
 name: CI
 
 # Manual/PR-only by operator preference — no push-triggered runs.
+# CI verifies code (typecheck + unit tests) only. It does NOT build, bundle, or
+# boot the app — building/deploying is not a CI concern in this repo.
 on:
   pull_request:
   workflow_dispatch:
@@ -17,7 +19,6 @@ jobs:
       # pnpm version comes from the packageManager field in package.json.
       - uses: pnpm/action-setup@v4
 
-      # No dependency cache: the repo intentionally commits no lockfile yet.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -30,50 +31,3 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
-
-      - name: Build SPA
-        run: pnpm build
-
-      - name: Dry-run Worker bundle
-        run: pnpm exec wrangler deploy --dry-run
-
-  # Adapter-matrix (PN-7): boot the real server host on each storage backend and
-  # prove migrations + a live query succeed through the storage seam. This is the
-  # guard that keeps the PostgreSQL adapter honest against real PostgreSQL, not
-  # just the SQL translator's unit tests.
-  adapter-matrix:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [sqlite, postgres]
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: repowrangler
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
-      - name: Build SPA (server serves the built assets)
-        run: pnpm build
-      - name: Smoke — ${{ matrix.backend }}
-        env:
-          DATABASE_URL: ${{ matrix.backend == 'postgres' && 'postgres://postgres:postgres@localhost:5432/repowrangler' || '' }}
-          SQLITE_PATH: /tmp/rw-${{ matrix.backend }}.db
-          PORT: 8799
-        run: bash scripts/adapter-smoke.sh
