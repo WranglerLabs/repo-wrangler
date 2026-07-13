@@ -10,6 +10,11 @@ import {
 import { AttentionBadge, BranchStatusBadge, RunBadge } from '../components/Badges';
 import { timeAgo } from '../lib/format';
 import { exportCsv, exportJson, exportMarkdown } from '../lib/export';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+
+const ROW_HEIGHT = 48;
+const VIEWPORT_HEIGHT = 600;
+const VIRTUALIZE_ABOVE = 50;
 
 interface ViewDefinition {
   search: string;
@@ -66,6 +71,10 @@ export function Repositories() {
       return true;
     });
   }, [repositories.data, search, level]);
+
+  const virtualize = filtered.length > VIRTUALIZE_ABOVE;
+  const win = useVirtualWindow(filtered.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visibleRepos = virtualize ? filtered.slice(win.start, win.end) : filtered;
 
   return (
     <>
@@ -129,7 +138,11 @@ export function Repositories() {
         )}
       </div>
 
-      <div className="panel table-scroll">
+      <div
+        className="panel table-scroll"
+        style={virtualize ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+        onScroll={virtualize ? win.onScroll : undefined}
+      >
         <table className="data">
           <thead>
             <tr>
@@ -151,7 +164,12 @@ export function Repositories() {
                 </td>
               </tr>
             )}
-            {filtered.map((repo) => (
+            {virtualize && win.padTop > 0 && (
+              <tr aria-hidden>
+                <td colSpan={8} style={{ height: win.padTop, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {visibleRepos.map((repo) => (
               <tr key={repo.id}>
                 <td>
                   <Link to={`/repositories/${repo.id}`}>{repo.fullName}</Link>
@@ -185,6 +203,11 @@ export function Repositories() {
                 <td className="muted">{timeAgo(repo.lastSyncedAt)}</td>
               </tr>
             ))}
+            {virtualize && win.padBottom > 0 && (
+              <tr aria-hidden>
+                <td colSpan={8} style={{ height: win.padBottom, padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

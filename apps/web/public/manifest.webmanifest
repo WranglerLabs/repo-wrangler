@@ -1,0 +1,13 @@
+{
+  "name": "RepoWrangler",
+  "short_name": "RepoWrangler",
+  "description": "Wrangle every repository into one clear view.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f3ea",
+  "theme_color": "#1f4d3a",
+  "icons": [
+    { "src": "/lasso.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

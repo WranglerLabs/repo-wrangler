@@ -8,6 +8,14 @@ semantic versioning.
 
 ### Added
 
+- **Design-completeness pass** — closed the remaining functional-requirement gaps
+  found in an audit against the solution design: **saved views** (FR-012, D1-backed,
+  shareable within the instance), **CSV + Markdown report export** (FR-014, alongside
+  JSON), the **Activity/sync-history** and **Provider-capabilities** repository-detail
+  tabs (FR-013, now all 9 tabs), **row virtualization** for large inventory tables
+  (NFR-002), and **PWA groundwork** — web manifest, service worker, and registration
+  (goal 7 / FR-011).
+
 - **Drop-in theming (ADR-012):** themes are self-contained CSS files under
   `apps/web/src/themes/` — dropping one in makes it appear in the sidebar theme
   switcher automatically (Hugo/Jekyll-style, via glob discovery), no code change.
