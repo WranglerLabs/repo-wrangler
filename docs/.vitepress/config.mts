@@ -41,6 +41,16 @@ export default withMermaid({
         ],
       },
       {
+        text: 'Project',
+        items: [
+          { text: 'Changelog', link: '/project/changelog' },
+          { text: 'Roadmap', link: '/project/roadmap' },
+          { text: 'Contributing', link: '/project/contributing' },
+          { text: 'Credits', link: '/project/credits' },
+          { text: 'License', link: '/project/license' },
+        ],
+      },
+      {
         text: 'GitHub',
         link: 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler',
       },
@@ -95,8 +105,19 @@ export default withMermaid({
         collapsed: false,
         items: [
           { text: 'Developer guide', link: '/developer' },
+          { text: 'Contributing', link: '/project/contributing' },
           { text: 'Decision records (ADRs)', link: '/adr/' },
           { text: 'Design pack', link: '/design/design-pack-index' },
+        ],
+      },
+      {
+        text: 'Project',
+        collapsed: false,
+        items: [
+          { text: 'Changelog', link: '/project/changelog' },
+          { text: 'Roadmap', link: '/project/roadmap' },
+          { text: 'Credits & attribution', link: '/project/credits' },
+          { text: 'License', link: '/project/license' },
         ],
       },
     ],
