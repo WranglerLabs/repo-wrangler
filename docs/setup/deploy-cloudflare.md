@@ -71,9 +71,19 @@ pnpm deploy        # = pnpm build && wrangler deploy
 
 ### 6. Continuous deployment (recommended)
 
-Connect the repository to **Cloudflare Workers Builds** so pushes to `main`
-build and deploy automatically, with preview builds for pull requests. Build
-command: `pnpm install && pnpm build`; deploy command: `wrangler deploy`.
+Use the ready-made GitHub Actions workflow at
+[`deploy/cloudflare/ci.yml`](../../deploy/cloudflare/ci.yml) — it builds,
+**applies any new database migrations, and then deploys** on every push to
+`main`, so schema changes always ship with the code and you never run a
+migration by hand.
+
+Alternatively, connect the repository to **Cloudflare Workers Builds** (build
+command `pnpm install && pnpm build`). Because Workers Builds does not run D1
+migrations, set its deploy command to apply them first:
+`wrangler d1 migrations apply repo-wrangler --remote && wrangler deploy`.
+
+Either way, `/health/ready` returns 503 with a clear message if the database is
+ever behind on migrations, so a schema gap is never silent.
 
 ## Free-tier posture
 
