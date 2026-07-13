@@ -1,20 +1,24 @@
 import { Hono } from 'hono';
-import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
-import { isDemoMode, isEntraConfigured } from '../bindings';
+import { isDemoMode, isEntraConfigured, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
-import { createSessionCookie, createStateToken, verifyStateToken } from '../lib/session';
+import { createStateToken, verifyStateToken } from '../lib/session';
+import {
+  clearTransientCookie,
+  completeSignIn,
+  decodeJwtPayload,
+  readCookie,
+  transientCookie,
+  type AuthProvider,
+} from './types';
 
 /**
  * Dashboard sign-in via Microsoft Entra ID (Azure AD) using the OpenID Connect
- * authorization-code flow. This is the `AUTH_MODE=entra` alternative to GitHub
- * user-authorization sign-in — the same signed session cookie is issued, so
- * everything downstream (session middleware, roles, `/auth/me`) is unchanged.
- *
- * The ID token is obtained over a back-channel exchange with the token endpoint,
- * authenticated with the app's client secret over TLS. Per OpenID Connect §3.1.3.7,
- * a token received this way may be trusted without re-validating its signature;
- * we still validate issuer, audience, expiry, and the login-bound nonce. No
- * Cloudflare-specific API is used — only Web Crypto and `fetch`, so this runs on
+ * authorization-code flow — one of the sign-in providers behind the
+ * `IAuthenticationProvider` seam (ADR-019), not a special "auth mode". The ID
+ * token is obtained over a back-channel exchange authenticated with the app's
+ * client secret over TLS; per OpenID Connect §3.1.3.7 it may be trusted without
+ * re-validating its signature, and we still check issuer, audience, expiry, and
+ * the login-bound nonce. Only Web Crypto and `fetch` are used, so it runs on
  * both the Worker and the Node host.
  */
 export const entraRoutes = new Hono<AppContext>();
@@ -26,46 +30,10 @@ function authority(tenant: string): string {
   return `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0`;
 }
 
-function readCookie(header: string | undefined, name: string): string | undefined {
-  return header
-    ?.split(';')
-    .map((v) => v.trim())
-    .find((v) => v.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-}
-
-/** Decode a JWT payload (no signature check — see file header for why). */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  const parts = token.split('.');
-  const payload = parts.length === 3 ? parts[1] : undefined;
-  if (!payload) return null;
-  try {
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-function allowlistedRole(
-  identity: string,
-  allowed: string | undefined,
-): 'owner' | 'admin' | 'viewer' | null {
-  const names = (allowed ?? '')
-    .split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
-  if (names.length === 0) return null;
-  const index = names.findIndex((u) => u.toLowerCase() === identity.toLowerCase());
-  if (index === -1) return null;
-  return index === 0 ? 'owner' : 'admin';
-}
-
 /** Issuer is trusted when it matches the tenant, or the host for multi-tenant. */
 function issuerTrusted(iss: unknown, tenant: string): boolean {
   if (typeof iss !== 'string') return false;
   if (iss === `https://login.microsoftonline.com/${tenant}/v2.0`) return true;
-  // common/organizations/consumers resolve to a concrete tenant GUID at runtime.
   const multiTenant = tenant === 'common' || tenant === 'organizations' || tenant === 'consumers';
   return multiTenant && /^https:\/\/login\.microsoftonline\.com\/[0-9a-f-]+\/v2\.0$/i.test(iss);
 }
@@ -93,16 +61,8 @@ entraRoutes.get('/entra/login', async (c) => {
   authorizeUrl.searchParams.set('state', state);
   authorizeUrl.searchParams.set('nonce', nonce);
 
-  c.header(
-    'Set-Cookie',
-    `${STATE_COOKIE}=${state}; Path=/auth; HttpOnly; SameSite=Lax; Max-Age=600; Secure`,
-    { append: true },
-  );
-  c.header(
-    'Set-Cookie',
-    `${NONCE_COOKIE}=${nonce}; Path=/auth; HttpOnly; SameSite=Lax; Max-Age=600; Secure`,
-    { append: true },
-  );
+  c.header('Set-Cookie', transientCookie(STATE_COOKIE, state), { append: true });
+  c.header('Set-Cookie', transientCookie(NONCE_COOKIE, nonce), { append: true });
   return c.redirect(authorizeUrl.toString());
 });
 
@@ -148,7 +108,6 @@ entraRoutes.get('/entra/callback', async (c) => {
     return c.json({ error: 'No identity token returned.' }, 401);
   }
 
-  // Validate the token binding: issuer, audience, expiry, and login nonce.
   const now = Math.floor(Date.now() / 1000);
   if (!issuerTrusted(claims.iss, tenant)) {
     return c.json({ error: 'Untrusted token issuer.' }, 401);
@@ -172,16 +131,18 @@ entraRoutes.get('/entra/callback', async (c) => {
     return c.json({ error: 'Could not identify the signed-in user.' }, 401);
   }
 
-  const role = allowlistedRole(identity, c.env.ENTRA_ALLOWED_USERS);
-  if (!role) {
-    await recordAuditEvent(c.env.DB, identity, 'login.denied', 'Not on Entra allowlist');
-    return c.json({ error: 'This account is not authorized for this instance.' }, 403);
-  }
-
-  await recordAuditEvent(c.env.DB, identity, 'login.success', `provider=entra role=${role}`);
-  const cookie = await createSessionCookie(secret, { login: identity, role }, true);
-  c.header('Set-Cookie', cookie, { append: true });
-  c.header('Set-Cookie', `${STATE_COOKIE}=; Path=/auth; HttpOnly; Max-Age=0`, { append: true });
-  c.header('Set-Cookie', `${NONCE_COOKIE}=; Path=/auth; HttpOnly; Max-Age=0`, { append: true });
-  return c.redirect('/');
+  c.header('Set-Cookie', clearTransientCookie(STATE_COOKIE), { append: true });
+  c.header('Set-Cookie', clearTransientCookie(NONCE_COOKIE), { append: true });
+  return completeSignIn(c, {
+    provider: 'entra',
+    identity,
+    allowedUsers: c.env.ENTRA_ALLOWED_USERS,
+  });
 });
+
+export const entraProvider: AuthProvider = {
+  id: 'entra',
+  label: 'Microsoft',
+  isConfigured: isEntraConfigured,
+  routes: entraRoutes,
+};

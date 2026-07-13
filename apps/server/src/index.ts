@@ -11,8 +11,8 @@
  * Requires Node 22 with `--experimental-sqlite` (for `node:sqlite`).
  */
 import { serve } from '@hono/node-server';
-import { app } from '@repo-wrangler/worker';
-import { loadConfig, buildEnv } from './env';
+import { app, schedulerMode } from '@repo-wrangler/worker';
+import { loadConfig, buildEnv, loadSecrets } from './env';
 import { openStore } from './store';
 import { createSpaAssets } from './static';
 import { startScheduler } from './scheduler';
@@ -25,7 +25,7 @@ function log(message: string, error?: unknown): void {
 
 // Paths the shared Worker app owns; everything else is served as SPA static
 // content. Mirrors wrangler.jsonc `assets.run_worker_first`.
-const WORKER_PREFIXES = ['/api/', '/auth/', '/webhooks/', '/health/', '/setup/'];
+const WORKER_PREFIXES = ['/api/', '/auth/', '/webhooks/', '/health/', '/setup/', '/internal/'];
 
 function isWorkerPath(pathname: string): boolean {
   return WORKER_PREFIXES.some((p) => pathname === p.slice(0, -1) || pathname.startsWith(p));
@@ -46,8 +46,13 @@ async function main(): Promise<void> {
       : 'database schema up to date',
   );
 
+  // Resolve secrets through the configured provider (PN-4): env vars by default,
+  // or Docker/K8s files or Azure Key Vault when SECRET_SOURCE selects them.
+  const { label: secretLabel, secrets } = await loadSecrets();
+  log(`secrets: ${secretLabel} (${Object.keys(secrets).length} resolved)`);
+
   const assets = createSpaAssets(config.webDist);
-  const env = buildEnv(store.d1, assets.fetcher);
+  const env = buildEnv(store.d1, assets.fetcher, secrets);
 
   // A minimal Cloudflare `ExecutionContext`. `waitUntil` keeps background work
   // alive on the Node event loop; nothing here is billed per-invocation.
@@ -69,9 +74,15 @@ async function main(): Promise<void> {
     log(`listening on http://0.0.0.0:${info.port}  (db: ${config.sqlitePath})`);
   });
 
-  const scheduler = config.enableScheduler
-    ? startScheduler(env, log)
-    : (log('scheduler disabled (ENABLE_SCHEDULER=false)'), null);
+  // Scheduler driver (PN-3): in-process timer by default; `external` expects an
+  // outside ticker to POST /internal/cron/run; `off` disables scheduling. The
+  // legacy ENABLE_SCHEDULER=false still forces it off.
+  const mode = schedulerMode(env);
+  const scheduler =
+    config.enableScheduler && mode === 'in-process'
+      ? startScheduler(env, log)
+      : (log(`scheduler: ${config.enableScheduler ? mode : 'off (ENABLE_SCHEDULER=false)'} — no in-process timer`),
+        null);
 
   const shutdown = (signal: string) => {
     log(`received ${signal}, shutting down`);

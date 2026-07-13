@@ -11,12 +11,30 @@ export interface Env {
   SESSION_SECRET?: string;
   GITLAB_TOKEN?: string;
   GITLAB_WEBHOOK_SECRET?: string;
-  /** Microsoft Entra ID (Azure AD) app client secret — used when AUTH_MODE=entra. */
+  /** GitLab OAuth application id/secret — used by the GitLab sign-in provider. */
+  GITLAB_CLIENT_ID?: string;
+  GITLAB_CLIENT_SECRET?: string;
+  /** Microsoft Entra ID (Azure AD) app client secret — used by the Entra provider. */
   ENTRA_CLIENT_SECRET?: string;
+  /** Google OAuth 2.0 / OIDC client id/secret — used by the Google sign-in provider. */
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  /** Shared bearer token authorizing the external-tick cron endpoint (PN-3). */
+  CRON_TRIGGER_TOKEN?: string;
 
   // Non-secret configuration (wrangler.jsonc vars / dashboard)
-  /** Sign-in provider: `github_app` (default) or `entra`. */
+  /**
+   * Legacy single sign-in selector: `github_app` (default) or `entra`. Superseded
+   * by `AUTH_PROVIDERS` (ADR-019); still honoured when `AUTH_PROVIDERS` is unset.
+   */
   AUTH_MODE?: string;
+  /**
+   * Comma-separated ordered list of enabled sign-in providers — any of
+   * `github`, `gitlab`, `entra`, `google`, `local` (ADR-019, PN-5). When set it
+   * takes precedence over `AUTH_MODE`; a provider only appears if it is also
+   * configured. Empty/unset falls back to `AUTH_MODE`.
+   */
+  AUTH_PROVIDERS?: string;
   /** Entra directory (tenant) ID, or `organizations`/`common`. */
   ENTRA_TENANT_ID?: string;
   /** Entra application (client) ID. */
@@ -26,6 +44,22 @@ export interface Env {
    * first to sign in becomes the owner, the rest are admins. Empty = nobody.
    */
   ENTRA_ALLOWED_USERS?: string;
+  /** Comma-separated GitLab usernames allowed to sign in (first = owner). */
+  GITLAB_ALLOWED_USERS?: string;
+  /** Comma-separated Google account emails allowed to sign in (first = owner). */
+  GOOGLE_ALLOWED_USERS?: string;
+  /**
+   * Comma-separated usernames for the local-dev sign-in provider (first = owner).
+   * Intended only for local development / evaluation; never enable in production.
+   */
+  LOCAL_DEV_USERS?: string;
+  /**
+   * Scheduler driver for a self-hosted host (PN-3): `in-process` (default — an
+   * internal timer), `external` (no timer; an external ticker POSTs
+   * `/internal/cron/run`), or `off` (no scheduling). Ignored on Cloudflare, where
+   * cron triggers always call the `scheduled` handler.
+   */
+  SCHEDULER_MODE?: string;
   DEMO_MODE?: string;
   PUBLIC_BASE_URL?: string;
   ALLOWED_GITHUB_USERS?: string;
@@ -67,6 +101,18 @@ export function authMode(env: Env): 'github_app' | 'entra' {
 /** Whether the Entra ID sign-in provider has the settings it needs. */
 export function isEntraConfigured(env: Env): boolean {
   return Boolean(env.ENTRA_TENANT_ID && env.ENTRA_CLIENT_ID && env.ENTRA_CLIENT_SECRET);
+}
+
+/** Resolved scheduler driver for a self-hosted host (PN-3). */
+export function schedulerMode(env: Env): 'in-process' | 'external' | 'off' {
+  switch ((env.SCHEDULER_MODE ?? '').toLowerCase()) {
+    case 'external':
+      return 'external';
+    case 'off':
+      return 'off';
+    default:
+      return 'in-process';
+  }
 }
 
 export function isDemoMode(env: Env): boolean {

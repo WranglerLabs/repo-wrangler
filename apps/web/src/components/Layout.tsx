@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { signInFor, useAuthConfig, useSessionUser } from '../api/client';
+import { signInOptions, useAuthConfig, useSessionUser } from '../api/client';
 import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
 import {
   CUSTOM_THEME_ID,
@@ -39,7 +39,7 @@ export function Layout() {
   const [theme, setTheme] = useTheme();
   const { data: user } = useSessionUser();
   const { data: authConfig } = useAuthConfig();
-  const signIn = signInFor(authConfig);
+  const signIns = signInOptions(authConfig);
 
   return (
     <div className="layout">
@@ -61,9 +61,13 @@ export function Layout() {
               {user.login} ({user.role}){user.demo ? ' · demo' : ''}
             </div>
           ) : (
-            <a href={signIn.href} style={{ color: '#e0b45e' }}>
-              {signIn.label}
-            </a>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              {signIns.map((s) => (
+                <a key={s.href} href={s.href} style={{ color: '#e0b45e' }}>
+                  {s.label}
+                </a>
+              ))}
+            </div>
           )}
           <label className="theme-picker">
             <span>Theme</span>

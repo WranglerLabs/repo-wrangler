@@ -164,9 +164,15 @@ export function useSessionUser() {
   });
 }
 
+export interface AuthProviderOption {
+  id: string;
+  label: string;
+  loginUrl: string;
+}
+
 export interface AuthConfigDto {
-  mode: 'github_app' | 'entra';
   demo: boolean;
+  providers: AuthProviderOption[];
 }
 
 export function useAuthConfig() {
@@ -177,12 +183,20 @@ export function useAuthConfig() {
   });
 }
 
-/** Sign-in link and label for the configured provider. */
-export function signInFor(config: AuthConfigDto | undefined): { href: string; label: string } {
-  if (config?.mode === 'entra') {
-    return { href: '/auth/entra/login', label: 'Sign in with Microsoft' };
+/** One sign-in link+label per enabled provider (ADR-019). */
+export function signInOptions(
+  config: AuthConfigDto | undefined,
+): { href: string; label: string }[] {
+  const providers = config?.providers ?? [];
+  if (providers.length === 0) {
+    return [{ href: '/auth/github/login', label: 'Sign in with GitHub' }];
   }
-  return { href: '/auth/github/login', label: 'Sign in with GitHub' };
+  return providers.map((p) => ({ href: p.loginUrl, label: `Sign in with ${p.label}` }));
+}
+
+/** First configured provider — for spots that show a single sign-in link. */
+export function signInFor(config: AuthConfigDto | undefined): { href: string; label: string } {
+  return signInOptions(config)[0]!;
 }
 
 export function useSavedViews() {

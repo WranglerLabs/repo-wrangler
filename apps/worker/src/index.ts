@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { CREDITS } from '@repo-wrangler/credits';
-import { APP_VERSION, authMode, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
+import { APP_VERSION, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
-import { authRoutes } from './auth/github';
-import { entraRoutes } from './auth/entra';
+import { authConfig, ALL_PROVIDERS } from './auth/registry';
 import { setupRoutes } from './setup/manifest';
 import { githubWebhookRoutes } from './webhooks/github';
 import { gitlabWebhookRoutes } from './webhooks/gitlab';
+import { internalCronRoutes } from './internal/cron';
 import { requireAuth, securityHeaders, type AppContext } from './middleware/auth';
 import { runScheduled } from './scheduled';
 
@@ -51,15 +51,17 @@ app.get('/health/ready', async (c) => {
 // Public credits endpoint: attribution stays visible without a session.
 app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
-// Public sign-in configuration so the SPA renders the right sign-in button
-// (GitHub vs Microsoft) without a session.
-app.get('/auth/config', (c) => c.json({ mode: authMode(c.env), demo: isDemoMode(c.env) }));
+// Public sign-in configuration so the SPA renders one button per enabled
+// provider (GitHub, GitLab, Microsoft, Google, local-dev) without a session.
+app.get('/auth/config', (c) => c.json(authConfig(c.env)));
 
-app.route('/auth', authRoutes);
-app.route('/auth', entraRoutes);
+// Mount every provider's routes; each handler guards on its own configuration,
+// and the registry decides which appear on the sign-in screen.
+for (const provider of ALL_PROVIDERS) app.route('/auth', provider.routes);
 app.route('/setup', setupRoutes);
 app.route('/webhooks', githubWebhookRoutes);
 app.route('/webhooks', gitlabWebhookRoutes);
+app.route('/internal', internalCronRoutes);
 
 app.use('/api/v1/*', requireAuth);
 app.route('/api/v1', apiRoutes);
@@ -74,4 +76,5 @@ export default {
 // Re-exported so a non-Cloudflare host (apps/server) can run the same app and
 // scheduler on any runtime. Portability seam — see ADR / design Portability.
 export { app, runScheduled };
+export { schedulerMode } from './bindings';
 export type { Env };

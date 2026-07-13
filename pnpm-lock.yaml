@@ -44,6 +44,9 @@ importers:
       '@repo-wrangler/persistence-sqlite':
         specifier: workspace:*
         version: link:../../packages/persistence-sqlite
+      '@repo-wrangler/secrets-core':
+        specifier: workspace:*
+        version: link:../../packages/secrets-core
       '@repo-wrangler/worker':
         specifier: workspace:*
         version: link:../worker
@@ -247,6 +250,15 @@ importers:
         specifier: workspace:*
         version: link:../domain
     devDependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  packages/secrets-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

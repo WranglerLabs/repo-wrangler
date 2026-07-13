@@ -1,38 +1,30 @@
 import { Hono } from 'hono';
 import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
-import { isDemoMode } from '../bindings';
+import { isDemoMode, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import {
   clearSessionCookie,
-  createSessionCookie,
   createStateToken,
   readSession,
   verifyStateToken,
 } from '../lib/session';
+import {
+  clearTransientCookie,
+  completeSignIn,
+  readCookie,
+  transientCookie,
+  type AuthProvider,
+} from './types';
 
 /**
- * Dashboard sign-in via the GitHub App's user authorization (OAuth) flow.
- * The user access token is used once to identify the user and is then
- * discarded — it is never stored or sent to the browser.
+ * Dashboard sign-in via the GitHub App's user authorization (OAuth) flow. The
+ * user access token identifies the user once and is then discarded — never
+ * stored, never sent to the browser. One of the sign-in providers behind the
+ * `IAuthenticationProvider` seam (ADR-019).
  */
 export const authRoutes = new Hono<AppContext>();
 
 const STATE_COOKIE = 'rw_oauth_state';
-
-function allowlistedRole(
-  login: string,
-  allowedUsers: string | undefined,
-): 'owner' | 'admin' | 'viewer' | null {
-  const users = (allowedUsers ?? '')
-    .split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
-  if (users.length === 0) return null;
-  const index = users.findIndex((u) => u.toLowerCase() === login.toLowerCase());
-  if (index === -1) return null;
-  // Convention for the single-tenant MVP: first allowlisted user is the owner.
-  return index === 0 ? 'owner' : 'admin';
-}
 
 authRoutes.get('/github/login', async (c) => {
   if (isDemoMode(c.env)) return c.redirect('/');
@@ -48,10 +40,7 @@ authRoutes.get('/github/login', async (c) => {
   authorizeUrl.searchParams.set('client_id', clientId);
   authorizeUrl.searchParams.set('redirect_uri', redirectUri);
   authorizeUrl.searchParams.set('state', state);
-  c.header(
-    'Set-Cookie',
-    `${STATE_COOKIE}=${state}; Path=/auth; HttpOnly; SameSite=Lax; Max-Age=600; Secure`,
-  );
+  c.header('Set-Cookie', transientCookie(STATE_COOKIE, state));
   return c.redirect(authorizeUrl.toString());
 });
 
@@ -65,12 +54,7 @@ authRoutes.get('/github/callback', async (c) => {
 
   const state = c.req.query('state');
   const code = c.req.query('code');
-  const cookieState = c.req
-    .header('cookie')
-    ?.split(';')
-    .map((v) => v.trim())
-    .find((v) => v.startsWith(`${STATE_COOKIE}=`))
-    ?.slice(STATE_COOKIE.length + 1);
+  const cookieState = readCookie(c.req.header('cookie'), STATE_COOKIE);
 
   if (!state || !code || state !== cookieState || !(await verifyStateToken(secret, state))) {
     return c.json({ error: 'Invalid OAuth state.' }, 400);
@@ -98,17 +82,12 @@ authRoutes.get('/github/callback', async (c) => {
     return c.json({ error: 'Could not identify GitHub user.' }, 401);
   }
 
-  const role = allowlistedRole(userData.login, c.env.ALLOWED_GITHUB_USERS);
-  if (!role) {
-    await recordAuditEvent(c.env.DB, userData.login, 'login.denied', 'Not on allowlist');
-    return c.json({ error: 'This GitHub account is not authorized for this instance.' }, 403);
-  }
-
-  await recordAuditEvent(c.env.DB, userData.login, 'login.success', `role=${role}`);
-  const cookie = await createSessionCookie(secret, { login: userData.login, role }, true);
-  c.header('Set-Cookie', cookie, { append: true });
-  c.header('Set-Cookie', `${STATE_COOKIE}=; Path=/auth; HttpOnly; Max-Age=0`, { append: true });
-  return c.redirect('/');
+  c.header('Set-Cookie', clearTransientCookie(STATE_COOKIE), { append: true });
+  return completeSignIn(c, {
+    provider: 'github',
+    identity: userData.login,
+    allowedUsers: c.env.ALLOWED_GITHUB_USERS,
+  });
 });
 
 authRoutes.post('/logout', async (c) => {
@@ -131,3 +110,10 @@ authRoutes.get('/me', async (c) => {
   if (!user) return c.json({ error: 'unauthenticated' }, 401);
   return c.json(user);
 });
+
+export const githubProvider: AuthProvider = {
+  id: 'github',
+  label: 'GitHub',
+  isConfigured: (env: Env) => Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
+  routes: authRoutes,
+};
