@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useEstatePipelines } from '../api/client';
 import { formatDuration, timeAgo } from '../lib/format';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 function conclusionBadge(status: string, conclusion?: string): string {
   if (conclusion === 'failure' || conclusion === 'timed_out') return 'critical';
@@ -12,6 +14,10 @@ function conclusionBadge(status: string, conclusion?: string): string {
 
 export function Pipelines() {
   const pipelines = useEstatePipelines();
+  const items = pipelines.data ?? [];
+  const virtualize = items.length > VIRTUALIZE_ABOVE;
+  const win = useVirtualWindow(items.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visible = virtualize ? items.slice(win.start, win.end) : items;
 
   return (
     <>
@@ -20,7 +26,11 @@ export function Pipelines() {
         Latest workflow and pipeline state per repository, failures first.
       </p>
 
-      <div className="panel table-scroll">
+      <div
+        className="panel table-scroll"
+        style={virtualize ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+        onScroll={virtualize ? win.onScroll : undefined}
+      >
         <table className="data">
           <thead>
             <tr>
@@ -41,15 +51,20 @@ export function Pipelines() {
                 </td>
               </tr>
             )}
-            {pipelines.data?.length === 0 && (
+            {items.length === 0 && !pipelines.isLoading && (
               <tr>
                 <td colSpan={7} className="muted">
                   No pipeline runs observed yet.
                 </td>
               </tr>
             )}
-            {pipelines.data?.map((run, index) => (
-              <tr key={`${run.repositoryId}-${index}`}>
+            {virtualize && win.padTop > 0 && (
+              <tr aria-hidden>
+                <td colSpan={7} style={{ height: win.padTop, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {visible.map((run, index) => (
+              <tr key={`${run.repositoryId}-${win.start + index}`}>
                 <td>
                   <Link to={`/repositories/${run.repositoryId}`}>{run.repositoryFullName}</Link>
                   <span className="badge outline" style={{ marginLeft: 6 }}>
@@ -74,6 +89,11 @@ export function Pipelines() {
                 </td>
               </tr>
             ))}
+            {virtualize && win.padBottom > 0 && (
+              <tr aria-hidden>
+                <td colSpan={7} style={{ height: win.padBottom, padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

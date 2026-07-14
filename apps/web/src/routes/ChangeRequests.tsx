@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEstateChangeRequests } from '../api/client';
 import { timeAgo } from '../lib/format';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 const FILTERS = ['all', 'blocked', 'stale', 'ready', 'draft'] as const;
 
@@ -25,6 +27,10 @@ export function ChangeRequests() {
     [changeRequests.data, filter],
   );
 
+  const virtualize = filtered.length > VIRTUALIZE_ABOVE;
+  const win = useVirtualWindow(filtered.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visible = virtualize ? filtered.slice(win.start, win.end) : filtered;
+
   return (
     <>
       <h1 className="page-title">Change Requests</h1>
@@ -42,7 +48,11 @@ export function ChangeRequests() {
         ))}
       </div>
 
-      <div className="panel table-scroll">
+      <div
+        className="panel table-scroll"
+        style={virtualize ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+        onScroll={virtualize ? win.onScroll : undefined}
+      >
         <table className="data">
           <thead>
             <tr>
@@ -70,7 +80,12 @@ export function ChangeRequests() {
                 </td>
               </tr>
             )}
-            {filtered.map((cr) => (
+            {virtualize && win.padTop > 0 && (
+              <tr aria-hidden>
+                <td colSpan={7} style={{ height: win.padTop, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {visible.map((cr) => (
               <tr key={`${cr.repositoryId}-${cr.number}`}>
                 <td>
                   <Link to={`/repositories/${cr.repositoryId}`}>{cr.repositoryFullName}</Link>
@@ -100,6 +115,11 @@ export function ChangeRequests() {
                 <td>{timeAgo(cr.updatedAt)}</td>
               </tr>
             ))}
+            {virtualize && win.padBottom > 0 && (
+              <tr aria-hidden>
+                <td colSpan={7} style={{ height: win.padBottom, padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

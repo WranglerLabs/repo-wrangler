@@ -2,10 +2,22 @@ import { Link } from 'react-router-dom';
 import { useAttention, useOverview } from '../api/client';
 import { CapabilityText, SeverityBadge } from '../components/Badges';
 import { timeAgo } from '../lib/format';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 export function CommandCenter() {
   const overview = useOverview();
   const attention = useAttention();
+
+  // B10: on a large estate the attention queue itself is what grows the page
+  // unbounded — contain it in a scroll panel and virtualize the same way
+  // Repositories.tsx does, once it's big enough to matter.
+  const attentionItems = attention.data ?? [];
+  const virtualizeAttention = attentionItems.length > VIRTUALIZE_ABOVE;
+  const attentionWin = useVirtualWindow(attentionItems.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visibleAttention = virtualizeAttention
+    ? attentionItems.slice(attentionWin.start, attentionWin.end)
+    : attentionItems;
 
   return (
     <>
@@ -69,22 +81,39 @@ export function CommandCenter() {
         {attention.data && attention.data.length === 0 && (
           <p className="muted">Nothing needs attention. Enjoy the quiet.</p>
         )}
-        {attention.data?.map((item, index) => (
-          <div className="attention-item" key={`${item.repositoryId}-${item.code}-${index}`}>
-            <SeverityBadge severity={item.severity} />
-            <span className="repo">
-              {item.repositoryId ? (
-                <Link to={`/repositories/${item.repositoryId}`}>{item.repositoryFullName}</Link>
-              ) : (
-                item.repositoryFullName
-              )}
-            </span>
-            <span className="message">{item.message}</span>
-            <span className="muted" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-              {timeAgo(item.observedAt)}
-            </span>
+        {attentionItems.length > 0 && (
+          <div
+            className="table-scroll"
+            style={virtualizeAttention ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+            onScroll={virtualizeAttention ? attentionWin.onScroll : undefined}
+          >
+            {virtualizeAttention && attentionWin.padTop > 0 && (
+              <div aria-hidden style={{ height: attentionWin.padTop }} />
+            )}
+            {visibleAttention.map((item, index) => (
+              <div
+                className="attention-item"
+                key={`${item.repositoryId}-${item.code}-${attentionWin.start + index}`}
+              >
+                <SeverityBadge severity={item.severity} />
+                <span className="repo">
+                  {item.repositoryId ? (
+                    <Link to={`/repositories/${item.repositoryId}`}>{item.repositoryFullName}</Link>
+                  ) : (
+                    item.repositoryFullName
+                  )}
+                </span>
+                <span className="message">{item.message}</span>
+                <span className="muted" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                  {timeAgo(item.observedAt)}
+                </span>
+              </div>
+            ))}
+            {virtualizeAttention && attentionWin.padBottom > 0 && (
+              <div aria-hidden style={{ height: attentionWin.padBottom }} />
+            )}
           </div>
-        ))}
+        )}
       </div>
 
       {overview.data && overview.data.inaccessibleRepositories > 0 && (

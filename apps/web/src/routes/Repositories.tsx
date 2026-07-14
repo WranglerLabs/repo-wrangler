@@ -11,10 +11,7 @@ import { AttentionBadge, BranchStatusBadge, RunBadge } from '../components/Badge
 import { timeAgo } from '../lib/format';
 import { exportCsv, exportJson, exportMarkdown } from '../lib/export';
 import { useVirtualWindow } from '../lib/useVirtualWindow';
-
-const ROW_HEIGHT = 48;
-const VIEWPORT_HEIGHT = 600;
-const VIRTUALIZE_ABOVE = 50;
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 interface ViewDefinition {
   search: string;

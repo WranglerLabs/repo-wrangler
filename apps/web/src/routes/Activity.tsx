@@ -1,5 +1,7 @@
 import { useActivity } from '../api/client';
 import { timeAgo } from '../lib/format';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 function kindBadge(kind: string): string {
   if (kind === 'sync-failure') return 'high';
@@ -11,6 +13,10 @@ function kindBadge(kind: string): string {
 
 export function Activity() {
   const activity = useActivity();
+  const items = activity.data ?? [];
+  const virtualize = items.length > VIRTUALIZE_ABOVE;
+  const win = useVirtualWindow(items.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visible = virtualize ? items.slice(win.start, win.end) : items;
 
   return (
     <>
@@ -19,7 +25,11 @@ export function Activity() {
         Recent synchronization runs, discoveries, health changes, and administrative actions.
       </p>
 
-      <div className="panel table-scroll">
+      <div
+        className="panel table-scroll"
+        style={virtualize ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+        onScroll={virtualize ? win.onScroll : undefined}
+      >
         <table className="data">
           <thead>
             <tr>
@@ -37,15 +47,20 @@ export function Activity() {
                 </td>
               </tr>
             )}
-            {activity.data?.length === 0 && (
+            {items.length === 0 && !activity.isLoading && (
               <tr>
                 <td colSpan={4} className="muted">
                   No activity recorded yet.
                 </td>
               </tr>
             )}
-            {activity.data?.map((event, index) => (
-              <tr key={index}>
+            {virtualize && win.padTop > 0 && (
+              <tr aria-hidden>
+                <td colSpan={4} style={{ height: win.padTop, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {visible.map((event, index) => (
+              <tr key={win.start + index}>
                 <td>{timeAgo(event.at)}</td>
                 <td>
                   <span className={`badge ${kindBadge(event.kind)}`}>{event.kind}</span>
@@ -54,6 +69,11 @@ export function Activity() {
                 <td>{event.actor ?? '—'}</td>
               </tr>
             ))}
+            {virtualize && win.padBottom > 0 && (
+              <tr aria-hidden>
+                <td colSpan={4} style={{ height: win.padBottom, padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

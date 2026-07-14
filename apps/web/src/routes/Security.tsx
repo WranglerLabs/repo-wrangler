@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useEstateSecurity } from '../api/client';
 import { timeAgo } from '../lib/format';
+import { useVirtualWindow } from '../lib/useVirtualWindow';
+import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
 
 const CATEGORY_LABELS: Record<string, string> = {
   secret_scanning: 'Secret scanning',
@@ -19,6 +21,10 @@ function severityBadge(severity?: string): string {
 
 export function Security() {
   const findings = useEstateSecurity();
+  const items = findings.data ?? [];
+  const virtualize = items.length > VIRTUALIZE_ABOVE;
+  const win = useVirtualWindow(items.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
+  const visible = virtualize ? items.slice(win.start, win.end) : items;
 
   return (
     <>
@@ -27,7 +33,11 @@ export function Security() {
         Open security findings across the estate — metadata only, never secret content.
       </p>
 
-      <div className="panel table-scroll">
+      <div
+        className="panel table-scroll"
+        style={virtualize ? { maxHeight: VIEWPORT_HEIGHT, overflowY: 'auto' } : undefined}
+        onScroll={virtualize ? win.onScroll : undefined}
+      >
         <table className="data">
           <thead>
             <tr>
@@ -47,7 +57,7 @@ export function Security() {
                 </td>
               </tr>
             )}
-            {findings.data?.length === 0 && (
+            {items.length === 0 && !findings.isLoading && (
               <tr>
                 <td colSpan={6} className="muted">
                   No open security findings. Findings appear here when providers expose them and
@@ -55,8 +65,13 @@ export function Security() {
                 </td>
               </tr>
             )}
-            {findings.data?.map((finding, index) => (
-              <tr key={`${finding.repositoryId}-${index}`}>
+            {virtualize && win.padTop > 0 && (
+              <tr aria-hidden>
+                <td colSpan={6} style={{ height: win.padTop, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {visible.map((finding, index) => (
+              <tr key={`${finding.repositoryId}-${win.start + index}`}>
                 <td>
                   <Link to={`/repositories/${finding.repositoryId}`}>
                     {finding.repositoryFullName}
@@ -82,6 +97,11 @@ export function Security() {
                 </td>
               </tr>
             ))}
+            {virtualize && win.padBottom > 0 && (
+              <tr aria-hidden>
+                <td colSpan={6} style={{ height: win.padBottom, padding: 0, border: 'none' }} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
