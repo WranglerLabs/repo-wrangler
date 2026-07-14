@@ -84,6 +84,7 @@ import { resolveGitHubAppCredentials, resolveGitLabCredentials } from '../lib/co
 const SUBREQUEST_BUDGET = 40;
 const MAX_JOBS_PER_INVOCATION = 3;
 const DISCOVERY_INTERVAL_HOURS = 6;
+const BILLING_INTERVAL_HOURS = 24;
 const ENRICH_BATCH_SIZE = 5;
 
 /**
@@ -150,8 +151,13 @@ async function isGitLabConfiguredEffective(env: Env): Promise<boolean> {
   return (await resolveGitLabCredentials(env, env.DB)) !== null;
 }
 
-/** Keep the estate fresh even if no webhook ever arrives. */
-async function ensurePeriodicJobs(env: Env): Promise<void> {
+/**
+ * Keep the estate fresh even if no webhook ever arrives. Exported for direct
+ * testing (B12 billing-enqueue tests) — it only enqueues, never claims/runs a
+ * job, so testing it directly avoids the same-tick job-draining hazard noted
+ * on `runDiscovery`/`runGitLabDiscovery` above.
+ */
+export async function ensurePeriodicJobs(env: Env): Promise<void> {
   const lastDiscovery = await getMeta(env.DB, 'last_discovery_enqueued_at');
   const due =
     !lastDiscovery ||
@@ -160,6 +166,20 @@ async function ensurePeriodicJobs(env: Env): Promise<void> {
     if (!isDemoMode(env)) await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
     if (await isGitLabConfiguredEffective(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
     await setMeta(env.DB, 'last_discovery_enqueued_at', new Date().toISOString());
+  }
+
+  // B12: billing used to be enqueued only by runDailyMaintenance, which only
+  // fires on the literal '17 3 * * *' cron tick — an instance that isn't
+  // alive across 03:17 UTC never ran it. Mirror the discovery gate above so
+  // billing also runs roughly daily off the ordinary periodic tick,
+  // regardless of whether the process is ever up at that exact minute.
+  const lastBilling = await getMeta(env.DB, 'last_billing_enqueued_at');
+  const billingDue =
+    !lastBilling ||
+    Date.now() - Date.parse(lastBilling) > BILLING_INTERVAL_HOURS * 60 * 60 * 1000;
+  if (billingDue) {
+    if (!isDemoMode(env)) await enqueueSyncJob(env.DB, 'billing', 'all', 8);
+    await setMeta(env.DB, 'last_billing_enqueued_at', new Date().toISOString());
   }
 
   const stale = await claimEnrichmentBatch(env.DB, ENRICH_BATCH_SIZE);

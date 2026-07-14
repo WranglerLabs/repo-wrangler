@@ -553,7 +553,10 @@ apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
   const user = c.get('user');
   await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
-  await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery enqueued');
+  // B12: billing was previously only reachable via the daily maintenance
+  // cron tick — an operator forcing a sync had no way to also force budgets.
+  await enqueueSyncJob(c.env.DB, 'billing', 'all', 8);
+  await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery + billing enqueued');
   return c.json({ ok: true });
 });
 
