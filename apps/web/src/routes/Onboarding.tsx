@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ConnectionDto } from '@repo-wrangler/contracts';
+import type { AuthProviderOption } from '../api/client';
 import {
   ApiError,
   connectGitLab,
@@ -11,6 +12,7 @@ import {
   searchGitLabGroups,
   setWorkspaceMonitoringState,
   triggerManualSync,
+  useAuthConfig,
   useConnections,
   useConnectionWorkspaces,
   type MonitoringState,
@@ -51,6 +53,14 @@ export function Onboarding() {
   const [hydrated, setHydrated] = useState(forceNewConnection);
 
   const connections = useConnections();
+  const authConfig = useAuthConfig();
+
+  // The finish step must judge sign-in readiness on credentials stored
+  // DURING this wizard run, not on a config cached at first paint (the
+  // auth-config query is otherwise cached forever).
+  useEffect(() => {
+    if (step === 4) void queryClient.invalidateQueries({ queryKey: ['auth-config'] });
+  }, [step, queryClient]);
 
   // Every mount must see fresh connection state, not a stale cache from
   // before the GitHub App exchange completed — otherwise the hydration
@@ -198,6 +208,10 @@ export function Onboarding() {
             {Object.keys(connectionIds).length} connection(s) configured. A first discovery pass
             is starting now; newly discovered repositories appear as they are found.
           </p>
+          <SignInReadiness
+            loading={authConfig.isLoading}
+            providers={(authConfig.data?.providers ?? []).filter((p) => p.id !== 'local')}
+          />
           <button onClick={finish} disabled={busy}>
             Go to Command Center
           </button>
@@ -212,6 +226,40 @@ export function Onboarding() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Setup must never end with a locked front door: on a fresh real-mode
+ * install the only session is the setup-mode/local bridge, and once that
+ * goes away an instance with no configured provider has no way back in.
+ * The finish step states plainly whether real sign-in works — and how to
+ * fix it before leaving the wizard if it doesn't.
+ */
+function SignInReadiness({
+  loading,
+  providers,
+}: {
+  loading: boolean;
+  providers: AuthProviderOption[];
+}) {
+  if (loading) return <p className="muted">Checking sign-in configuration…</p>;
+  if (providers.length > 0) {
+    return (
+      <p>
+        ✓ Sign-in is ready — {providers.map((p) => p.label).join(', ')}. After you sign out (or
+        this setup session ends), sign back in with{' '}
+        {providers.map((p) => p.label).join(' or ')}.
+      </p>
+    );
+  }
+  return (
+    <div className="error-box">
+      <strong>No sign-in provider is configured.</strong> When this setup session ends you will
+      not be able to sign back in. For GitHub: open your GitHub App's settings, generate a client
+      secret, then add the OAuth client ID and secret via{' '}
+      <a href="/onboarding?add=1">Connect → I already have a GitHub App</a> before you finish.
+    </div>
   );
 }
 
