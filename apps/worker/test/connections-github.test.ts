@@ -10,7 +10,7 @@ import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionUserDto } from '@repo-wrangler/contracts';
 import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite';
-import { getConnectionByType, listAuditEvents, listConnections } from '@repo-wrangler/persistence-d1';
+import { getConnectionByType, getSyncStats, listAuditEvents, listConnections } from '@repo-wrangler/persistence-d1';
 import { connectionRoutes } from '../src/api/connections';
 import { resolveGitHubAppCredentials } from '../src/lib/connection-secrets';
 import type { Env } from '../src/bindings';
@@ -141,6 +141,16 @@ describe('POST /api/v1/connections/github/exchange — B3', () => {
 
     const audit = await listAuditEvents(db);
     expect(audit.some((e) => e.action === 'connection.github.created')).toBe(true);
+
+    // Wizard-loop fix: workspaces must not depend on the operator finding
+    // the admin sync button — the exchange enqueues discovery itself.
+    const stats = await getSyncStats(db);
+    expect(stats.pendingJobs).toBe(1);
+
+    // The app slug persists (0005 migration) so a later page load can
+    // rebuild the install URL without re-running the manifest flow.
+    const [connection] = await listConnections(db);
+    expect(connection).toMatchObject({ app_slug: 'repowrangler-acme' });
   });
 
   it('surfaces a clean error and stores nothing when GitHub rejects the code', async () => {
@@ -204,6 +214,74 @@ describe('POST /api/v1/connections/github/credentials — B3 paste path', () => 
     const credentials = await resolveGitHubAppCredentials(realEnv(db), db);
     expect(credentials?.appId).toBe('42');
     expect(credentials?.clientId).toBeUndefined();
+
+    // Same wizard-loop fix as the exchange path — a pasted App also gets
+    // discovery enqueued immediately.
+    const stats = await getSyncStats(db);
+    expect(stats.pendingJobs).toBe(1);
+  });
+});
+
+describe('GET /api/v1/connections — appSlug/installUrl for the connect step', () => {
+  let db: D1Database;
+
+  beforeEach(() => {
+    const { d1, raw } = openSqliteD1(':memory:');
+    applyMigrations(raw, migrationsDir);
+    db = d1 as unknown as D1Database;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('an exchange-created connection reports appSlug and a derived installUrl', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            id: 987654,
+            slug: 'repowrangler-acme',
+            pem: '-----BEGIN PRIVATE KEY-----abc-----END PRIVATE KEY-----',
+            webhook_secret: 'whsec-1',
+            client_id: 'client-1',
+            client_secret: 'client-secret-1',
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    await testApp(admin).request(
+      '/api/v1/connections/github/exchange',
+      { method: 'POST', body: JSON.stringify({ code: 'one-time-code' }) },
+      realEnv(db),
+    );
+
+    const res = await testApp(admin).request('/api/v1/connections', {}, realEnv(db));
+    expect(res.status).toBe(200);
+    const [connection] = await res.json();
+    expect(connection).toMatchObject({
+      provider: 'github',
+      appSlug: 'repowrangler-acme',
+      installUrl: 'https://github.com/apps/repowrangler-acme/installations/new',
+    });
+  });
+
+  it('a pasted-credentials connection has no slug and no installUrl', async () => {
+    await testApp(admin).request(
+      '/api/v1/connections/github/credentials',
+      {
+        method: 'POST',
+        body: JSON.stringify({ appId: '1', privateKey: 'pem', webhookSecret: 'whsec' }),
+      },
+      realEnv(db),
+    );
+
+    const res = await testApp(admin).request('/api/v1/connections', {}, realEnv(db));
+    const [connection] = await res.json();
+    expect(connection.appSlug).toBeUndefined();
+    expect(connection.installUrl).toBeUndefined();
   });
 });
 

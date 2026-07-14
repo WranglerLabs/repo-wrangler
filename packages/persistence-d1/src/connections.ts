@@ -54,7 +54,7 @@ export async function listConnections(db: D1Database): Promise<ConnectionRowFull
   const result = await db
     .prepare(
       `SELECT id, provider_type, display_name, status, last_success_at, last_error_code,
-              base_url, auth_type, external_account_id, secret_reference
+              base_url, auth_type, external_account_id, secret_reference, app_slug
        FROM provider_connections WHERE status != 'removed' ORDER BY created_at`,
     )
     .all<ConnectionRowFull>();
@@ -91,6 +91,8 @@ export interface ConnectionRowFull extends ConnectionRow {
   auth_type: string;
   external_account_id: string | null;
   secret_reference: string | null;
+  /** GitHub App slug from the manifest conversion — only set on the exchange path (see 0005 migration). */
+  app_slug: string | null;
 }
 
 export async function getConnectionById(
@@ -100,7 +102,7 @@ export async function getConnectionById(
   return db
     .prepare(
       `SELECT id, provider_type, display_name, status, last_success_at, last_error_code,
-              base_url, auth_type, external_account_id, secret_reference
+              base_url, auth_type, external_account_id, secret_reference, app_slug
        FROM provider_connections WHERE id = ?1`,
     )
     .bind(id)
@@ -119,7 +121,7 @@ export async function getConnectionByType(
   return db
     .prepare(
       `SELECT id, provider_type, display_name, status, last_success_at, last_error_code,
-              base_url, auth_type, external_account_id, secret_reference
+              base_url, auth_type, external_account_id, secret_reference, app_slug
        FROM provider_connections WHERE provider_type = ?1 AND status = 'active' LIMIT 1`,
     )
     .bind(providerType)
@@ -144,6 +146,20 @@ export async function setConnectionSecretReference(
       `UPDATE provider_connections SET secret_reference = ?2, updated_at = datetime('now') WHERE id = ?1`,
     )
     .bind(id, reference)
+    .run();
+}
+
+/** Persist the manifest conversion's app slug so a later page load can rebuild the install URL. */
+export async function setConnectionAppSlug(
+  db: D1Database,
+  id: string,
+  appSlug: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE provider_connections SET app_slug = ?2, updated_at = datetime('now') WHERE id = ?1`,
+    )
+    .bind(id, appSlug)
     .run();
 }
 

@@ -73,7 +73,7 @@ export function EstateScope() {
       <p className="page-subtitle">
         Choose which organizations, groups, and repositories RepoWrangler monitors — the same
         controls as the onboarding wizard, available any time.{' '}
-        <Link to="/onboarding">Connect another platform →</Link>
+        <Link to="/onboarding?add=1">Connect another platform →</Link>
       </p>
 
       {connections.data?.length === 0 && (

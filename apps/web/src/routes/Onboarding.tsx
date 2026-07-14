@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import type { ConnectionDto } from '@repo-wrangler/contracts';
 import {
   ApiError,
   connectGitLab,
@@ -10,6 +11,7 @@ import {
   searchGitLabGroups,
   setWorkspaceMonitoringState,
   triggerManualSync,
+  useConnections,
   useConnectionWorkspaces,
   type MonitoringState,
 } from '../api/client';
@@ -18,15 +20,27 @@ import { EstateScopeTable, type ScopeWorkspace } from '../components/EstateScope
 type Platform = 'github' | 'gitlab';
 
 const REPO_URL = 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler';
+const WORKSPACE_POLL_MS = 10_000;
 
 /**
  * Onboarding design B2 — the first-run wizard. "Connect" *is* "enter, or
  * one-tap-create, the credentials in the UI" (the design's Credential entry
  * requirement) — this page never asks an operator to pre-seed a vault.
+ *
+ * Wizard-loop fix: a fresh mount — including the landing after the GitHub
+ * App manifest callback redirects here — must never re-show "pick a
+ * platform" for a platform that already has an active connection. The
+ * hydration effect below detects that case from `GET /connections` and jumps
+ * straight to the connect step, which renders its connected state (and, for
+ * GitHub, the install-app guidance) instead of the create/connect choices.
+ * `/onboarding?add=1` (the "connect another platform" links) opts out of
+ * hydration so an already-onboarded operator can still add a second provider.
  */
 export function Onboarding() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const forceNewConnection = searchParams.get('add') === '1';
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -34,9 +48,48 @@ export function Onboarding() {
   const [connectionIds, setConnectionIds] = useState<Partial<Record<Platform, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(forceNewConnection);
+
+  const connections = useConnections();
+
+  // Every mount must see fresh connection state, not a stale cache from
+  // before the GitHub App exchange completed — otherwise the hydration
+  // effect below would judge the "does a connection already exist?"
+  // question on data that predates the callback that just landed here.
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: ['connections'] });
+    void queryClient.invalidateQueries({ queryKey: ['onboarding-status'] });
+    // Run once per mount only — this is a landing-freshness refetch, not a
+    // response to `connections`/`queryClient` changing.
+  }, []);
+
+  // Resume, don't re-ask: if an active connection already exists for a
+  // platform, skip past "pick a platform" and the create/paste choices to
+  // that platform's connect step.
+  useEffect(() => {
+    if (hydrated || connections.isLoading || !connections.data) return;
+    const active = connections.data.filter((c) => c.status === 'active');
+    if (active.length > 0) {
+      const detected: Platform[] = [];
+      const ids: Partial<Record<Platform, string>> = {};
+      for (const platform of ['github', 'gitlab'] as const) {
+        const match = active.find((c) => c.provider === platform);
+        if (match) {
+          detected.push(platform);
+          ids[platform] = match.id;
+        }
+      }
+      setPlatforms(detected);
+      setConnectionIds(ids);
+      setPlatformIndex(0);
+      setStep(2);
+    }
+    setHydrated(true);
+  }, [hydrated, connections.isLoading, connections.data]);
 
   const currentPlatform = platforms[platformIndex];
   const currentConnectionId = currentPlatform ? connectionIds[currentPlatform] : undefined;
+  const currentConnection = connections.data?.find((c) => c.id === currentConnectionId);
 
   function togglePlatform(p: Platform) {
     setPlatforms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -116,6 +169,7 @@ export function Onboarding() {
           setBusy={setBusy}
           setError={setError}
           onConnected={(id) => advanceAfterConnect('github', id)}
+          existingConnection={currentConnection}
         />
       )}
 
@@ -125,6 +179,7 @@ export function Onboarding() {
           setBusy={setBusy}
           setError={setError}
           onConnected={(id) => advanceAfterConnect('gitlab', id)}
+          existingConnection={currentConnection}
         />
       )}
 
@@ -165,9 +220,11 @@ interface ConnectStepProps {
   setBusy: (b: boolean) => void;
   setError: (e: string | null) => void;
   onConnected: (connectionId: string) => void;
+  /** Set when hydration found an already-active connection for this platform. */
+  existingConnection?: ConnectionDto;
 }
 
-function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStepProps) {
+function GitHubConnectStep({ busy, setBusy, setError, onConnected, existingConnection }: ConnectStepProps) {
   const [mode, setMode] = useState<'create' | 'paste' | null>(null);
   const [code, setCode] = useState('');
   const [appId, setAppId] = useState('');
@@ -175,6 +232,13 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
   const [webhookSecret, setWebhookSecret] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+
+  // Polls while no installation exists yet — the step advances itself the
+  // moment one appears (auto-triggered discovery on the server means this
+  // usually only takes one or two ticks after the operator installs).
+  const workspaces = useConnectionWorkspaces(existingConnection?.id, {
+    refetchInterval: WORKSPACE_POLL_MS,
+  });
 
   async function exchange() {
     setBusy(true);
@@ -206,6 +270,46 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
     } finally {
       setBusy(false);
     }
+  }
+
+  if (existingConnection) {
+    const hasInstallation = (workspaces.data?.length ?? 0) > 0;
+    return (
+      <div className="panel">
+        <h2>Connect GitHub</h2>
+        <p>
+          <strong>{existingConnection.displayName}</strong> ✓ connected
+        </p>
+        {hasInstallation ? (
+          <>
+            <p className="muted">The app is installed and ready.</p>
+            <button onClick={() => onConnected(existingConnection.id)}>Continue</button>
+          </>
+        ) : (
+          <>
+            <p>
+              Creating the app is not the same as installing it. GitHub only starts sending
+              RepoWrangler data once you choose which organization(s) or account the app can
+              read — that's a separate step, on GitHub's side.
+            </p>
+            {existingConnection.installUrl ? (
+              <a href={existingConnection.installUrl} target="_blank" rel="noreferrer">
+                <button>Install the app on GitHub ↗</button>
+              </a>
+            ) : (
+              <p className="muted">
+                Open this GitHub App under your account or organization's settings and install
+                it on at least one account.
+              </p>
+            )}
+            <p className="muted" style={{ marginTop: 12 }}>
+              Waiting for an installation… this page checks automatically every few seconds, no
+              need to come back and click anything.
+            </p>
+          </>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -317,14 +421,19 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
   );
 }
 
-function GitLabConnectStep({ busy, setBusy, setError, onConnected }: ConnectStepProps) {
+function GitLabConnectStep({ busy, setBusy, setError, onConnected, existingConnection }: ConnectStepProps) {
   const [baseUrl, setBaseUrl] = useState('https://gitlab.com');
   const [token, setToken] = useState('');
-  const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [connectionId, setConnectionId] = useState<string | null>(existingConnection?.id ?? null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<{ externalId: string; fullPath: string; name: string; projectCount?: number }[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searching, setSearching] = useState(false);
+
+  // Same purpose as the GitHub branch's poll: an already-connected GitLab
+  // connection with groups already selected should land on "connected,
+  // Continue" — not ask the operator to re-enter a token.
+  const workspaces = useConnectionWorkspaces(connectionId ?? undefined);
 
   async function connect() {
     setBusy(true);
@@ -373,6 +482,28 @@ function GitLabConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
     } finally {
       setBusy(false);
     }
+  }
+
+  if (connectionId && workspaces.isLoading) {
+    return (
+      <div className="panel">
+        <h2>Connect GitLab</h2>
+        <p className="muted">Checking connection…</p>
+      </div>
+    );
+  }
+
+  if (connectionId && (workspaces.data?.length ?? 0) > 0) {
+    return (
+      <div className="panel">
+        <h2>Connect GitLab</h2>
+        <p>
+          <strong>GitLab — {existingConnection?.baseUrl ?? baseUrl}</strong> ✓ connected
+        </p>
+        <p className="muted">{workspaces.data!.length} group(s) already selected to monitor.</p>
+        <button onClick={() => onConnected(connectionId)}>Continue</button>
+      </div>
+    );
   }
 
   if (!connectionId) {

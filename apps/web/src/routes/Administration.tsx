@@ -86,7 +86,7 @@ export function Administration() {
             {health.data?.connections.length ?? 0} connection(s) configured — status and last
             errors are on <Link to="/platform">Platform Health</Link>. Manage what's monitored on{' '}
             <Link to="/admin/estate-scope">Estate scope</Link>, or{' '}
-            <Link to="/onboarding">connect another platform</Link>.
+            <Link to="/onboarding?add=1">connect another platform</Link>.
           </p>
         )}
       </div>

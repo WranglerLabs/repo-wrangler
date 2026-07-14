@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionUserDto } from '@repo-wrangler/contracts';
 import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite';
-import { listAuditEvents, listWorkspacesForConnection } from '@repo-wrangler/persistence-d1';
+import { getSyncStats, listAuditEvents, listWorkspacesForConnection } from '@repo-wrangler/persistence-d1';
 import { connectionRoutes } from '../src/api/connections';
 import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
@@ -78,6 +78,11 @@ describe('POST /api/v1/connections/gitlab — B3', () => {
     expect((await res.json()).connectionId).toBeTruthy();
     const audit = await listAuditEvents(db);
     expect(audit.some((e) => e.action === 'connection.gitlab.created')).toBe(true);
+
+    // Wizard-loop fix: discovery is enqueued on connect, not left to a
+    // manual admin/sync click.
+    const stats = await getSyncStats(db);
+    expect(stats.pendingJobs).toBe(1);
   });
 });
 

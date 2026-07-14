@@ -12,6 +12,7 @@ import {
   deleteAllConnectionSecrets,
   ensureGitHubConnection,
   ensureGitLabConnection,
+  enqueueSyncJob,
   getConnectionById,
   getWorkspaceMonitoringState,
   listConnections,
@@ -19,6 +20,7 @@ import {
   listWorkspacesForConnection,
   markConnectionRemoved,
   recordAuditEvent,
+  setConnectionAppSlug,
   setConnectionSecretReference,
   updateConnectionDisplayName,
   upsertWorkspace,
@@ -82,6 +84,8 @@ connectionRoutes.get('/connections', requireAdmin, async (c) => {
     baseUrl: r.base_url ?? undefined,
     lastSuccessAt: r.last_success_at ?? undefined,
     lastErrorCode: r.last_error_code ?? undefined,
+    appSlug: r.app_slug ?? undefined,
+    installUrl: r.app_slug ? `https://github.com/apps/${r.app_slug}/installations/new` : undefined,
   }));
   return c.json(body);
 });
@@ -136,9 +140,16 @@ connectionRoutes.post('/connections/github/exchange', requireAdmin, async (c) =>
   });
   if (!stored.ok) return c.json({ error: stored.error }, 500);
   await updateConnectionDisplayName(c.env.DB, connectionId, `GitHub App — ${manifest.slug}`);
+  await setConnectionAppSlug(c.env.DB, connectionId, manifest.slug);
 
   const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.github.created', `slug=${manifest.slug}`);
+
+  // A connection with credentials but no installation yet still has nothing
+  // to discover, but this keeps the estate current the moment an
+  // installation does land, without the operator having to find the admin
+  // sync button (wizard-loop fix — discovery no longer waits on a manual trigger).
+  await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
 
   const result: ConnectResultDto = {
     connectionId,
@@ -185,6 +196,7 @@ connectionRoutes.post('/connections/github/credentials', requireAdmin, async (c)
 
   const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.github.credentials_pasted');
+  await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
 
   const result: ConnectResultDto = { connectionId };
   return c.json(result);
@@ -307,6 +319,7 @@ connectionRoutes.post('/connections/gitlab', requireAdmin, async (c) => {
 
   const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.gitlab.created', `user=${check.data.username}`);
+  await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
 
   const result: ConnectResultDto = { connectionId };
   return c.json(result);

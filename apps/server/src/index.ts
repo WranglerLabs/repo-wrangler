@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   };
 
   const server = serve({ fetch: handler, port: config.port }, (info) => {
-    log(`listening on http://0.0.0.0:${info.port}  (db: ${config.sqlitePath})`);
+    log(`listening on http://0.0.0.0:${info.port}  (db: ${store.label})`);
   });
 
   // Scheduler driver (PN-3): in-process timer by default; `external` expects an

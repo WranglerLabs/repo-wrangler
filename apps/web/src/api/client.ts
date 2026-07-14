@@ -301,11 +301,15 @@ export function useConnections() {
   });
 }
 
-export function useConnectionWorkspaces(connectionId: string | undefined) {
+export function useConnectionWorkspaces(
+  connectionId: string | undefined,
+  options?: { refetchInterval?: number },
+) {
   return useQuery<ConnectionWorkspaceDto[]>({
     queryKey: ['connection-workspaces', connectionId],
     queryFn: () => apiGet(`/api/v1/connections/${connectionId}/workspaces`),
     enabled: !!connectionId,
+    refetchInterval: options?.refetchInterval,
   });
 }
 

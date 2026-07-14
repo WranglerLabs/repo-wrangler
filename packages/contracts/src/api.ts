@@ -427,5 +427,9 @@ export const connectionDtoSchema = z.object({
   baseUrl: z.string().optional(),
   lastSuccessAt: z.string().optional(),
   lastErrorCode: z.string().optional(),
+  /** GitHub App slug, when known (exchange path only) — lets a returning page rebuild `installUrl`. */
+  appSlug: z.string().optional(),
+  /** Derived from `appSlug`; omitted when the slug isn't known (e.g. pasted credentials). */
+  installUrl: z.string().optional(),
 });
 export type ConnectionDto = z.infer<typeof connectionDtoSchema>;
