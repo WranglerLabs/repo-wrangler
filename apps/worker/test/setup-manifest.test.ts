@@ -8,10 +8,17 @@ import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { setupRoutes } from '../src/setup/manifest';
 import type { Env } from '../src/bindings';
-import type { AppContext } from '../src/middleware/auth';
+import { securityHeaders, type AppContext } from '../src/middleware/auth';
 
+// Mounted exactly like `index.ts` — the `securityHeaders` middleware (which
+// sets the CSP header these pages' inline <script> tags must satisfy) has to
+// be present for these tests to mean anything. A bare `setupRoutes` mount
+// would pass even if the CSP silently killed the inline script in the
+// browser (that's exactly how the auto-exchange-callback regression slipped
+// through: the CSP header wasn't part of the request under test).
 function testApp() {
   const app = new Hono<AppContext>();
+  app.use('*', securityHeaders);
   app.route('/setup', setupRoutes);
   return app;
 }
@@ -73,5 +80,50 @@ describe('GET /setup/github-app/callback', () => {
     const html = await res.text();
     expect(html).not.toContain('<script>alert(1)</script>');
     expect(html).toContain('abcscriptalert1script');
+  });
+
+  it('has a watchdog that forces the fallback to render even if the exchange call hangs', async () => {
+    const res = await testApp().request('/setup/github-app/callback?code=one-hour-code-123', {}, env());
+    const html = await res.text();
+    expect(html).toContain('setTimeout(function () {');
+    expect(html).toContain('showFallback(\'Automatic setup is taking longer than expected');
+    expect(html).toContain('8000');
+  });
+});
+
+// Regression coverage for the "callback page just sits there" bug: the CSP
+// header's `script-src` has no blanket `'unsafe-inline'`, so an inline
+// <script> only runs if it carries the exact nonce the same response's CSP
+// header allow-listed. If these two ever drift apart again — e.g. someone
+// reverts to a static `<script>` without threading `c.get('cspNonce')`
+// through — the browser silently no-ops the script exactly like it did
+// before this fix, and these tests catch it without needing a real browser.
+describe('CSP / inline-script compatibility', () => {
+  function nonceFromCsp(res: Response): string {
+    const csp = res.headers.get('Content-Security-Policy') ?? '';
+    const match = csp.match(/script-src[^;]*'nonce-([^']+)'/);
+    expect(match, `no script-src nonce in CSP header: ${csp}`).not.toBeNull();
+    return match![1];
+  }
+
+  it('the callback page script nonce matches the CSP header nonce', async () => {
+    const res = await testApp().request('/setup/github-app/callback?code=one-hour-code-123', {}, env());
+    const nonce = nonceFromCsp(res);
+    const html = await res.text();
+    expect(html).toContain(`<script nonce="${nonce}">`);
+  });
+
+  it('the create-app page script nonce matches the CSP header nonce', async () => {
+    const res = await testApp().request('/setup/github-app', {}, env());
+    const nonce = nonceFromCsp(res);
+    const html = await res.text();
+    expect(html).toContain(`<script nonce="${nonce}">`);
+  });
+
+  it('mints a fresh nonce per request (no reused/predictable value)', async () => {
+    const app = testApp();
+    const first = await app.request('/setup/github-app/callback?code=abc', {}, env());
+    const second = await app.request('/setup/github-app/callback?code=abc', {}, env());
+    expect(nonceFromCsp(first)).not.toBe(nonceFromCsp(second));
   });
 });

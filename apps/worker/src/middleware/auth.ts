@@ -5,7 +5,16 @@ import { readSession } from '../lib/session';
 
 export type AppContext = {
   Bindings: Env;
-  Variables: { user: SessionUserDto };
+  Variables: {
+    user: SessionUserDto;
+    /**
+     * Per-request CSP nonce (set by `securityHeaders` before the route runs).
+     * Route handlers that emit an inline `<script>` — e.g. `setup/manifest.ts`
+     * — must stamp it onto that tag (`nonce="${c.get('cspNonce')}"`) so the
+     * script actually executes under the strict `script-src` below.
+     */
+    cspNonce: string;
+  };
 };
 
 /**
@@ -48,14 +57,26 @@ export async function requireAdmin<P extends string = string>(
   return next();
 }
 
-/** Baseline security headers for every Worker-generated response. */
+/**
+ * Baseline security headers for every Worker-generated response.
+ *
+ * `script-src` intentionally omits `'unsafe-inline'` — a handful of
+ * server-rendered pages (`setup/manifest.ts`) embed a small inline
+ * `<script>`, so this middleware mints a fresh per-request nonce *before*
+ * the route runs, exposes it via `c.get('cspNonce')`, and allow-lists only
+ * that one-time value. A page with no inline script simply never reads the
+ * nonce and nothing is weakened; a page that does read it can only run the
+ * exact `<script nonce="...">` this response generated, not an injected one.
+ */
 export async function securityHeaders(c: Context<AppContext>, next: Next): Promise<void> {
+  const nonce = crypto.randomUUID();
+  c.set('cspNonce', nonce);
   await next();
   c.res.headers.set('X-Content-Type-Options', 'nosniff');
   c.res.headers.set('Referrer-Policy', 'no-referrer');
   c.res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   c.res.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; img-src 'self' https://avatars.githubusercontent.com data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+    `default-src 'self'; img-src 'self' https://avatars.githubusercontent.com data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'nonce-${nonce}'; frame-ancestors 'none'`,
   );
 }

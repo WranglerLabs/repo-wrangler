@@ -96,6 +96,7 @@ const PAGE_STYLE = `
 setupRoutes.get('/github-app', (c) => {
   const origin = c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin;
   const manifest = manifestJson(origin).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const nonce = c.get('cspNonce');
   return c.html(`<!doctype html>
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>RepoWrangler — create GitHub App</title><style>${PAGE_STYLE}</style></head>
 <body>
@@ -118,7 +119,7 @@ setupRoutes.get('/github-app', (c) => {
   </form>
   <p><small>You must be an <strong>owner</strong> of the organization — GitHub shows a 404
   page (not "access denied") if you are not, or if the name has a typo.</small></p>
-  <script>
+  <script nonce="${nonce}">
     document.getElementById('orgForm').addEventListener('submit', function (e) {
       var org = document.getElementById('orgName').value.trim();
       if (!org) {
@@ -139,6 +140,7 @@ setupRoutes.get('/github-app', (c) => {
 setupRoutes.get('/github-app/callback', (c) => {
   const code = c.req.query('code') ?? '';
   const safe = code.replace(/[^A-Za-z0-9_-]/g, '');
+  const nonce = c.get('cspNonce');
   return c.html(`<!doctype html>
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>RepoWrangler — app created</title><style>${PAGE_STYLE}</style></head>
 <body>
@@ -155,13 +157,25 @@ setupRoutes.get('/github-app/callback', (c) => {
            session: return to the RepoWrangler tab → <strong>Connect your estate</strong> →
            <strong>“I have a setup code”</strong> → paste it there.</small></p>
          </div>
-         <script>
+         <script nonce="${nonce}">
            (function () {
              var code = ${JSON.stringify(safe)};
              var statusEl = document.getElementById('status');
              var fallbackEl = document.getElementById('fallback');
              var fallbackMessageEl = document.getElementById('fallbackMessage');
+             var settled = false;
+             // Belt-and-suspenders: whatever happens to the fetch below — it
+             // resolves, rejects, or the browser never lets it finish (CSP,
+             // a hung connection, a client that blocks fetch) — the operator
+             // still sees the copy-button fallback within 8s instead of a
+             // page that "just sits there" forever.
+             var watchdog = setTimeout(function () {
+               showFallback('Automatic setup is taking longer than expected — complete it manually below.');
+             }, 8000);
              function showFallback(message) {
+               if (settled) return;
+               settled = true;
+               clearTimeout(watchdog);
                statusEl.style.display = 'none';
                fallbackMessageEl.textContent = message;
                fallbackEl.style.display = 'block';
@@ -173,10 +187,22 @@ setupRoutes.get('/github-app/callback', (c) => {
                body: JSON.stringify({ code: code }),
              }).then(function (res) {
                if (res.ok) {
+                 settled = true;
+                 clearTimeout(watchdog);
                  window.location.href = '/onboarding';
                  return;
                }
-               showFallback('Automatic setup did not finish — complete it manually below.');
+               return res.text().then(function (body) {
+                 var detail = '';
+                 try {
+                   detail = JSON.parse(body).error || '';
+                 } catch (e) {
+                   detail = body;
+                 }
+                 showFallback(
+                   'Automatic setup did not finish' + (detail ? ' (' + detail + ')' : '') + ' — complete it manually below.',
+                 );
+               });
              }).catch(function () {
                showFallback('Automatic setup did not finish — complete it manually below.');
              });
