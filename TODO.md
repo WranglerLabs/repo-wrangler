@@ -35,7 +35,29 @@ Work items: map every existing `deploy/*` recipe into a tier, restructure
 flowchart) around the tiers, and make the bootstrap installer's first question
 "which tier?".
 
-## 3. Deployment automation & pipelines (shipped in-repo, not active)
+## 3. Multiple connections per provider (multi-org, multi-credential)
+
+Today each provider effectively has **one** connection (one GitHub App, one GitLab
+token). Real estates aren't that tidy: different orgs may require **different
+credentials** — separate GitHub Apps per org, multiple GitLab tokens across
+groups/instances. Work items: N `provider_connections` per provider type, each
+with its own credentials (the encrypted store already keys secrets per
+connection), its own workspace scope, and independent health; the wizard/estate
+screens gain "Add another GitHub/GitLab connection"; sync iterates connections
+instead of assuming one.
+
+## 4. Credentials & Access security screen
+
+One place that inventories **every credential the instance holds** — GitHub Apps,
+GitLab tokens (ADO/Bitbucket when those providers land) — and shows for each:
+what it is, **its actual granted permissions pulled live from the provider**
+(GitHub App permission set + installations; GitLab token scopes), **where it's
+applied** (orgs/groups/repos), age/last-used, and a **read-only verification
+badge** — flagging loudly if any credential holds write scopes the product never
+needs. This is both a trust feature ("prove to me it's read-only") and an ops
+feature (rotation targets in one view).
+
+## 5. Deployment automation & pipelines (shipped in-repo, not active)
 
 Provide ready-to-use **pipeline/automation definitions** in the repo — inert
 until a deployer adopts them: GitHub Actions workflows, Azure DevOps pipelines,

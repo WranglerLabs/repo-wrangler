@@ -17,7 +17,49 @@ No hand-naming, no shell mismatch, no doc-hunting — a junior admin gets a runn
 correctly named instance without opening the docs or touching bash. Ships with
 **PowerShell *and* bash** bootstrap scripts.
 
+## Just landed (pre-release, stabilizing)
+
+**Repo onboarding & estate scoping** — a first-run, in-app wizard: connect
+GitHub (one-tap App creation) or GitLab (token + group search) by entering
+credentials right in the UI (encrypted at rest on your instance), then choose
+exactly which orgs/groups and repos RepoWrangler watches — plus a permanent
+Administration → Estate scope screen and discovery that respects your choices.
+On `main` now; hardening through live testing.
+
 ## Next up
+
+### Architecture tiers — pick a tier, then a recipe
+
+Reorganize the deployment story into three named tiers: **Tier A — all-in-one**
+(one container/compose stack, runs anywhere: Docker Desktop, a small VM, a home
+lab, Azure Container Apps); **Tier B — mid-level** (still inexpensive, a few
+managed parts: Cloudflare Pages/Worker + D1, Azure Static Web Apps + a low-cost
+database, container host + managed PostgreSQL); **Tier C — enterprise** (scaled
+out, separated controllers/workers, private networking, HA database,
+observability, SSO/RBAC hardening). The docs picker and the bootstrap installer
+both start from "which tier?".
+
+### Multiple connections per provider (multi-org, multi-credential)
+
+Real estates aren't one-token tidy: separate GitHub Apps per org, several GitLab
+tokens across groups or instances. N connections per provider, each with its own
+credentials (the encrypted per-connection store already supports this), scope,
+and health — and the wizard grows "Add another connection."
+
+### Credentials & Access security screen
+
+One screen inventorying **every credential the instance holds** — GitHub Apps,
+GitLab tokens (ADO/Bitbucket when they land) — with each credential's **actual
+granted permissions pulled live from the provider**, where it's applied
+(orgs/groups/repos), age/last-used, and a **read-only verification badge** that
+flags loudly if anything holds write scopes this product never needs.
+
+### Deployment automation & pipelines (in-repo, inert)
+
+Ready-to-adopt GitHub Actions / Azure DevOps pipelines and scripts per
+tier/recipe, all consuming **one config JSON schema** — the same JSON the
+bootstrap installer emits, so the wizard can kick off automation directly or
+hand the file to your own tooling.
 
 ### Phase 5 — Notifications & controlled operations 🚧
 Partial: the outbound escalation webhook has shipped. Remaining: Teams / Slack /
