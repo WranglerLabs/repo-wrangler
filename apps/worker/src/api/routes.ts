@@ -37,7 +37,7 @@ import {
   listRecentSyncJobEvents,
   listRepositoryItems,
   listWorkspaceBudgets,
-  listWorkspaceRows,
+  listWorkspaceRowsWithProvider,
   enqueueSyncJob,
   recordAuditEvent,
   listSavedViews,
@@ -100,6 +100,8 @@ function rowToListItem(row: RepositoryListRow): RepositoryListItemDto {
     pushedAt: row.pushed_at ?? undefined,
     lastSyncedAt: row.enrich_synced_at ?? row.snapshot_synced_at ?? undefined,
     status: row.status,
+    monitoringState: row.monitoring_state,
+    workspaceId: row.workspace_id,
   };
 }
 
@@ -159,7 +161,12 @@ apiRoutes.get('/attention', async (c) => {
 apiRoutes.get('/repositories', async (c) => {
   if (isDemoMode(c.env)) return c.json(demoRepositories());
   const includeArchived = c.req.query('archived') === 'true';
-  const rows = await listRepositoryItems(c.env.DB, { includeArchived });
+  // B5 estate scope — only an admin/owner may see ignored inventory; anyone
+  // else silently gets the normal (monitored-only) estate view.
+  const user = c.get('user');
+  const isAdmin = user && (user.role === 'admin' || user.role === 'owner');
+  const includeIgnored = isAdmin && c.req.query('includeIgnored') === 'true';
+  const rows = await listRepositoryItems(c.env.DB, { includeArchived, includeIgnored });
   return c.json(rows.map(rowToListItem));
 });
 
@@ -440,7 +447,7 @@ apiRoutes.get('/activity', async (c) => {
 
 apiRoutes.get('/workspaces', async (c) => {
   if (isDemoMode(c.env)) return c.json(demoWorkspaces());
-  const workspaces = await listWorkspaceRows(c.env.DB);
+  const workspaces = await listWorkspaceRowsWithProvider(c.env.DB);
   const repoRows = await listRepositoryItems(c.env.DB, { includeArchived: true });
   const body: WorkspaceDto[] = workspaces.map((w) => {
     const repos = repoRows.filter((r) => r.workspace_id === w.id);
@@ -451,7 +458,8 @@ apiRoutes.get('/workspaces', async (c) => {
     }
     return {
       id: w.id,
-      provider: 'github',
+      connectionId: w.connection_id,
+      provider: w.provider_type,
       slug: w.slug,
       displayName: w.display_name ?? undefined,
       kind: w.kind,
@@ -459,6 +467,7 @@ apiRoutes.get('/workspaces', async (c) => {
       repositoryCount: repos.length,
       attentionCounts: counts,
       lastReconciledAt: w.last_reconciled_at ?? undefined,
+      monitoringState: w.monitoring_state,
     };
   });
   return c.json(body);

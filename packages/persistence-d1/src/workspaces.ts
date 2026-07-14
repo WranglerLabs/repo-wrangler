@@ -80,6 +80,42 @@ export async function listWorkspaceRows(db: D1Database): Promise<WorkspaceRow[]>
   return result.results;
 }
 
+export interface WorkspaceRowWithProvider extends WorkspaceRow {
+  provider_type: string;
+}
+
+/** `listWorkspaceRows` plus each workspace's real provider (B5 estate scope). */
+export async function listWorkspaceRowsWithProvider(
+  db: D1Database,
+): Promise<WorkspaceRowWithProvider[]> {
+  const result = await db
+    .prepare(
+      `SELECT w.*, c.provider_type AS provider_type
+       FROM workspaces w JOIN provider_connections c ON c.id = w.connection_id
+       WHERE w.status = 'active' ORDER BY w.slug`,
+    )
+    .all<WorkspaceRowWithProvider>();
+  return result.results;
+}
+
+/**
+ * All active workspaces belonging to one connection, regardless of monitoring
+ * state (B4 — GitLab discovery prefers these persisted rows over
+ * `GITLAB_GROUPS` when the operator selected groups through the wizard).
+ */
+export async function listWorkspacesForConnection(
+  db: D1Database,
+  connectionId: string,
+): Promise<WorkspaceRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT * FROM workspaces WHERE connection_id = ?1 AND status = 'active' ORDER BY slug`,
+    )
+    .bind(connectionId)
+    .all<WorkspaceRow>();
+  return result.results;
+}
+
 export async function listWorkspacesForSync(db: D1Database): Promise<WorkspaceRow[]> {
   const result = await db
     .prepare(
@@ -89,6 +125,14 @@ export async function listWorkspacesForSync(db: D1Database): Promise<WorkspaceRo
     )
     .all<WorkspaceRow>();
   return result.results;
+}
+
+/** B1 — `GET /onboarding/status`'s `monitoredWorkspaces` count. */
+export async function countMonitoredWorkspaces(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM workspaces WHERE status = 'active' AND monitoring_state = 'monitored'`)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
 }
 
 export async function markWorkspaceReconciled(db: D1Database, id: string): Promise<void> {

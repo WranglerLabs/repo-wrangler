@@ -1,4 +1,5 @@
 export * from './provider';
+export * from './db';
 export * from './file';
 export * from './keyvault';
 export * from './vault';

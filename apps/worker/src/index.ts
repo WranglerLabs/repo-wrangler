@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { CREDITS } from '@repo-wrangler/credits';
 import { APP_VERSION, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
+import { connectionRoutes } from './api/connections';
 import { authConfig, ALL_PROVIDERS } from './auth/registry';
 import { setupRoutes } from './setup/manifest';
 import { githubWebhookRoutes } from './webhooks/github';
@@ -65,6 +66,7 @@ app.route('/internal', internalCronRoutes);
 
 app.use('/api/v1/*', requireAuth);
 app.route('/api/v1', apiRoutes);
+app.route('/api/v1', connectionRoutes);
 
 export default {
   fetch: app.fetch,

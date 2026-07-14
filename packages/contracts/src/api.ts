@@ -80,6 +80,9 @@ export const repositoryListItemSchema = z.object({
   pushedAt: z.string().optional(),
   lastSyncedAt: z.string().optional(),
   status: z.string(),
+  /** Present only when the caller requested `includeIgnored` (B5 estate scope). */
+  monitoringState: z.enum(['monitored', 'ignored']).optional(),
+  workspaceId: z.string().optional(),
 });
 export type RepositoryListItemDto = z.infer<typeof repositoryListItemSchema>;
 
@@ -182,6 +185,7 @@ export type RepositoryDetailDto = z.infer<typeof repositoryDetailSchema>;
 
 export const workspaceDtoSchema = z.object({
   id: z.string(),
+  connectionId: z.string().optional(),
   provider: z.string(),
   slug: z.string(),
   displayName: z.string().optional(),
@@ -190,6 +194,7 @@ export const workspaceDtoSchema = z.object({
   repositoryCount: z.number(),
   attentionCounts: z.record(z.string(), z.number()),
   lastReconciledAt: z.string().optional(),
+  monitoringState: z.enum(['monitored', 'ignored']).optional(),
 });
 export type WorkspaceDto = z.infer<typeof workspaceDtoSchema>;
 
@@ -365,3 +370,62 @@ export const savedViewSchema = z.object({
   createdAt: z.string(),
 });
 export type SavedViewDto = z.infer<typeof savedViewSchema>;
+
+// Onboarding design Phase B — first-run detection, connect wizard, and estate
+// scope management.
+
+export const onboardingStatusSchema = z.object({
+  demo: z.boolean(),
+  /** `provider_connections` count. */
+  connections: z.number(),
+  /** Workspaces with `monitoring_state = 'monitored'`. */
+  monitoredWorkspaces: z.number(),
+  /** Real mode AND `monitoredWorkspaces === 0` — drives the wizard redirect. */
+  firstRun: z.boolean(),
+});
+export type OnboardingStatusDto = z.infer<typeof onboardingStatusSchema>;
+
+export const connectionWorkspaceSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  displayName: z.string().optional(),
+  kind: z.string(),
+  monitoringState: z.enum(['monitored', 'ignored']),
+  repoCount: z.number().optional(),
+});
+export type ConnectionWorkspaceDto = z.infer<typeof connectionWorkspaceSchema>;
+
+export const gitlabGroupSearchResultSchema = z.object({
+  externalId: z.string(),
+  fullPath: z.string(),
+  name: z.string(),
+  projectCount: z.number().optional(),
+});
+export type GitLabGroupSearchResultDto = z.infer<typeof gitlabGroupSearchResultSchema>;
+
+export const connectResultSchema = z.object({
+  connectionId: z.string(),
+  appSlug: z.string().optional(),
+  installUrl: z.string().optional(),
+});
+export type ConnectResultDto = z.infer<typeof connectResultSchema>;
+
+/** Presence + masked hint only (B5 Credentials panel) — never the value. */
+export const connectionSecretHintSchema = z.object({
+  name: z.string(),
+  present: z.boolean(),
+  hint: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+export type ConnectionSecretHintDto = z.infer<typeof connectionSecretHintSchema>;
+
+export const connectionDtoSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  displayName: z.string(),
+  status: z.string(),
+  baseUrl: z.string().optional(),
+  lastSuccessAt: z.string().optional(),
+  lastErrorCode: z.string().optional(),
+});
+export type ConnectionDto = z.infer<typeof connectionDtoSchema>;

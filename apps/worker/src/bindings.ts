@@ -21,6 +21,14 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   /** Shared bearer token authorizing the external-tick cron endpoint (PN-3). */
   CRON_TRIGGER_TOKEN?: string;
+  /**
+   * Encryption key for the `db` writable secret backend (ADR-021, onboarding
+   * design "Credential entry") — an infrastructure secret like `SESSION_SECRET`,
+   * resolved at boot. Provider credentials entered through the onboarding
+   * wizard are encrypted at rest with a key derived from this value; losing it
+   * means losing those credentials (a documented backup obligation).
+   */
+  SECRET_ENCRYPTION_KEY?: string;
 
   // Non-secret configuration (wrangler.jsonc vars / dashboard)
   /**
@@ -79,7 +87,7 @@ export interface Env {
   NOTIFY_WEBHOOK_URL?: string;
 }
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.6.0-rc1';
 
 export function isGitLabConfigured(env: Env): boolean {
   return Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);

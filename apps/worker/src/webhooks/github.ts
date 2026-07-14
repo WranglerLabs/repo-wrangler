@@ -9,6 +9,7 @@ import {
   recordDeliveryIfNew,
 } from '@repo-wrangler/persistence-d1';
 import type { AppContext } from '../middleware/auth';
+import { resolveGitHubAppCredentials } from '../lib/connection-secrets';
 import { applyDomainEvents } from './apply';
 
 const MAX_PAYLOAD_BYTES = 1_000_000;
@@ -20,7 +21,10 @@ const MAX_PAYLOAD_BYTES = 1_000_000;
 export const githubWebhookRoutes = new Hono<AppContext>();
 
 githubWebhookRoutes.post('/github', async (c) => {
-  const secret = c.env.GITHUB_WEBHOOK_SECRET;
+  // ADR-021: a webhook secret entered through the wizard's manifest exchange
+  // resolves here too — the `db` store first, env as the GitOps fallback.
+  const credentials = await resolveGitHubAppCredentials(c.env, c.env.DB);
+  const secret = credentials?.webhookSecret;
   if (!secret) return c.json({ error: 'Webhooks are not configured.' }, 503);
 
   const event = c.req.header('x-github-event');

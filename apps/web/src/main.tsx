@@ -17,6 +17,9 @@ import { PlatformHealth } from './routes/PlatformHealth';
 import { Administration } from './routes/Administration';
 import { Credits } from './routes/Credits';
 import { ThemeStudio } from './routes/ThemeStudio';
+import { Onboarding } from './routes/Onboarding';
+import { EstateScope } from './routes/EstateScope';
+import { SignIn } from './routes/SignIn';
 import './themes/registry';
 import './styles/global.css';
 
@@ -43,10 +46,14 @@ const router = createBrowserRouter([
       { path: 'workspaces', element: <Workspaces /> },
       { path: 'platform', element: <PlatformHealth /> },
       { path: 'admin', element: <Administration /> },
+      { path: 'admin/estate-scope', element: <EstateScope /> },
+      { path: 'onboarding', element: <Onboarding /> },
       { path: 'theme', element: <ThemeStudio /> },
       { path: 'credits', element: <Credits /> },
     ],
   },
+  // Outside Layout: an unauthenticated visitor has no session-derived chrome yet.
+  { path: '/sign-in', element: <SignIn /> },
 ]);
 
 createRoot(document.getElementById('root')!).render(

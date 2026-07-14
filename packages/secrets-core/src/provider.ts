@@ -24,6 +24,20 @@ export interface SecretProvider {
 }
 
 /**
+ * A {@link SecretProvider} that can also be written to at runtime (ADR-021,
+ * onboarding design "Credential entry"). The boot-resolved providers above
+ * (env, file, vault) are read-only by design — infrastructure secrets exist
+ * before the process starts. Provider credentials entered through the wizard
+ * need a store the app can write to *after* boot, with no restart: that is
+ * this interface. `set`/`delete` are on-demand, at the point of use, never
+ * hydrated into a boot-time env bag.
+ */
+export interface WritableSecretProvider extends SecretProvider {
+  set(name: string, value: string): Promise<void>;
+  delete(name: string): Promise<void>;
+}
+
+/**
  * Reads secrets from a flat string bag — `process.env` on Node, the `Env`
  * bindings object on Cloudflare (where `wrangler secret put` values and vars
  * both appear as properties). This is the default and the zero-dependency path.

@@ -29,6 +29,8 @@ import { mapPullRequest, mapRepository, mapWorkflowRun } from './mappers';
 export interface RepoPage {
   repositories: RepositorySnapshot[];
   nextPage?: number;
+  /** Total repositories visible to the installation, from GitHub's `total_count`. */
+  totalCount?: number;
 }
 
 /** One page of repositories accessible to an installation token. */
@@ -37,7 +39,7 @@ export async function listInstallationRepositories(
   page: number,
 ): Promise<RepoPage> {
   const client = new GitHubClient(token);
-  const response = await client.request<{ repositories: any[] }>(
+  const response = await client.request<{ total_count?: number; repositories: any[] }>(
     `/installation/repositories?per_page=100&page=${page}`,
   );
   if (!response.ok || !response.data) {
@@ -46,6 +48,7 @@ export async function listInstallationRepositories(
   return {
     repositories: response.data.repositories.map(mapRepository),
     nextPage: hasNextPage(response.link) ? page + 1 : undefined,
+    totalCount: response.data.total_count,
   };
 }
 

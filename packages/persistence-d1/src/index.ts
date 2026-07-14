@@ -12,3 +12,4 @@ export * from './audit';
 export * from './meta';
 export * from './budgets';
 export * from './saved-views';
+export * from './secrets';

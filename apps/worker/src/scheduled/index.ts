@@ -31,6 +31,7 @@ import {
   listBranches,
   listOpenChangeRequests,
   listOpenSecurityFindings,
+  listWorkspacesForConnection,
   listWorkspacesForSync,
   latestDefaultBranchRunRow,
   markEnriched,
@@ -71,6 +72,7 @@ import {
   listOpenMergeRequests,
 } from '@repo-wrangler/provider-gitlab';
 import { isDemoMode, isGitLabConfigured, type Env } from '../bindings';
+import { resolveGitHubAppCredentials, resolveGitLabCredentials } from '../lib/connection-secrets';
 
 /**
  * Checkpointed reconciliation engine. Every invocation claims a bounded
@@ -120,6 +122,16 @@ export async function runScheduled(env: Env, cron: string): Promise<void> {
   }
 }
 
+/**
+ * Env-configured *or* wizard-connected (B4): the periodic passes must not
+ * gate solely on `GITLAB_GROUPS`/env vars once a connection can live entirely
+ * in the `db` secret store.
+ */
+async function isGitLabConfiguredEffective(env: Env): Promise<boolean> {
+  if (isGitLabConfigured(env)) return true;
+  return (await resolveGitLabCredentials(env, env.DB)) !== null;
+}
+
 /** Keep the estate fresh even if no webhook ever arrives. */
 async function ensurePeriodicJobs(env: Env): Promise<void> {
   const lastDiscovery = await getMeta(env.DB, 'last_discovery_enqueued_at');
@@ -128,7 +140,7 @@ async function ensurePeriodicJobs(env: Env): Promise<void> {
     Date.now() - Date.parse(lastDiscovery) > DISCOVERY_INTERVAL_HOURS * 60 * 60 * 1000;
   if (due) {
     if (!isDemoMode(env)) await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
-    if (isGitLabConfigured(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
+    if (await isGitLabConfiguredEffective(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
     await setMeta(env.DB, 'last_discovery_enqueued_at', new Date().toISOString());
   }
 
@@ -148,7 +160,7 @@ async function runDailyMaintenance(env: Env): Promise<void> {
     await enqueueSyncJob(env.DB, 'discovery', 'all', 3);
     await enqueueSyncJob(env.DB, 'billing', 'all', 8);
   }
-  if (isGitLabConfigured(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
+  if (await isGitLabConfiguredEffective(env)) await enqueueSyncJob(env.DB, 'gitlab_discovery', 'all', 3);
 }
 
 async function runJob(
@@ -187,12 +199,15 @@ async function runDiscovery(
   cursorText: string | null,
   budget: number,
 ): Promise<number> {
-  const appId = env.GITHUB_APP_ID;
-  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
-  if (!appId || !privateKey) {
+  // ADR-021: resolves through the `db` secret store first, so a GitHub App
+  // connected entirely through the wizard (no GITHUB_APP_ID env var) is
+  // discovered exactly like an env-configured one.
+  const credentials = await resolveGitHubAppCredentials(env, env.DB);
+  if (!credentials) {
     await completeSyncJob(env.DB, jobId, 0);
     return 0;
   }
+  const { appId, privateKey } = credentials;
 
   let used = 0;
   const connectionId = await ensureGitHubConnection(env.DB);
@@ -267,21 +282,30 @@ async function runDiscovery(
   return used;
 }
 
-/** GitLab discovery: configured top-level groups → projects (incl. subgroups). */
+/**
+ * GitLab discovery: configured top-level groups → projects (incl. subgroups).
+ * B4 — the group list is the connection's persisted `workspaces` rows (the
+ * ones the wizard's `POST /connections/:id/workspaces` created) when any
+ * exist; otherwise it falls back to `GITLAB_GROUPS`, so a GitOps operator who
+ * prefers the env var keeps working unchanged.
+ */
 async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
-  if (!isGitLabConfigured(env)) {
+  const credentials = await resolveGitLabCredentials(env, env.DB);
+  if (!credentials) {
     await completeSyncJob(env.DB, jobId, 0);
     return 0;
   }
-  const client = new GitLabClient(env.GITLAB_TOKEN!, env.GITLAB_BASE_URL ?? 'https://gitlab.com');
-  const connectionId = await ensureGitLabConnection(
-    env.DB,
-    env.GITLAB_BASE_URL ?? 'https://gitlab.com',
-  );
-  const groups = (env.GITLAB_GROUPS ?? '')
-    .split(',')
-    .map((group) => group.trim())
-    .filter(Boolean);
+  const client = new GitLabClient(credentials.token, credentials.baseUrl);
+  const connectionId = await ensureGitLabConnection(env.DB, credentials.baseUrl);
+
+  const persistedWorkspaces = await listWorkspacesForConnection(env.DB, connectionId);
+  const groups =
+    persistedWorkspaces.length > 0
+      ? persistedWorkspaces.map((w) => w.slug)
+      : (env.GITLAB_GROUPS ?? '')
+          .split(',')
+          .map((group) => group.trim())
+          .filter(Boolean);
 
   let used = 0;
   try {
@@ -354,10 +378,10 @@ async function runEnrichRepository(env: Env, jobId: string, fullName: string): P
 }
 
 async function enrichGitHubRepository(env: Env, context: RepoContext): Promise<number> {
-  const appId = env.GITHUB_APP_ID;
-  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
+  const credentials = await resolveGitHubAppCredentials(env, env.DB);
   const { repo } = context;
-  if (!appId || !privateKey || !context.installationId) return 0;
+  if (!credentials || !context.installationId) return 0;
+  const { appId, privateKey } = credentials;
 
   let used = 0;
   const token = await getInstallationToken(appId, privateKey, context.installationId);
@@ -413,9 +437,10 @@ async function enrichGitHubRepository(env: Env, context: RepoContext): Promise<n
 }
 
 async function enrichGitLabRepository(env: Env, context: RepoContext): Promise<number> {
-  if (!isGitLabConfigured(env)) return 0;
+  const credentials = await resolveGitLabCredentials(env, env.DB);
+  if (!credentials) return 0;
   const { repo } = context;
-  const client = new GitLabClient(env.GITLAB_TOKEN!, env.GITLAB_BASE_URL ?? 'https://gitlab.com');
+  const client = new GitLabClient(credentials.token, credentials.baseUrl);
   let used = 0;
 
   const openMrs = await listOpenMergeRequests(client, repo.external_id);
@@ -454,12 +479,12 @@ async function enrichGitLabRepository(env: Env, context: RepoContext): Promise<n
 
 /** Daily budgets sync per GitHub workspace (capability-gated). */
 async function runBillingSync(env: Env, jobId: string): Promise<number> {
-  const appId = env.GITHUB_APP_ID;
-  const privateKey = env.GITHUB_APP_PRIVATE_KEY;
-  if (!appId || !privateKey) {
+  const credentials = await resolveGitHubAppCredentials(env, env.DB);
+  if (!credentials) {
     await completeSyncJob(env.DB, jobId, 0);
     return 0;
   }
+  const { appId, privateKey } = credentials;
   let used = 0;
   const workspaces = await listWorkspacesForSync(env.DB);
   for (const workspace of workspaces) {

@@ -65,39 +65,28 @@ export function Administration() {
           <>
             <p>
               This instance is running in <span className="badge medium">demo mode</span> with
-              synthetic data. To monitor a real estate:
+              synthetic data. Set <span className="mono">DEMO_MODE=false</span> and use the{' '}
+              <Link to="/onboarding">onboarding wizard</Link> to connect GitHub or GitLab —
+              credentials are entered in the UI, no vault pre-seeding required.
             </p>
-            <ol style={{ margin: '8px 0 8px 20px', lineHeight: 1.8 }}>
-              <li>
-                Create a read-only GitHub App for your organizations — follow{' '}
-                <a href={`${REPO_URL}/blob/main/docs/setup/github-app.md`} target="_blank" rel="noreferrer">
-                  the GitHub App setup guide ↗
-                </a>
-                .
-              </li>
-              <li>
-                Set the Worker secrets (<span className="mono">GITHUB_APP_ID</span>,{' '}
-                <span className="mono">GITHUB_APP_PRIVATE_KEY</span>,{' '}
-                <span className="mono">GITHUB_WEBHOOK_SECRET</span>,{' '}
-                <span className="mono">GITHUB_CLIENT_ID</span>,{' '}
-                <span className="mono">GITHUB_CLIENT_SECRET</span>,{' '}
-                <span className="mono">SESSION_SECRET</span>) per{' '}
-                <a href={`${REPO_URL}/blob/main/docs/setup/deploy-cloudflare.md`} target="_blank" rel="noreferrer">
-                  the deployment guide ↗
-                </a>
-                .
-              </li>
-              <li>Install the App on each organization with “All repositories”.</li>
-              <li>Run discovery below (or wait for the next scheduled reconciliation).</li>
-            </ol>
             <p className="muted">
-              Demo mode switches off automatically once the GitHub App credentials are present.
+              Prefer environment variables instead? That path still works unchanged — follow{' '}
+              <a href={`${REPO_URL}/blob/main/docs/setup/github-app.md`} target="_blank" rel="noreferrer">
+                the GitHub App setup guide ↗
+              </a>{' '}
+              and{' '}
+              <a href={`${REPO_URL}/blob/main/docs/setup/deploy-cloudflare.md`} target="_blank" rel="noreferrer">
+                the deployment guide ↗
+              </a>
+              .
             </p>
           </>
         ) : (
           <p>
             {health.data?.connections.length ?? 0} connection(s) configured — status and last
-            errors are on <Link to="/platform">Platform Health</Link>.
+            errors are on <Link to="/platform">Platform Health</Link>. Manage what's monitored on{' '}
+            <Link to="/admin/estate-scope">Estate scope</Link>, or{' '}
+            <Link to="/onboarding">connect another platform</Link>.
           </p>
         )}
       </div>

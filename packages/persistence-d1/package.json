@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@repo-wrangler/contracts": "workspace:*",
-    "@repo-wrangler/domain": "workspace:*"
+    "@repo-wrangler/domain": "workspace:*",
+    "@repo-wrangler/secrets-core": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",

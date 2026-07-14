@@ -9,6 +9,8 @@ export interface GitLabResponse<T> {
   status: number;
   data?: T;
   nextPage?: number;
+  /** Total matching records, from GitLab's `X-Total` pagination header. */
+  total?: number;
 }
 
 export class GitLabClient {
@@ -37,11 +39,14 @@ export class GitLabClient {
     }
     const nextPageHeader = response.headers.get('x-next-page');
     const nextPage = nextPageHeader ? Number(nextPageHeader) : undefined;
+    const totalHeader = response.headers.get('x-total');
+    const total = totalHeader ? Number(totalHeader) : undefined;
     return {
       ok: response.ok,
       status: response.status,
       data,
       nextPage: nextPage && !Number.isNaN(nextPage) ? nextPage : undefined,
+      total: total !== undefined && !Number.isNaN(total) ? total : undefined,
     };
   }
 }

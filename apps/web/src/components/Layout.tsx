@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { signInOptions, useAuthConfig, useSessionUser } from '../api/client';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { signInOptions, useAuthConfig, useOnboardingStatus, useSessionUser } from '../api/client';
 import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
 import {
   CUSTOM_THEME_ID,
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/activity', label: 'Activity' },
   { to: '/platform', label: 'Platform Health' },
   { to: '/admin', label: 'Administration' },
+  { to: '/admin/estate-scope', label: 'Estate scope' },
   { to: '/credits', label: 'About & Credits' },
 ];
 
@@ -40,6 +41,22 @@ export function Layout() {
   const { data: user } = useSessionUser();
   const { data: authConfig } = useAuthConfig();
   const signIns = signInOptions(authConfig);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // B1 — real mode, zero monitored workspaces: route to the wizard. Only
+  // once signed in (`user` present); an unauthenticated visitor is handled
+  // by the API client's 401 → /sign-in redirect first.
+  const onboardingStatus = useOnboardingStatus();
+  useEffect(() => {
+    if (
+      user &&
+      onboardingStatus.data?.firstRun &&
+      location.pathname !== '/onboarding'
+    ) {
+      navigate('/onboarding');
+    }
+  }, [user, onboardingStatus.data?.firstRun, location.pathname, navigate]);
 
   return (
     <div className="layout">

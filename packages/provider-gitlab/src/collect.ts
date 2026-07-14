@@ -36,6 +36,7 @@ export async function getGroupWorkspace(
 export interface GitLabProjectPage {
   repositories: RepositorySnapshot[];
   nextPage?: number;
+  totalCount?: number;
 }
 
 export async function listGroupProjects(
@@ -52,7 +53,43 @@ export async function listGroupProjects(
   return {
     repositories: response.data.map(mapProject),
     nextPage: response.nextPage,
+    totalCount: response.total,
   };
+}
+
+/** One cheap call (per_page=1) for the connect wizard's repo-count preview. */
+export async function countGroupProjects(client: GitLabClient, groupPath: string): Promise<number> {
+  const response = await client.request<any[]>(
+    `/groups/${encodeURIComponent(groupPath)}/projects?include_subgroups=true&archived=false&per_page=1`,
+  );
+  if (!response.ok || !response.data) return 0;
+  return response.total ?? response.data.length;
+}
+
+export interface GitLabGroupSearchResult {
+  externalId: string;
+  fullPath: string;
+  name: string;
+  projectCount?: number;
+}
+
+/** Server-side proxy for the wizard's group search (B3) — the token never leaves the server. */
+export async function searchGroups(
+  client: GitLabClient,
+  query: string,
+): Promise<GitLabGroupSearchResult[]> {
+  const response = await client.request<any[]>(
+    `/groups?search=${encodeURIComponent(query)}&per_page=20&min_access_level=10`,
+  );
+  if (!response.ok || !response.data) {
+    throw new Error(`Failed to search GitLab groups (HTTP ${response.status}).`);
+  }
+  return response.data.map((group) => ({
+    externalId: String(group.id),
+    fullPath: String(group.full_path ?? group.path),
+    name: String(group.name ?? group.full_path ?? group.path),
+    projectCount: typeof group.projects_count === 'number' ? group.projects_count : undefined,
+  }));
 }
 
 export function mapProject(project: any): RepositorySnapshot {

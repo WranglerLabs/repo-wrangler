@@ -2,12 +2,18 @@ import { useQuery } from '@tanstack/react-query';
 import type {
   ActivityEventDto,
   AttentionItemDto,
+  ConnectionDto,
+  ConnectionSecretHintDto,
+  ConnectionWorkspaceDto,
+  ConnectResultDto,
   CreditsDto,
   EstateBranchDto,
   EstateBudgetsDto,
   EstateChangeRequestDto,
   EstatePipelineDto,
   EstateSecurityFindingDto,
+  GitLabGroupSearchResultDto,
+  OnboardingStatusDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -16,6 +22,8 @@ import type {
   SessionUserDto,
   WorkspaceDto,
 } from '@repo-wrangler/contracts';
+
+export type MonitoringState = 'monitored' | 'ignored';
 
 export class ApiError extends Error {
   constructor(
@@ -38,6 +46,28 @@ export function apiUrl(path: string): string {
   return API_BASE ? `${API_BASE}${path}` : path;
 }
 
+/**
+ * Owner-approved addition (onboarding design front door): on a 401 from any
+ * API call, send the browser to `/sign-in` rather than leaving a route to
+ * dead-end on "Is the API reachable?". A full navigation (not client-side
+ * routing) matches how every other sign-in transition in this app already
+ * works, and needs no router context from a plain fetch helper.
+ */
+function redirectToSignIn(): void {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname.startsWith('/sign-in')) return; // avoid a self-redirect loop
+  window.location.assign('/sign-in');
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: string };
+    return body.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(apiUrl(path), {
     headers: { accept: 'application/json' },
@@ -45,8 +75,25 @@ async function apiGet<T>(path: string): Promise<T> {
     credentials: 'include',
   });
   if (!response.ok) {
-    throw new ApiError(response.status, `Request failed: ${response.status}`);
+    if (response.status === 401) redirectToSignIn();
+    throw new ApiError(response.status, await readErrorMessage(response, `Request failed: ${response.status}`));
   }
+  return (await response.json()) as T;
+}
+
+/** POST/PUT/PATCH/DELETE with a JSON body, the same 401 handling as `apiGet`. */
+async function apiSend<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const response = await fetch(apiUrl(path), {
+    method,
+    credentials: 'include',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) {
+    if (response.status === 401) redirectToSignIn();
+    throw new ApiError(response.status, await readErrorMessage(response, `Request failed: ${response.status}`));
+  }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
@@ -233,4 +280,101 @@ export async function triggerManualSync(): Promise<void> {
     credentials: 'include',
   });
   if (!response.ok) throw new ApiError(response.status, 'Sync request failed');
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding design Phase B — first-run wizard, connect API, estate scope.
+// ---------------------------------------------------------------------------
+
+export function useOnboardingStatus() {
+  return useQuery<OnboardingStatusDto>({
+    queryKey: ['onboarding-status'],
+    queryFn: () => apiGet('/api/v1/onboarding/status'),
+    retry: false,
+  });
+}
+
+export function useConnections() {
+  return useQuery<ConnectionDto[]>({
+    queryKey: ['connections'],
+    queryFn: () => apiGet('/api/v1/connections'),
+  });
+}
+
+export function useConnectionWorkspaces(connectionId: string | undefined) {
+  return useQuery<ConnectionWorkspaceDto[]>({
+    queryKey: ['connection-workspaces', connectionId],
+    queryFn: () => apiGet(`/api/v1/connections/${connectionId}/workspaces`),
+    enabled: !!connectionId,
+  });
+}
+
+/** B5 estate scope — the full inventory (both states) for one management screen. */
+export function useEstateRepositories() {
+  return useQuery<RepositoryListItemDto[]>({
+    queryKey: ['estate-repositories', 'includeIgnored'],
+    queryFn: () => apiGet('/api/v1/repositories?archived=true&includeIgnored=true'),
+  });
+}
+
+export async function exchangeGitHubApp(code: string): Promise<ConnectResultDto> {
+  return apiSend('/api/v1/connections/github/exchange', 'POST', { code });
+}
+
+export interface GitHubPastedCredentials {
+  appId: string;
+  privateKey: string;
+  webhookSecret: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
+export async function pasteGitHubCredentials(payload: GitHubPastedCredentials): Promise<ConnectResultDto> {
+  return apiSend('/api/v1/connections/github/credentials', 'POST', payload);
+}
+
+export async function connectGitLab(baseUrl: string, token: string): Promise<ConnectResultDto> {
+  return apiSend('/api/v1/connections/gitlab', 'POST', { baseUrl, token });
+}
+
+export async function searchGitLabGroups(
+  connectionId: string,
+  query: string,
+): Promise<GitLabGroupSearchResultDto[]> {
+  return apiGet(`/api/v1/connections/${connectionId}/search-groups?q=${encodeURIComponent(query)}`);
+}
+
+export async function createGitLabWorkspaces(
+  connectionId: string,
+  externalIds: string[],
+): Promise<ConnectionWorkspaceDto[]> {
+  return apiSend(`/api/v1/connections/${connectionId}/workspaces`, 'POST', { externalIds });
+}
+
+export async function setWorkspaceMonitoringState(id: string, state: MonitoringState): Promise<void> {
+  await apiSend(`/api/v1/workspaces/${id}`, 'PATCH', { monitoring_state: state });
+}
+
+export async function setRepositoryMonitoringState(id: string, state: MonitoringState): Promise<void> {
+  await apiSend(`/api/v1/repositories/${id}`, 'PATCH', { monitoring_state: state });
+}
+
+export function useConnectionCredentials(connectionId: string | undefined) {
+  return useQuery<ConnectionSecretHintDto[]>({
+    queryKey: ['connection-credentials', connectionId],
+    queryFn: () => apiGet(`/api/v1/connections/${connectionId}/credentials`),
+    enabled: !!connectionId,
+  });
+}
+
+export async function rotateConnectionCredential(
+  connectionId: string,
+  name: string,
+  value: string,
+): Promise<void> {
+  await apiSend(`/api/v1/connections/${connectionId}/credentials`, 'PUT', { name, value });
+}
+
+export async function disconnectConnection(connectionId: string): Promise<void> {
+  await apiSend(`/api/v1/connections/${connectionId}`, 'DELETE');
 }

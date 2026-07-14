@@ -15,6 +15,7 @@
     "@repo-wrangler/provider-github": "workspace:*",
     "@repo-wrangler/provider-gitlab": "workspace:*",
     "@repo-wrangler/provider-mock": "workspace:*",
+    "@repo-wrangler/secrets-core": "workspace:*",
     "hono": "^4.7.0"
   },
   "devDependencies": {
