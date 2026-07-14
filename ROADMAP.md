@@ -28,6 +28,16 @@ On `main` now; hardening through live testing.
 
 ## Next up
 
+### Grow the estate after onboarding — add orgs, groups, and repos any time
+
+Onboarding is not a one-shot: from **Administration → Estate scope** (and each
+connection's detail), an explicit **"Add more organizations"** flow installs
+your *existing* GitHub App on additional orgs (guided deep-link to the App's
+installation page, then automatic discovery and scope selection for what
+arrives) — no second App, no new connection. GitLab connections grow the same
+way by adding more groups to the existing token. "Connect another platform"
+stays for genuinely new providers or separate credentials.
+
 ### Invite additional users — Administration → Users
 
 Let the operator invite more people to their instance from the UI instead of
