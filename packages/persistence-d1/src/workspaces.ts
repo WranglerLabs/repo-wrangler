@@ -1,4 +1,4 @@
-import type { WorkspaceSnapshot } from '@repo-wrangler/domain';
+import type { MonitoringState, WorkspaceSnapshot } from '@repo-wrangler/domain';
 
 export interface WorkspaceRow {
   id: string;
@@ -9,6 +9,7 @@ export interface WorkspaceRow {
   display_name: string | null;
   kind: string;
   avatar_url: string | null;
+  monitoring_state: MonitoringState;
   status: string;
   last_reconciled_at: string | null;
 }
@@ -95,4 +96,32 @@ export async function markWorkspaceReconciled(db: D1Database, id: string): Promi
     .prepare(`UPDATE workspaces SET last_reconciled_at = datetime('now') WHERE id = ?1`)
     .bind(id)
     .run();
+}
+
+/**
+ * Operator decision, not a discovery event: `updated_at`/`last_seen_at` are
+ * left untouched. Returns false if no such workspace exists (A1).
+ */
+export async function setWorkspaceMonitoringState(
+  db: D1Database,
+  id: string,
+  state: MonitoringState,
+): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE workspaces SET monitoring_state = ?2 WHERE id = ?1`)
+    .bind(id, state)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
+/** Current monitoring state, for the discovery loop's org-level skip (A2). */
+export async function getWorkspaceMonitoringState(
+  db: D1Database,
+  id: string,
+): Promise<MonitoringState | null> {
+  const row = await db
+    .prepare(`SELECT monitoring_state FROM workspaces WHERE id = ?1`)
+    .bind(id)
+    .first<{ monitoring_state: MonitoringState }>();
+  return row?.monitoring_state ?? null;
 }

@@ -1,11 +1,20 @@
 # RepoWrangler — self-hosted, zero Cloudflare.
 #
-# The Node server host serves the SPA and the API on one port, backed by a
-# SQLite file in the `rw-data` volume. Runs in demo mode out of the box (mock
-# data, no secrets). To connect a real GitHub App, copy .env.example → .env,
-# fill it in, and `docker compose up -d --build` again.
+# The Node server host serves the SPA and the API on one port. Two database
+# modes:
 #
-#   docker compose up --build        # http://localhost:8080
+#   Demo / quick start (default) — SQLite file in the `rw-data` volume:
+#     docker compose up --build                          # http://localhost:8080
+#
+#   Production — PostgreSQL container on the private compose network (the
+#   database is never exposed outside the Docker network). In .env set:
+#     POSTGRES_PASSWORD=<long random string>
+#     DATABASE_URL=postgres://repowrangler:<that password>@postgres:5432/repowrangler
+#   then:
+#     docker compose --profile postgres up -d --build
+#
+# To connect a real GitHub App, copy .env.example → .env, fill it in, and
+# re-run compose with DEMO_MODE=false.
 #
 services:
   server:
@@ -40,8 +49,31 @@ services:
     #   - github-client-secret
     restart: unless-stopped
 
+  # Production database (enable with: docker compose --profile postgres up).
+  # Reachable only on the compose-internal network as host "postgres" — no
+  # published port, so it is unreachable from outside the machine. The server
+  # switches to it when DATABASE_URL is set (see header comment). On the very
+  # first boot the server may restart once while postgres initializes — its
+  # restart policy handles that.
+  postgres:
+    image: postgres:16
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: repowrangler
+      POSTGRES_USER: repowrangler
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env for the postgres profile}
+    volumes:
+      - rw-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repowrangler -d repowrangler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   rw-data:
+  rw-pgdata:
 
 # secrets:
 #   session-secret:

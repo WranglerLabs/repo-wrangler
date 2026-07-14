@@ -117,7 +117,13 @@ export function schedulerMode(env: Env): 'in-process' | 'external' | 'off' {
 
 export function isDemoMode(env: Env): boolean {
   if (env.DEMO_MODE === 'true') return true;
-  // Fall back to demo mode when no GitHub App is configured, so a fresh
-  // deployment shows a working product instead of an error page.
-  return !env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY;
+  // Explicit opt-out always wins — an operator who set DEMO_MODE=false wants
+  // real mode even while providers are still being configured.
+  if (env.DEMO_MODE === 'false') return false;
+  // Otherwise fall back to demo mode only when NO provider is configured, so a
+  // fresh deployment shows a working product instead of an error page. A
+  // GitLab-only deployment (token + groups, no GitHub App) is real, not demo.
+  const hasGitHub = Boolean(env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY);
+  const hasGitLab = Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);
+  return !hasGitHub && !hasGitLab;
 }

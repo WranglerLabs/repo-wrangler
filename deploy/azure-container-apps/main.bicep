@@ -1,12 +1,21 @@
 // RepoWrangler — Azure Container Apps deployment.
 //
 // Runs the apps/server container (the whole product: SPA + API + scheduler) on
-// Azure Container Apps, with the SQLite database on a persistent Azure Files
-// share and real-mode secrets pulled from Key Vault via managed identity.
+// Azure Container Apps. Two database modes:
 //
-// This deploys the exact image built from apps/server/Dockerfile — the same
-// verified SQLite host that `docker compose up` runs locally. Postgres is a
-// later scale option (roadmap PN-1); it is not required here.
+//   postgres = true   (RECOMMENDED for production) — the app connects to
+//                     PostgreSQL via a `database-url` secret in Key Vault.
+//                     No file share; no SQLite locking issues.
+//   postgres = false  (default, demo/evaluation) — SQLite on an Azure Files
+//                     share mounted at /app/data. SQLite file locking over
+//                     SMB is unreliable under restarts/crashes; do NOT use
+//                     this mode for a production instance.
+//
+// Image pulls and Key Vault reads use a USER-ASSIGNED managed identity that
+// this template creates and grants AcrPull on the registry — so the first
+// revision can pull its image without any out-of-band role assignment (a
+// system-assigned identity cannot: it does not exist until the app is
+// created, but creation needs the image pull).
 
 @description('Base name for all resources.')
 param name string = 'repo-wrangler'
@@ -20,11 +29,17 @@ param image string
 @description('Azure Container Registry login server (e.g. myacr.azurecr.io).')
 param acrLoginServer string
 
-@description('Key Vault name holding real-mode secrets (empty = demo mode only).')
+@description('ACR resource name. Must be in this resource group for the in-template AcrPull grant; default derives it from acrLoginServer.')
+param acrName string = split(acrLoginServer, '.')[0]
+
+@description('Key Vault name holding secrets (real mode and/or postgres). Empty = demo mode on SQLite only.')
 param keyVaultName string = ''
 
-@description('Run in demo mode (mock data, no secrets).')
+@description('Run in demo mode (mock data, no provider secrets).')
 param demoMode bool = true
+
+@description('Use PostgreSQL via a database-url secret in Key Vault (production). Requires keyVaultName. False = SQLite on Azure Files (demo/evaluation only).')
+param postgres bool = false
 
 @description('Comma-separated GitHub logins allowed to sign in (first = owner).')
 param allowedGithubUsers string = ''
@@ -35,13 +50,55 @@ param authProviders string = 'github'
 @description('Public URL the instance is reachable at (OAuth callbacks/links).')
 param publicBaseUrl string = ''
 
-var storageAccountName = toLower(take('${replace(name, '-', '')}sa${uniqueString(resourceGroup().id)}', 24))
+// --- Per-resource names (CAF-friendly) ----------------------------------------
+// Each defaults to the original derived value, so existing deployments are
+// unchanged. Cloud Adoption Framework callers pass explicit, prefix-correct
+// names per resource type (ca-, cae-, log-, id-, st).
+@description('Container App name (CAF: ca-<workload>-<env>-<region>). Default: the base name.')
+param containerAppName string = name
+
+@description('Container Apps managed environment name (CAF: cae-<workload>-<env>-<region>). Default: <name>-env.')
+param containerAppsEnvironmentName string = '${name}-env'
+
+@description('Log Analytics workspace name (CAF: log-<workload>-<env>-<region>). Default: <name>-logs.')
+param logAnalyticsWorkspaceName string = '${name}-logs'
+
+@description('User-assigned managed identity name (CAF: id-<workload>-<env>-<region>). Default: <name>-id.')
+param managedIdentityName string = '${name}-id'
+
+@description('Storage account name for SQLite mode (CAF: st<workload><env><region>). 3-24 lowercase alphanumerics, globally unique. Empty = auto-generated. Unused when postgres = true.')
+param storageAccountName string = ''
+
+var effectiveStorageAccountName = empty(storageAccountName) ? toLower(take('${replace(name, '-', '')}sa${uniqueString(resourceGroup().id)}', 24)) : storageAccountName
 var fileShareName = 'repo-wrangler-data'
 var storageMountName = 'rw-data'
+var sqliteMode = !postgres
 
-// --- Persistent storage for the SQLite database --------------------------------
-resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: storageAccountName
+// --- Identity: created first so it can be granted AcrPull BEFORE the app pulls --
+resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: managedIdentityName
+  location: location
+}
+
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: acrName
+}
+
+// AcrPull (7f951dda-4ed3-4680-a7ca-43fe172d538d). Without this grant the app
+// can never pull its image ("ACR token exchange endpoint returned error 401").
+resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(acr.id, uami.id, 'acrpull')
+  scope: acr
+  properties: {
+    principalId: uami.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  }
+}
+
+// --- Persistent storage for SQLite mode only -----------------------------------
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (sqliteMode) {
+  name: effectiveStorageAccountName
   location: location
   sku: { name: 'Standard_LRS' }
   kind: 'StorageV2'
@@ -51,12 +108,12 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
-resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
+resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = if (sqliteMode) {
   parent: storage
   name: 'default'
 }
 
-resource share 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
+resource share 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = if (sqliteMode) {
   parent: fileService
   name: fileShareName
   properties: {
@@ -67,7 +124,7 @@ resource share 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01
 
 // --- Log Analytics + Container Apps environment --------------------------------
 resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
-  name: '${name}-logs'
+  name: logAnalyticsWorkspaceName
   location: location
   properties: {
     sku: { name: 'PerGB2018' }
@@ -76,7 +133,7 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 }
 
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
-  name: '${name}-env'
+  name: containerAppsEnvironmentName
   location: location
   properties: {
     appLogsConfiguration: {
@@ -89,23 +146,21 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// Mount the Azure Files share into the environment so the app can persist SQLite.
-resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
+// Mount the Azure Files share into the environment (SQLite mode only).
+resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if (sqliteMode) {
   parent: env
   name: storageMountName
   properties: {
     azureFile: {
-      accountName: storage.name
-      accountKey: storage.listKeys().keys[0].value
+      accountName: sqliteMode ? storage.name : ''
+      accountKey: sqliteMode ? storage.listKeys().keys[0].value : ''
       shareName: fileShareName
       accessMode: 'ReadWrite'
     }
   }
 }
 
-// --- The Container App ----------------------------------------------------------
-// Managed identity is used to pull secrets from Key Vault (real mode) and to
-// authenticate to ACR without admin credentials.
+// --- Secrets ---------------------------------------------------------------------
 var kvSecretNames = [
   'github-app-id'
   'github-app-private-key'
@@ -118,24 +173,38 @@ var kvSecretNames = [
 // Real mode = not demo AND a vault was supplied.
 var realMode = !demoMode && !empty(keyVaultName)
 
-// Key Vault reference secrets, resolved by the managed identity at runtime.
+// Key Vault reference secrets, resolved by the user-assigned identity at runtime.
 var kvSecrets = [for s in kvSecretNames: {
   name: s
   keyVaultUrl: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${s}'
-  identity: 'system'
+  identity: uami.id
+}]
+
+// PostgreSQL connection string, also a Key Vault reference (postgres mode).
+var dbSecret = [{
+  name: 'database-url'
+  keyVaultUrl: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/database-url'
+  identity: uami.id
 }]
 
 var baseEnv = [
   { name: 'PORT', value: '8080' }
-  { name: 'SQLITE_PATH', value: '/app/data/repo-wrangler.db' }
   { name: 'DEMO_MODE', value: string(demoMode) }
   // Sign-in providers (PN-5). AUTH_MODE stays as the legacy fallback.
   { name: 'AUTH_PROVIDERS', value: authProviders }
   { name: 'AUTH_MODE', value: 'github_app' }
   { name: 'ALLOWED_GITHUB_USERS', value: allowedGithubUsers }
   { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
-  // Single replica owns the SQLite file and runs the scheduler.
+  // One replica owns the scheduler (and the SQLite file in sqlite mode).
   { name: 'ENABLE_SCHEDULER', value: 'true' }
+]
+
+var sqliteEnv = [
+  { name: 'SQLITE_PATH', value: '/app/data/repo-wrangler.db' }
+]
+
+var postgresEnv = [
+  { name: 'DATABASE_URL', secretRef: 'database-url' }
 ]
 
 var secretEnv = [
@@ -147,10 +216,27 @@ var secretEnv = [
   { name: 'SESSION_SECRET', secretRef: 'session-secret' }
 ]
 
+var appEnv = concat(
+  baseEnv,
+  sqliteMode ? sqliteEnv : postgresEnv,
+  realMode ? secretEnv : []
+)
+
+var appSecrets = concat(
+  realMode ? kvSecrets : [],
+  postgres ? dbSecret : []
+)
+
+// --- The Container App ----------------------------------------------------------
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
-  name: name
+  name: containerAppName
   location: location
-  identity: { type: 'SystemAssigned' }
+  identity: {
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${uami.id}': {}
+    }
+  }
   properties: {
     managedEnvironmentId: env.id
     configuration: {
@@ -163,16 +249,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       registries: [
         {
           server: acrLoginServer
-          identity: 'system'
+          identity: uami.id
         }
       ]
-      // Real-mode secrets are Key Vault references resolved by the managed
-      // identity at runtime; they never appear in the template or logs. The app
-      // then reads them as env (SECRET_SOURCE=env). Alternatively, set
-      // SECRET_SOURCE=keyvault|vault|aws|gcp to have the app pull directly from
-      // Azure Key Vault, HashiCorp Vault, AWS Secrets Manager, or GCP Secret
-      // Manager (ADR-017) — no cloud is required.
-      secrets: realMode ? kvSecrets : []
+      // Secrets are Key Vault references resolved by the user-assigned identity
+      // at runtime; they never appear in the template or logs. The deploy script
+      // grants that identity "Key Vault Secrets User" on your vault BEFORE this
+      // template is applied, so first-deploy secret resolution succeeds.
+      secrets: appSecrets
     }
     template: {
       containers: [
@@ -183,16 +267,19 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json('0.5')
             memory: '1Gi'
           }
-          env: realMode ? concat(baseEnv, secretEnv) : baseEnv
-          volumeMounts: [
+          env: appEnv
+          volumeMounts: sqliteMode ? [
             { volumeName: storageMountName, mountPath: '/app/data' }
-          ]
+          ] : []
           probes: [
             {
               type: 'Liveness'
               httpGet: { path: '/health/live', port: 8080 }
-              initialDelaySeconds: 15
+              // The server listens only after boot migrations complete; give
+              // slow first-boot migrations room before liveness can kill it.
+              initialDelaySeconds: 30
               periodSeconds: 30
+              failureThreshold: 5
             }
             {
               type: 'Readiness'
@@ -203,22 +290,24 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           ]
         }
       ]
-      // SQLite is single-writer: pin to exactly one replica. Horizontal scale
-      // is the Postgres adapter's job (roadmap PN-1), not this host's.
+      // SQLite is single-writer; the scheduler must run on exactly one replica.
+      // Keep 1/1 in both modes (scale-out on Postgres = add replicas with
+      // ENABLE_SCHEDULER=false — see docs/deployment.md).
       scale: { minReplicas: 1, maxReplicas: 1 }
-      volumes: [
+      volumes: sqliteMode ? [
         {
           name: storageMountName
           storageType: 'AzureFile'
           storageName: storageMountName
         }
-      ]
+      ] : []
     }
   }
-  dependsOn: [ envStorage ]
+  dependsOn: [ envStorage, acrPull ]
 }
 
-@description('Managed identity principal id. Grant it "Key Vault Secrets User" on your vault for real mode (deploy.sh does this).')
-output principalId string = app.identity.principalId
+@description('User-assigned identity principal id. The deploy script grants it "Key Vault Secrets User" on your vault.')
+output principalId string = uami.properties.principalId
+output identityResourceId string = uami.id
 output fqdn string = app.properties.configuration.ingress.fqdn
 output appUrl string = 'https://${app.properties.configuration.ingress.fqdn}'

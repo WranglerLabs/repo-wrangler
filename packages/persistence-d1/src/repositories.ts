@@ -1,4 +1,4 @@
-import type { RepositorySnapshot } from '@repo-wrangler/domain';
+import type { MonitoringState, RepositorySnapshot } from '@repo-wrangler/domain';
 
 export interface RepositoryRow {
   id: string;
@@ -16,6 +16,7 @@ export interface RepositoryRow {
   primary_language: string | null;
   topics: string | null;
   license_spdx: string | null;
+  monitoring_state: MonitoringState;
   status: string;
   first_seen_at: string;
   snapshot_synced_at: string | null;
@@ -139,6 +140,22 @@ export async function markUnseenInaccessible(
     .run();
 }
 
+/**
+ * Operator decision, not a discovery event: `updated_at`/`last_seen_at` are
+ * left untouched. Returns false if no such repository exists (A1).
+ */
+export async function setRepositoryMonitoringState(
+  db: D1Database,
+  id: string,
+  state: MonitoringState,
+): Promise<boolean> {
+  const result = await db
+    .prepare(`UPDATE repositories SET monitoring_state = ?2 WHERE id = ?1`)
+    .bind(id, state)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
 export async function getRepositoryById(
   db: D1Database,
   id: string,
@@ -231,10 +248,16 @@ export interface RepositoryListRow extends RepositoryRow {
 /** Indexed snapshot query behind the estate repository table. */
 export async function listRepositoryItems(
   db: D1Database,
-  options: { includeArchived?: boolean; limit?: number } = {},
+  options: { includeArchived?: boolean; includeIgnored?: boolean; limit?: number } = {},
 ): Promise<RepositoryListRow[]> {
   const limit = options.limit ?? 500;
   const archivedClause = options.includeArchived ? '' : 'AND r.is_archived = 0';
+  // A3: the estate table excludes anything ignored, at either level; the
+  // management screen (Phase B) passes includeIgnored to list everything
+  // with its state attached.
+  const monitoringClause = options.includeIgnored
+    ? ''
+    : `AND r.monitoring_state = 'monitored' AND w.monitoring_state = 'monitored'`;
   const result = await db
     .prepare(
       `SELECT r.*, w.slug AS workspace_slug, c.provider_type AS provider,
@@ -259,7 +282,7 @@ export async function listRepositoryItems(
        JOIN workspaces w ON w.id = r.workspace_id
        JOIN provider_connections c ON c.id = w.connection_id
        LEFT JOIN health_snapshots h ON h.repository_id = r.id
-       WHERE r.status IN ('active', 'inaccessible') ${archivedClause}
+       WHERE r.status IN ('active', 'inaccessible') ${archivedClause} ${monitoringClause}
        ORDER BY r.full_name
        LIMIT ?1`,
     )
@@ -280,12 +303,22 @@ export interface OverviewCounts {
 }
 
 export async function getOverviewCounts(db: D1Database): Promise<OverviewCounts> {
+  // A3: workspaces/repositories/failing/new7d exclude ignored rows — both an
+  // ignored repository directly and any repository under an ignored
+  // workspace. openCrs/branchesAhead/securityOpen/inaccessible are unscoped
+  // per the design (not estate-membership counts).
+  const monitoredWorkspaceIds = `(SELECT id FROM workspaces WHERE monitoring_state = 'monitored')`;
   const row = await db
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM workspaces WHERE status = 'active') AS workspaces,
-         (SELECT COUNT(*) FROM repositories WHERE status = 'active' AND is_archived = 0) AS repositories,
-         (SELECT COUNT(*) FROM repositories r WHERE r.status = 'active' AND r.is_archived = 0 AND (
+         (SELECT COUNT(*) FROM workspaces WHERE status = 'active'
+            AND monitoring_state = 'monitored') AS workspaces,
+         (SELECT COUNT(*) FROM repositories WHERE status = 'active' AND is_archived = 0
+            AND monitoring_state = 'monitored'
+            AND workspace_id IN ${monitoredWorkspaceIds}) AS repositories,
+         (SELECT COUNT(*) FROM repositories r WHERE r.status = 'active' AND r.is_archived = 0
+            AND r.monitoring_state = 'monitored'
+            AND r.workspace_id IN ${monitoredWorkspaceIds} AND (
             SELECT p.conclusion FROM pipeline_runs p
             WHERE p.repository_id = r.id AND p.branch = r.default_branch
             ORDER BY p.observed_at DESC LIMIT 1) IN ('failure', 'timed_out')) AS failing,
@@ -294,6 +327,7 @@ export async function getOverviewCounts(db: D1Database): Promise<OverviewCounts>
             AND comparison_status IN ('ahead', 'diverged')) AS branchesAhead,
          (SELECT COUNT(*) FROM security_findings WHERE state = 'open' OR state IS NULL) AS securityOpen,
          (SELECT COUNT(*) FROM repositories WHERE status = 'active'
+            AND monitoring_state = 'monitored' AND workspace_id IN ${monitoredWorkspaceIds}
             AND first_seen_at >= datetime('now', '-7 days')) AS new7d,
          (SELECT COUNT(*) FROM repositories WHERE status = 'inaccessible') AS inaccessible`,
     )

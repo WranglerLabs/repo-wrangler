@@ -29,8 +29,18 @@ export async function requireAuth(c: Context<AppContext>, next: Next): Promise<R
   return next();
 }
 
-/** Require the admin or owner role (mutating admin endpoints). */
-export async function requireAdmin(c: Context<AppContext>, next: Next): Promise<Response | void> {
+/**
+ * Require the admin or owner role (mutating admin endpoints).
+ *
+ * Generic over the route path so Hono's multi-handler overloads can still
+ * infer literal `:param` types on the handler that follows this middleware
+ * (a concrete `Context<AppContext>` parameter would otherwise widen the
+ * whole route's path type and turn `c.req.param('id')` into `string | undefined`).
+ */
+export async function requireAdmin<P extends string = string>(
+  c: Context<AppContext, P>,
+  next: Next,
+): Promise<Response | void> {
   const user = c.get('user');
   if (!user || (user.role !== 'admin' && user.role !== 'owner')) {
     return c.json({ error: 'forbidden' }, 403);

@@ -15,7 +15,7 @@ import {
   classifyComparison,
   isExcludedBranchName,
 } from '@repo-wrangler/domain';
-import { GitHubClient, hasNextPage } from './client';
+import { GitHubClient, hasNextPage, isSecondaryRateLimited } from './client';
 import { mapPullRequest, mapRepository, mapWorkflowRun } from './mappers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -171,7 +171,11 @@ export async function fetchGovernanceProfile(
       // Private repo: still report what we know from branch data.
       return capabilityAvailable({ defaultBranchProtected });
     }
-    return capabilityUnavailable(capabilityStateFromHttpStatus(response.status));
+    return capabilityUnavailable(
+      capabilityStateFromHttpStatus(response.status, {
+        rateLimited: isSecondaryRateLimited(response),
+      }),
+    );
   }
   const files = response.data?.files ?? {};
   return capabilityAvailable({
@@ -269,7 +273,9 @@ export async function listSecurityFindings(
       lastState =
         response.status === 404
           ? 'not_configured'
-          : capabilityStateFromHttpStatus(response.status);
+          : capabilityStateFromHttpStatus(response.status, {
+              rateLimited: isSecondaryRateLimited(response),
+            });
     }
   }
 
@@ -288,7 +294,11 @@ export async function listOrganizationBudgets(
   );
   if (!response.ok) {
     if (response.status === 404) return capabilityUnavailable('unsupported_by_plan');
-    return capabilityUnavailable(capabilityStateFromHttpStatus(response.status));
+    return capabilityUnavailable(
+      capabilityStateFromHttpStatus(response.status, {
+        rateLimited: isSecondaryRateLimited(response),
+      }),
+    );
   }
   const raw = Array.isArray(response.data) ? response.data : (response.data?.budgets ?? []);
   return capabilityAvailable(

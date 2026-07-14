@@ -55,6 +55,10 @@ export interface OpenedSqlite {
 /** Open (or create) a SQLite database file and return a D1-compatible handle. */
 export function openSqliteD1(location: string): OpenedSqlite {
   const db = new DatabaseSync(location);
+  // Wait instead of instantly throwing SQLITE_BUSY/"database is locked" when
+  // another handle holds the lock (default busy_timeout is 0 → a transient
+  // lock at boot is fatal and crash-loops the host).
+  db.exec('PRAGMA busy_timeout = 5000;');
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
   return { d1: new SqliteD1(db), raw: db };

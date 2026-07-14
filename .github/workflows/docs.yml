@@ -5,6 +5,13 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      # Root files transcluded into docs/project/*.md via @include — without
+      # these the published site silently goes stale on roadmap/changelog edits.
+      - 'ROADMAP.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'CREDITS.md'
+      - 'THIRD_PARTY_NOTICES.md'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/docs.yml'

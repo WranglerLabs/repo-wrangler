@@ -27,6 +27,7 @@ import {
   getMeta,
   getRepositoryByFullName,
   getRepositoryGovernance,
+  getWorkspaceMonitoringState,
   listBranches,
   listOpenChangeRequests,
   listOpenSecurityFindings,
@@ -223,6 +224,10 @@ async function runDiscovery(
       mapInstallationToWorkspace(installation),
     );
 
+    // A2: an ignored workspace stays current (the upsert above already ran)
+    // but spends zero subrequests paginating repositories no one will see.
+    if ((await getWorkspaceMonitoringState(env.DB, workspaceId)) === 'ignored') continue;
+
     const token = await getInstallationToken(appId, privateKey, installation.id);
     used += 1;
 
@@ -284,6 +289,10 @@ async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
       const workspace = await getGroupWorkspace(client, groupPath);
       used += 1;
       const workspaceId = await upsertWorkspace(env.DB, connectionId, workspace);
+
+      // A2: same shape as the GitHub loop above — the group stays current
+      // but its projects are not paginated while ignored.
+      if ((await getWorkspaceMonitoringState(env.DB, workspaceId)) === 'ignored') continue;
 
       const seen: string[] = [];
       let page: number | undefined = 1;

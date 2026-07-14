@@ -28,12 +28,20 @@ spec:
               value: {{ .Values.config.port | quote }}
             - name: SQLITE_PATH
               value: {{ .Values.config.sqlitePath | quote }}
+            - name: AUTH_PROVIDERS
+              value: {{ .Values.config.authProviders | quote }}
             - name: AUTH_MODE
               value: {{ .Values.config.authMode | quote }}
             - name: DEMO_MODE
               value: {{ .Values.demoMode | quote }}
             - name: ENABLE_SCHEDULER
               value: {{ .Values.config.enableScheduler | quote }}
+            - name: SCHEDULER_MODE
+              value: {{ .Values.config.schedulerMode | quote }}
+            - name: SECRET_SOURCE
+              value: {{ .Values.config.secretSource | quote }}
+            - name: SECRETS_DIR
+              value: {{ .Values.config.secretsDir | quote }}
             - name: ALLOWED_GITHUB_USERS
               value: {{ .Values.config.allowedGithubUsers | quote }}
             - name: PUBLIC_BASE_URL

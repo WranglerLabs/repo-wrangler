@@ -56,7 +56,11 @@ stringData:
   GITHUB_WEBHOOK_SECRET: ""
   GITHUB_CLIENT_ID: ""
   GITHUB_CLIENT_SECRET: ""
-  SESSION_SECRET: "change-me-to-a-long-random-string"
+  # SESSION_SECRET must be set to a long random value before real mode — a
+  # shipped default would be a known session-signing key. Generate one with:
+  #   openssl rand -hex 32
+  # Demo mode does not read this key (envFrom tolerates it being absent).
+  # SESSION_SECRET: ""
   # Only needed when SCHEDULER_MODE=external (authorises the CronJob below).
   CRON_TRIGGER_TOKEN: ""
 ---

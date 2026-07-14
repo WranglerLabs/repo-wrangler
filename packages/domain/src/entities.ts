@@ -6,6 +6,15 @@
 
 export type ProviderType = 'github' | 'gitlab' | 'mock';
 
+/**
+ * Estate scope lever (ADR-020). `monitored` is the default: discovery scans
+ * it, it counts in the estate, enrichment and health run against it.
+ * `ignored` keeps it in the inventory but excludes it from estate reads and
+ * enrichment, and — for a workspace — from per-repo pagination during
+ * discovery.
+ */
+export type MonitoringState = 'monitored' | 'ignored';
+
 export interface WorkspaceSnapshot {
   externalId: string;
   installationId?: string;

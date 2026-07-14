@@ -83,6 +83,13 @@ export interface OpenedPostgres {
  */
 export function openPostgresD1(connectionString: string): OpenedPostgres {
   const pool = new Pool({ connectionString });
+  // node-postgres emits 'error' on the Pool when an IDLE connection dies
+  // (managed-Postgres failover/maintenance, NAT resets). With no listener,
+  // Node treats it as an uncaught 'error' event and kills the process. Log it
+  // and let the pool discard/replace the connection.
+  pool.on('error', (error) => {
+    console.error('postgres pool idle-client error (connection will be replaced)', error);
+  });
   return { d1: new PostgresD1(pool), pool };
 }
 
@@ -112,33 +119,47 @@ $fn$ LANGUAGE sql STABLE;
  * partial schema.
  */
 export async function applyPostgresMigrations(pool: Pool, migrationsDir: string): Promise<string[]> {
-  await pool.query(COMPAT_SQL);
-  await pool.query(
-    "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));",
-  );
+  // Serialize migration across replicas: with N replicas first-booting against
+  // a fresh database, the losers would otherwise race the DDL and crash on
+  // "relation already exists". The advisory lock is session-scoped, so it is
+  // held on one dedicated client for the whole run and released in finally.
+  const MIGRATION_LOCK_KEY = 732661; // arbitrary app-wide advisory lock id
+  const lockClient = await pool.connect();
+  try {
+    await lockClient.query('SELECT pg_advisory_lock($1)', [MIGRATION_LOCK_KEY]);
 
-  const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
+    await lockClient.query(COMPAT_SQL);
+    await lockClient.query(
+      "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));",
+    );
 
-  const applied: string[] = [];
-  for (const file of files) {
-    const seen = await pool.query('SELECT name FROM _migrations WHERE name = $1', [file]);
-    if (seen.rowCount) continue;
+    const files = readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query(readFileSync(join(migrationsDir, file), 'utf8'));
-      await client.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+    const applied: string[] = [];
+    for (const file of files) {
+      // Re-checked under the lock, so a replica that waited sees the winner's rows.
+      const seen = await lockClient.query('SELECT name FROM _migrations WHERE name = $1', [file]);
+      if (seen.rowCount) continue;
+
+      try {
+        await lockClient.query('BEGIN');
+        await lockClient.query(readFileSync(join(migrationsDir, file), 'utf8'));
+        await lockClient.query('INSERT INTO _migrations (name) VALUES ($1)', [file]);
+        await lockClient.query('COMMIT');
+      } catch (error) {
+        await lockClient.query('ROLLBACK');
+        throw error;
+      }
+      applied.push(file);
     }
-    applied.push(file);
+    return applied;
+  } finally {
+    try {
+      await lockClient.query('SELECT pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY]);
+    } finally {
+      lockClient.release();
+    }
   }
-  return applied;
 }

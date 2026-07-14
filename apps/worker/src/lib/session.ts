@@ -40,7 +40,11 @@ export async function createSessionCookie(
   secure: boolean,
 ): Promise<string> {
   const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-  const payload = `${encodeURIComponent(user.login)}.${user.role}.${expires}`;
+  // encodeURIComponent leaves `.` unescaped, but `.` is this cookie's field
+  // separator — encode it too, or email-style logins (Entra/Google/GitLab)
+  // produce a 5+-part value that readSession rejects, looping sign-in forever.
+  const loginEncoded = encodeURIComponent(user.login).replace(/\./g, '%2E');
+  const payload = `${loginEncoded}.${user.role}.${expires}`;
   const signature = await hmac(secret, payload);
   const value = `${payload}.${signature}`;
   return [

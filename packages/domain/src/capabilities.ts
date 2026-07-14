@@ -35,10 +35,19 @@ export function capabilityUnavailable<T>(
   return { state, detail, observedAt: new Date().toISOString() };
 }
 
-/** Map an HTTP error status from a provider API to a capability state. */
+/**
+ * Map an HTTP error status from a provider API to a capability state.
+ *
+ * `rateLimited` covers GitHub's secondary rate limits, which surface as a
+ * plain 403 (not 429) accompanied by a Retry-After header or
+ * x-ratelimit-remaining: 0 — a transient condition, not a real
+ * authorization failure, so it must not disable the capability.
+ */
 export function capabilityStateFromHttpStatus(
   status: number,
+  options: { rateLimited?: boolean } = {},
 ): Exclude<CapabilityState, 'available'> {
+  if (status === 403 && options.rateLimited) return 'rate_limited';
   if (status === 401 || status === 403) return 'not_authorized';
   if (status === 404) return 'unsupported_by_provider';
   if (status === 429) return 'rate_limited';

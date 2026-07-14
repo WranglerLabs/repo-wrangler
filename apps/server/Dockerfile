@@ -31,6 +31,12 @@ RUN corepack enable
 # Bring over the fully-installed workspace and the built SPA.
 COPY --from=build /app /app
 
+# Run as the non-root `node` user (uid 1000) the base image ships — matches
+# the runAsUser: 1000 the Kubernetes manifests enforce. The named volume at
+# /app/data inherits this image-layer ownership, so it stays writable.
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
+
 # Persist the SQLite database outside the image layer.
 VOLUME ["/app/data"]
 EXPOSE 8080

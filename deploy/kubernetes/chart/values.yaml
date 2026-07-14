@@ -10,8 +10,20 @@ demoMode: true
 config:
   port: 8080
   sqlitePath: /app/data/repo-wrangler.db
+  # Sign-in providers (PN-5, ADR-019): ordered CSV of github,gitlab,entra,google,local.
+  # Each appears on the sign-in screen only when also configured. authMode is the
+  # legacy single-provider fallback used when authProviders is empty.
+  authProviders: "github"
   authMode: github_app
   enableScheduler: true
+  # Scheduler driver (PN-3, ADR-018): in-process (single SQLite replica) | external
+  # (the scheduler CronJob POSTs /internal/cron/run — use with shared Postgres and
+  # >1 replica) | off.
+  schedulerMode: in-process
+  # Secret source (PN-4, ADR-017): env (default) | file (mount files under secretsDir)
+  # | keyvault | vault | aws | gcp | cloudflare-kv | cyberark | composite.
+  secretSource: env
+  secretsDir: /run/secrets
   allowedGithubUsers: ""
   publicBaseUrl: ""
   corsAllowedOrigins: ""
@@ -26,8 +38,17 @@ secrets:
   githubClientId: ""
   githubClientSecret: ""
   sessionSecret: ""
+  # Only needed when config.schedulerMode=external (authorises the scheduler CronJob).
+  cronTriggerToken: ""
 # Or reference an existing Secret with the same keys instead of the above:
 existingSecret: ""
+
+# External-tick scheduler (PN-3, ADR-018). Rendered only when
+# config.schedulerMode=external: a CronJob POSTs /internal/cron/run so no replica
+# needs an in-process timer. Harmless to leave configured when in-process.
+scheduler:
+  image: curlimages/curl:8.11.0
+  schedule: "*/15 * * * *"
 
 persistence:
   size: 2Gi

@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import type {
   ActivityEventDto,
   AttentionItemDto,
@@ -43,8 +43,11 @@ import {
   listSavedViews,
   createSavedView,
   deleteSavedView,
+  setRepositoryMonitoringState,
+  setWorkspaceMonitoringState,
   type RepositoryListRow,
 } from '@repo-wrangler/persistence-d1';
+import type { MonitoringState } from '@repo-wrangler/domain';
 import {
   demoActivity,
   demoAttention,
@@ -486,6 +489,57 @@ apiRoutes.get('/platform-health', async (c) => {
 
 apiRoutes.get('/about/credits', (c) => c.json(CREDITS));
 
+/** Onboarding design A1 — reads and validates a `{ monitoring_state }` PATCH body. */
+async function readMonitoringStateBody(
+  c: Context<AppContext>,
+): Promise<MonitoringState | null> {
+  let body: { monitoring_state?: unknown };
+  try {
+    body = await c.req.json<{ monitoring_state?: unknown }>();
+  } catch {
+    return null;
+  }
+  return body.monitoring_state === 'monitored' || body.monitoring_state === 'ignored'
+    ? body.monitoring_state
+    : null;
+}
+
+// Onboarding design A1 — estate scope: an operator ignores/re-monitors a
+// workspace or repository. Both reject in demo mode (nothing to mutate).
+apiRoutes.patch('/workspaces/:id', requireAdmin, async (c) => {
+  if (isDemoMode(c.env)) return c.json({ error: 'not available in demo mode' }, 409);
+  const state = await readMonitoringStateBody(c);
+  if (!state) return c.json({ error: 'invalid monitoring_state' }, 400);
+  const id = c.req.param('id');
+  const updated = await setWorkspaceMonitoringState(c.env.DB, id, state);
+  if (!updated) return c.json({ error: 'not found' }, 404);
+  const user = c.get('user');
+  await recordAuditEvent(
+    c.env.DB,
+    user.login,
+    state === 'ignored' ? 'estate.workspace.ignore' : 'estate.workspace.monitor',
+    id,
+  );
+  return c.json({ id, monitoring_state: state });
+});
+
+apiRoutes.patch('/repositories/:id', requireAdmin, async (c) => {
+  if (isDemoMode(c.env)) return c.json({ error: 'not available in demo mode' }, 409);
+  const state = await readMonitoringStateBody(c);
+  if (!state) return c.json({ error: 'invalid monitoring_state' }, 400);
+  const id = c.req.param('id');
+  const updated = await setRepositoryMonitoringState(c.env.DB, id, state);
+  if (!updated) return c.json({ error: 'not found' }, 404);
+  const user = c.get('user');
+  await recordAuditEvent(
+    c.env.DB,
+    user.login,
+    state === 'ignored' ? 'estate.repository.ignore' : 'estate.repository.monitor',
+    id,
+  );
+  return c.json({ id, monitoring_state: state });
+});
+
 apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
   const user = c.get('user');
@@ -507,16 +561,27 @@ apiRoutes.get('/views', async (c) => {
   );
 });
 
-apiRoutes.post('/views', async (c) => {
+const MAX_VIEW_DEFINITION_BYTES = 64 * 1024;
+
+apiRoutes.post('/views', requireAdmin, async (c) => {
   if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
-  const body = await c.req.json<{ name?: string; definition?: unknown }>();
+  let body: { name?: string; definition?: unknown };
+  try {
+    body = await c.req.json<{ name?: string; definition?: unknown }>();
+  } catch {
+    return c.json({ error: 'invalid JSON body' }, 400);
+  }
   const name = body.name?.trim();
   if (!name) return c.json({ error: 'name is required' }, 400);
-  const id = await createSavedView(c.env.DB, name, JSON.stringify(body.definition ?? {}));
+  const definition = JSON.stringify(body.definition ?? {});
+  if (new TextEncoder().encode(definition).length > MAX_VIEW_DEFINITION_BYTES) {
+    return c.json({ error: 'definition exceeds 64KB' }, 400);
+  }
+  const id = await createSavedView(c.env.DB, name, definition);
   return c.json({ id });
 });
 
-apiRoutes.delete('/views/:id', async (c) => {
+apiRoutes.delete('/views/:id', requireAdmin, async (c) => {
   if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
   await deleteSavedView(c.env.DB, c.req.param('id'));
   return c.json({ ok: true });

@@ -10,6 +10,8 @@ export interface RateLimitInfo {
   remaining?: number;
   reset?: number;
   used?: number;
+  /** Seconds until the secondary rate limit clears, from Retry-After. */
+  retryAfter?: number;
 }
 
 export interface GitHubResponse<T> {
@@ -56,6 +58,7 @@ export class GitHubClient {
       remaining: numberHeader(response, 'x-ratelimit-remaining'),
       reset: numberHeader(response, 'x-ratelimit-reset'),
       used: numberHeader(response, 'x-ratelimit-used'),
+      retryAfter: numberHeader(response, 'retry-after'),
     };
 
     let data: T | undefined;
@@ -87,4 +90,16 @@ function numberHeader(response: Response, name: string): number | undefined {
 /** True when the Link header advertises another page. */
 export function hasNextPage(link: string | undefined): boolean {
   return link !== undefined && link.includes('rel="next"');
+}
+
+/**
+ * True for GitHub's secondary rate limits: a 403 carrying a Retry-After
+ * header or a zeroed remaining count, as opposed to a genuine authorization
+ * failure (which GitHub also reports as a bare 403).
+ */
+export function isSecondaryRateLimited<T>(response: GitHubResponse<T>): boolean {
+  return (
+    response.status === 403 &&
+    (response.rateLimit.retryAfter !== undefined || response.rateLimit.remaining === 0)
+  );
 }

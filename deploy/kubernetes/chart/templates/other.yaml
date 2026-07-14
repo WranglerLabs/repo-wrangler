@@ -37,6 +37,41 @@ stringData:
   GITHUB_CLIENT_ID: {{ .Values.secrets.githubClientId | quote }}
   GITHUB_CLIENT_SECRET: {{ .Values.secrets.githubClientSecret | quote }}
   SESSION_SECRET: {{ .Values.secrets.sessionSecret | quote }}
+  CRON_TRIGGER_TOKEN: {{ .Values.secrets.cronTriggerToken | quote }}
+{{- end }}
+{{- if eq .Values.config.schedulerMode "external" }}
+---
+# External-tick scheduler driver (PN-3, ADR-018). Rendered only when
+# config.schedulerMode=external: drives sync work over HTTP so no replica needs an
+# in-process timer. Pair with a shared Postgres and >1 replica.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "repo-wrangler.name" . }}-scheduler
+  labels: {{- include "repo-wrangler.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.scheduler.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: tick
+              image: {{ .Values.scheduler.image | quote }}
+              env:
+                - name: TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "repo-wrangler.secretName" . }}
+                      key: CRON_TRIGGER_TOKEN
+              command: ["sh", "-c"]
+              args:
+                - >-
+                  curl -fsS -X POST
+                  -H "authorization: Bearer $TOKEN"
+                  "http://{{ include "repo-wrangler.name" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}/internal/cron/run?job=periodic"
 {{- end }}
 {{- if .Values.ingress.enabled }}
 ---

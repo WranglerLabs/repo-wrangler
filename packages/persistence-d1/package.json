@@ -14,6 +14,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
+    "@repo-wrangler/persistence-sqlite": "workspace:*",
+    "@repo-wrangler/test-support": "workspace:*",
+    "@types/node": "^22.10.0",
     "typescript": "^5.8.3"
   }
 }
