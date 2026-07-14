@@ -19,7 +19,7 @@ export function SignIn() {
   }, [user]);
 
   return (
-    <div style={{ maxWidth: 420, margin: '15vh auto', textAlign: 'center' }}>
+    <div style={{ maxWidth: 420, margin: '15vh auto', padding: '0 20px', textAlign: 'center' }}>
       <img src="/lasso.svg" alt="" width={40} height={40} />
       <h1 className="page-title">Sign in to RepoWrangler</h1>
 

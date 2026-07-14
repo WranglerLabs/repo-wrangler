@@ -198,21 +198,23 @@ function CredentialsPanel({ connectionId }: { connectionId: string }) {
       </table>
       {rotateName && (
         <div style={{ marginTop: 8 }}>
-          <label>
+          <label className="field mono-field">
             New value for {rotateName}
             <input type="password" value={value} onChange={(e) => setValue(e.target.value)} />
           </label>
-          <button onClick={rotate} disabled={busy || !value.trim()}>
-            Save
-          </button>
-          <button className="ghost" onClick={() => setRotateName(null)}>
-            Cancel
-          </button>
+          <div className="form-actions">
+            <button onClick={rotate} disabled={busy || !value.trim()}>
+              {busy ? 'Saving…' : 'Save'}
+            </button>
+            <button className="ghost" onClick={() => setRotateName(null)} disabled={busy}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
       {error && <div className="error-box">{error}</div>}
       <button className="ghost" onClick={disconnect} disabled={busy} style={{ marginTop: 8 }}>
-        Disconnect
+        {busy ? 'Disconnecting…' : 'Disconnect'}
       </button>
     </details>
   );

@@ -275,6 +275,82 @@ button.ghost {
   border: 1px solid var(--rw-border);
 }
 
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Forms — a label stacked above a full-width field, shared by the onboarding
+   wizard, sign-in, and Administration's credential rotation. Wrap each
+   `<label>` around its input/textarea (existing markup convention) and add
+   this class; add `mono-field` too for anything that is itself a code, key,
+   or secret rather than a human-typed word (setup codes, IDs, PEMs, tokens). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 480px;
+  margin-bottom: 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--rw-text-muted);
+}
+
+.field input[type='text'],
+.field input[type='password'],
+.field textarea {
+  width: 100%;
+  background: var(--rw-surface);
+  color: var(--rw-text);
+  border: 1px solid var(--rw-border);
+  border-radius: var(--rw-radius);
+  padding: 8px 10px;
+  font-size: 13.5px;
+  font-weight: 400;
+  font-family: inherit;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: 2px solid var(--rw-blue);
+  outline-offset: -1px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 150px;
+  line-height: 1.4;
+}
+
+.field.mono-field input,
+.field.mono-field textarea {
+  font-family: Consolas, 'Cascadia Mono', monospace;
+  font-size: 12.5px;
+}
+
+.field-hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--rw-text-muted);
+}
+
+.field-group-heading {
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rw-text-muted);
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rw-border);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* Tabs */
 .tabs {
   display: flex;

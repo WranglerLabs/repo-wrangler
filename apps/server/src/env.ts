@@ -35,6 +35,7 @@ export const SECRET_NAMES = [
   'GOOGLE_CLIENT_ID',
   'GOOGLE_CLIENT_SECRET',
   'CRON_TRIGGER_TOKEN',
+  'SECRET_ENCRYPTION_KEY',
 ] as const;
 
 /** Resolved server runtime configuration. */
@@ -120,6 +121,7 @@ export function buildEnv(db: D1Database, assets: Fetcher, secrets: Record<string
     ENTRA_CLIENT_SECRET: s('ENTRA_CLIENT_SECRET'),
     GOOGLE_CLIENT_ID: s('GOOGLE_CLIENT_ID'),
     GOOGLE_CLIENT_SECRET: s('GOOGLE_CLIENT_SECRET'),
+    SECRET_ENCRYPTION_KEY: s('SECRET_ENCRYPTION_KEY'),
 
     // Non-secret configuration
     AUTH_MODE: e.AUTH_MODE,

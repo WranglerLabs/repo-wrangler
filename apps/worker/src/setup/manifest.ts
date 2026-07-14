@@ -9,18 +9,40 @@ import type { AppContext } from '../middleware/auth';
  *                                  a dedicated, fully configured RepoWrangler
  *                                  App (permissions, events, webhook + secret).
  * GET /setup/github-app/callback — GitHub redirects here with a temporary
- *                                  code; the operator exchanges it (within one
- *                                  hour) via POST /app-manifests/{code}/conversions
- *                                  to receive the app credentials.
+ *                                  code (valid one hour). The page immediately
+ *                                  POSTs it to POST /api/v1/connections/github/exchange
+ *                                  (same origin, so the wizard's session cookie
+ *                                  rides along) and redirects to /onboarding on
+ *                                  success — no copy/paste needed. If that call
+ *                                  fails (e.g. this browser has no wizard
+ *                                  session), the page falls back to showing the
+ *                                  code with a copy button.
  *
  * The pages hold no secrets: the manifest is public configuration, and the
  * temporary code is only shown back to the browser that created the app.
  */
 export const setupRoutes = new Hono<AppContext>();
 
+const NAME_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+/**
+ * A short random suffix for the suggested App name. `RepoWrangler` alone is
+ * reserved (`@repowrangler` already exists on GitHub) and gets rejected on
+ * the review screen, so every manifest suggests a unique-enough default —
+ * the operator can still rename it there before creating the app.
+ */
+function randomSuffix(): string {
+  const length = 4 + Math.floor(Math.random() * 3); // 4-6 chars
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += NAME_CHARS[Math.floor(Math.random() * NAME_CHARS.length)];
+  }
+  return out;
+}
+
 function manifestJson(origin: string): string {
   return JSON.stringify({
-    name: 'RepoWrangler',
+    name: `repo-wrangler-${randomSuffix()}`,
     url: 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler',
     hook_attributes: { url: `${origin}/webhooks/github`, active: true },
     redirect_url: `${origin}/setup/github-app/callback`,
@@ -108,8 +130,9 @@ setupRoutes.get('/github-app', (c) => {
     });
   </script>
 
-  <p>GitHub will show the app for review (you can rename it if the name is taken),
-  then redirect back here with a one-hour setup code.</p>
+  <p>GitHub will show the app for review with a suggested name like
+  <code>repo-wrangler-a1b2c3</code> (randomized so it never collides with an existing
+  app — rename it to whatever you like on that screen), then redirect back here.</p>
 </body></html>`);
 });
 
@@ -122,13 +145,61 @@ setupRoutes.get('/github-app/callback', (c) => {
   <h1>App created ✓</h1>
   ${
     safe
-      ? `<p>Copy this one-time setup code (valid for <strong>1 hour</strong>) and hand it to
-         your setup session (e.g. tell Claude: <em>“finish the RepoWrangler app setup with code …”</em>):</p>
-         <div class="code-box">${safe}</div>
-         <p>The code is exchanged once via GitHub's
-         <code>POST /app-manifests/{code}/conversions</code> for the app's credentials,
-         which are then stored as Worker secrets. After that, install the app on your
-         organizations with <strong>All repositories</strong>.</p>`
+      ? `<p id="status">Finishing setup — connecting the app to RepoWrangler…</p>
+         <div id="fallback" style="display:none">
+           <p id="fallbackMessage"></p>
+           <p>Copy this one-time setup code (valid for <strong>1 hour</strong>):</p>
+           <div class="code-box" id="codeBox">${safe}</div>
+           <button type="button" id="copyBtn">Copy code</button>
+           <p><small>On a phone, or if this is a different browser tab than your setup
+           session: return to the RepoWrangler tab → <strong>Connect your estate</strong> →
+           <strong>“I have a setup code”</strong> → paste it there.</small></p>
+         </div>
+         <script>
+           (function () {
+             var code = ${JSON.stringify(safe)};
+             var statusEl = document.getElementById('status');
+             var fallbackEl = document.getElementById('fallback');
+             var fallbackMessageEl = document.getElementById('fallbackMessage');
+             function showFallback(message) {
+               statusEl.style.display = 'none';
+               fallbackMessageEl.textContent = message;
+               fallbackEl.style.display = 'block';
+             }
+             fetch('/api/v1/connections/github/exchange', {
+               method: 'POST',
+               credentials: 'same-origin',
+               headers: { 'content-type': 'application/json' },
+               body: JSON.stringify({ code: code }),
+             }).then(function (res) {
+               if (res.ok) {
+                 window.location.href = '/onboarding';
+                 return;
+               }
+               showFallback('Automatic setup did not finish — complete it manually below.');
+             }).catch(function () {
+               showFallback('Automatic setup did not finish — complete it manually below.');
+             });
+             document.getElementById('copyBtn').addEventListener('click', function () {
+               var btn = this;
+               var box = document.getElementById('codeBox');
+               function selectBox() {
+                 var range = document.createRange();
+                 range.selectNodeContents(box);
+                 var selection = window.getSelection();
+                 selection.removeAllRanges();
+                 selection.addRange(range);
+               }
+               if (navigator.clipboard && navigator.clipboard.writeText) {
+                 navigator.clipboard.writeText(code).then(function () {
+                   btn.textContent = 'Copied ✓';
+                 }, selectBox);
+               } else {
+                 selectBox();
+               }
+             });
+           })();
+         </script>`
       : `<p>No code found in the redirect. Restart from <a href="/setup/github-app">the setup page</a>.</p>`
   }
 </body></html>`);

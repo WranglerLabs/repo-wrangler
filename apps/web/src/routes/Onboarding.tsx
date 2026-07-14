@@ -235,7 +235,7 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
 
       {mode === 'create' && (
         <>
-          <label>
+          <label className="field mono-field">
             Setup code
             <input
               type="text"
@@ -244,26 +244,38 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
               placeholder="the code GitHub showed you"
             />
           </label>
-          <button onClick={exchange} disabled={busy || !code.trim()}>
-            Finish connecting
-          </button>
-          <button className="ghost" onClick={() => setMode(null)}>
-            Back
-          </button>
+          <div className="form-actions">
+            <button onClick={exchange} disabled={busy || !code.trim()}>
+              {busy ? 'Connecting…' : 'Finish connecting'}
+            </button>
+            <button className="ghost" onClick={() => setMode(null)} disabled={busy}>
+              Back
+            </button>
+          </div>
         </>
       )}
 
       {mode === 'paste' && (
         <>
-          <label>
+          <label className="field mono-field">
             App ID
-            <input type="text" value={appId} onChange={(e) => setAppId(e.target.value)} />
+            <input
+              type="text"
+              value={appId}
+              onChange={(e) => setAppId(e.target.value)}
+              placeholder="e.g. 987654"
+            />
           </label>
-          <label>
+          <label className="field mono-field">
             Private key (PEM)
-            <textarea rows={6} value={privateKey} onChange={(e) => setPrivateKey(e.target.value)} />
+            <textarea
+              rows={8}
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              placeholder="-----BEGIN RSA PRIVATE KEY-----"
+            />
           </label>
-          <label>
+          <label className="field mono-field">
             Webhook secret
             <input
               type="password"
@@ -271,24 +283,34 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
               onChange={(e) => setWebhookSecret(e.target.value)}
             />
           </label>
-          <label>
-            OAuth client ID (optional — enables GitHub sign-in)
-            <input type="text" value={clientId} onChange={(e) => setClientId(e.target.value)} />
+
+          <div className="field-group-heading">Optional — enables GitHub sign-in</div>
+          <label className="field mono-field">
+            OAuth client ID
+            <input
+              type="text"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="Iv1.…"
+            />
           </label>
-          <label>
-            OAuth client secret (optional)
+          <label className="field mono-field">
+            OAuth client secret
             <input
               type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
             />
           </label>
-          <button onClick={paste} disabled={busy || !appId.trim() || !privateKey.trim() || !webhookSecret.trim()}>
-            Save and connect
-          </button>
-          <button className="ghost" onClick={() => setMode(null)}>
-            Back
-          </button>
+
+          <div className="form-actions">
+            <button onClick={paste} disabled={busy || !appId.trim() || !privateKey.trim() || !webhookSecret.trim()}>
+              {busy ? 'Saving…' : 'Save and connect'}
+            </button>
+            <button className="ghost" onClick={() => setMode(null)} disabled={busy}>
+              Back
+            </button>
+          </div>
         </>
       )}
     </div>
@@ -357,17 +379,24 @@ function GitLabConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
     return (
       <div className="panel">
         <h2>Connect GitLab</h2>
-        <label>
+        <label className="field">
           Base URL
-          <input type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="https://gitlab.com"
+          />
         </label>
-        <label>
+        <label className="field mono-field">
           Personal or group access token (read_api scope)
-          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} />
+          <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="glpat-…" />
         </label>
-        <button onClick={connect} disabled={busy || !token.trim()}>
-          Validate and connect
-        </button>
+        <div className="form-actions">
+          <button onClick={connect} disabled={busy || !token.trim()}>
+            {busy ? 'Connecting…' : 'Validate and connect'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -385,7 +414,7 @@ function GitLabConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
           onKeyDown={(e) => e.key === 'Enter' && search()}
         />
         <button onClick={search} disabled={searching || !query.trim()}>
-          Search
+          {searching ? 'Searching…' : 'Search'}
         </button>
       </div>
       {results.map((g) => (
@@ -399,7 +428,7 @@ function GitLabConnectStep({ busy, setBusy, setError, onConnected }: ConnectStep
         </label>
       ))}
       <button onClick={createSelectedWorkspaces} disabled={busy || selected.size === 0} style={{ marginTop: 12 }}>
-        Add {selected.size || ''} group{selected.size === 1 ? '' : 's'}
+        {busy ? 'Adding…' : `Add ${selected.size || ''} group${selected.size === 1 ? '' : 's'}`}
       </button>
     </div>
   );
