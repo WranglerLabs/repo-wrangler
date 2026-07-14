@@ -6,6 +6,27 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Grow the estate (onboarding Phase C):** Estate Scope gains an *Add more
+  organizations / groups* flow per connection — deep-link to the GitHub App's
+  install page, then *Check for new organizations* matches installations and
+  starts discovery; GitLab groups can be added to the existing connection.
+- **New since last review:** Estate Scope surfaces repositories discovered
+  after the operator's last review, with *Mark all reviewed* advancing the
+  marker (`GET /estate/new-since-review`, `POST /estate/mark-reviewed`).
+- Getting-started guide: new "Growing the estate" section.
+
+### Fixed
+
+- **GitLab discovery never ran on wizard-connected instances:** creating a
+  GitLab connection (and selecting groups) enqueued the *GitHub* discovery
+  job type, and the only other `gitlab_discovery` enqueue sites were the
+  03:17 UTC maintenance tick and an interval-gated periodic check — so a
+  fresh GitLab connection produced workspaces with zero projects and zero
+  errors. Connect, group-select, and admin *Sync now* all enqueue
+  `gitlab_discovery` now.
+
 ## [0.5.0] - 2026-07-13
 
 ### Added

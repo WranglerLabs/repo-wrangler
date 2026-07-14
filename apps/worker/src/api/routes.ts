@@ -67,6 +67,7 @@ import {
 } from '@repo-wrangler/provider-mock';
 import { CREDITS } from '@repo-wrangler/credits';
 import { APP_VERSION, isDemoMode } from '../bindings';
+import { resolveGitLabCredentials } from '../lib/connection-secrets';
 import { requireAdmin, type AppContext } from '../middleware/auth';
 
 export const apiRoutes = new Hono<AppContext>();
@@ -559,6 +560,11 @@ apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   // B12: billing was previously only reachable via the daily maintenance
   // cron tick — an operator forcing a sync had no way to also force budgets.
   await enqueueSyncJob(c.env.DB, 'billing', 'all', 8);
+  // B11: same gap for GitLab — an operator forcing a sync must also force
+  // the GitLab scan whenever a GitLab connection (env or wizard) exists.
+  if (await resolveGitLabCredentials(c.env, c.env.DB)) {
+    await enqueueSyncJob(c.env.DB, 'gitlab_discovery', 'all', 2);
+  }
   await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery + billing enqueued');
   return c.json({ ok: true });
 });

@@ -319,7 +319,10 @@ connectionRoutes.post('/connections/gitlab', requireAdmin, async (c) => {
 
   const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.gitlab.created', `user=${check.data.username}`);
-  await enqueueSyncJob(c.env.DB, 'discovery', 'all', 2);
+  // B11: 'discovery' is the GitHub reconciliation job — a fresh GitLab
+  // connection must enqueue its own job type or no scan ever runs until the
+  // 03:17 UTC maintenance tick happens to fire.
+  await enqueueSyncJob(c.env.DB, 'gitlab_discovery', 'all', 2);
 
   const result: ConnectResultDto = { connectionId };
   return c.json(result);
@@ -393,6 +396,8 @@ connectionRoutes.post('/connections/:id/workspaces', requireAdmin, async (c) => 
 
   const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.gitlab.workspaces_selected', groupPaths.join(','));
+  // B11: selected groups should populate without waiting for a periodic tick.
+  await enqueueSyncJob(c.env.DB, 'gitlab_discovery', 'all', 2);
 
   return c.json(created);
 });

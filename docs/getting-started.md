@@ -79,6 +79,20 @@ provider and turn off demo mode:
 First sign-in and first sync are covered per provider in the provider guides, and
 operationally in [operations.md](operations.md).
 
+## Growing the estate
+
+Your estate is never frozen at what you connected on day one. On **Estate Scope**:
+
+- **Add more organizations / groups** — expand the disclosure row under a
+  connection. For GitHub, *Install on another organization* opens your App's
+  install page; after installing, *Check for new organizations* matches the
+  App's installations and starts discovery automatically. For GitLab, add more
+  groups to the existing token connection.
+- **New since your last review** — repositories discovered after you last
+  looked are listed at the top of Estate Scope. *Mark all reviewed* clears the
+  list; anything found later shows up as new. Discovery also re-runs on a
+  schedule, so repos created upstream surface here without any manual step.
+
 ## Next steps
 
 - [Deployment guide](deployment.md) — choose and stand up a target.
