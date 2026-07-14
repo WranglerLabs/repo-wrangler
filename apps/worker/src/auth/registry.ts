@@ -41,11 +41,17 @@ function enabledIds(env: Env): AuthProvider['id'][] {
   return authMode(env) === 'entra' ? ['entra'] : ['github'];
 }
 
-/** Enabled *and* configured providers, in operator-specified order. */
-export function enabledProviders(env: Env): AuthProvider[] {
-  return enabledIds(env)
+/**
+ * Enabled *and* configured providers, in operator-specified order. Async
+ * because `isConfigured` may resolve wizard-stored DB credentials (GitHub,
+ * ADR-019 PN-5) rather than just reading `env` synchronously.
+ */
+export async function enabledProviders(env: Env): Promise<AuthProvider[]> {
+  const candidates = enabledIds(env)
     .map((id) => BY_ID.get(id))
-    .filter((p): p is AuthProvider => Boolean(p) && (p as AuthProvider).isConfigured(env));
+    .filter((p): p is AuthProvider => Boolean(p));
+  const configured = await Promise.all(candidates.map((p) => p.isConfigured(env)));
+  return candidates.filter((_, i) => configured[i]);
 }
 
 export interface AuthConfigDto {
@@ -57,10 +63,11 @@ export interface AuthConfigDto {
  * Public sign-in configuration for the SPA: one entry per enabled+configured
  * provider so the login screen renders a button for each, with no session.
  */
-export function authConfig(env: Env): AuthConfigDto {
+export async function authConfig(env: Env): Promise<AuthConfigDto> {
+  const providers = await enabledProviders(env);
   return {
     demo: isDemoMode(env),
-    providers: enabledProviders(env).map((p) => ({
+    providers: providers.map((p) => ({
       id: p.id,
       label: p.label,
       loginUrl: `/auth/${p.id}/login`,

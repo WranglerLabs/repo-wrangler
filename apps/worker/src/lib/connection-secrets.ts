@@ -91,6 +91,32 @@ export async function resolveGitHubAppCredentials(
   };
 }
 
+export interface GitHubOAuthClientCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+/**
+ * DB-first, env-fallback GitHub OAuth client credentials for the sign-in
+ * provider (ADR-019, PN-5 "wire sign-in to stored creds"). The wizard's
+ * exchange/credentials endpoints persist `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`
+ * against the same v1 GitHub connection as the App credentials — this reads
+ * the same two keys, just for sign-in rather than API access, so a
+ * wizard-connected instance gets a working GitHub login button without a
+ * restart or an `env.GITHUB_CLIENT_ID` var ever being set.
+ */
+export async function resolveGitHubOAuthClient(
+  env: Env,
+  db: D1Database,
+): Promise<GitHubOAuthClientCredentials | null> {
+  const connection = await getConnectionByType(db, 'github');
+  const provider = await connectionSecretProvider(env, db, connection?.id ?? null);
+  const clientId = await provider.get('GITHUB_CLIENT_ID');
+  const clientSecret = await provider.get('GITHUB_CLIENT_SECRET');
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
 export interface GitLabCredentials {
   token: string;
   baseUrl: string;

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
 import { isDemoMode, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
+import { resolveGitHubOAuthClient } from '../lib/connection-secrets';
 import {
   clearSessionCookie,
   createStateToken,
@@ -28,16 +29,16 @@ const STATE_COOKIE = 'rw_oauth_state';
 
 authRoutes.get('/github/login', async (c) => {
   if (isDemoMode(c.env)) return c.redirect('/');
-  const clientId = c.env.GITHUB_CLIENT_ID;
   const secret = c.env.SESSION_SECRET;
-  if (!clientId || !secret) {
+  const client = await resolveGitHubOAuthClient(c.env, c.env.DB);
+  if (!client || !secret) {
     return c.json({ error: 'GitHub login is not configured.' }, 500);
   }
   const state = await createStateToken(secret);
   const baseUrl = c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin;
   const redirectUri = `${baseUrl}/auth/github/callback`;
   const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
-  authorizeUrl.searchParams.set('client_id', clientId);
+  authorizeUrl.searchParams.set('client_id', client.clientId);
   authorizeUrl.searchParams.set('redirect_uri', redirectUri);
   authorizeUrl.searchParams.set('state', state);
   c.header('Set-Cookie', transientCookie(STATE_COOKIE, state));
@@ -46,11 +47,11 @@ authRoutes.get('/github/login', async (c) => {
 
 authRoutes.get('/github/callback', async (c) => {
   const secret = c.env.SESSION_SECRET;
-  const clientId = c.env.GITHUB_CLIENT_ID;
-  const clientSecret = c.env.GITHUB_CLIENT_SECRET;
-  if (!secret || !clientId || !clientSecret) {
+  const client = await resolveGitHubOAuthClient(c.env, c.env.DB);
+  if (!secret || !client) {
     return c.json({ error: 'GitHub login is not configured.' }, 500);
   }
+  const { clientId, clientSecret } = client;
 
   const state = c.req.query('state');
   const code = c.req.query('code');
@@ -114,6 +115,6 @@ authRoutes.get('/me', async (c) => {
 export const githubProvider: AuthProvider = {
   id: 'github',
   label: 'GitHub',
-  isConfigured: (env: Env) => Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
+  isConfigured: async (env: Env) => Boolean(await resolveGitHubOAuthClient(env, env.DB)),
   routes: authRoutes,
 };

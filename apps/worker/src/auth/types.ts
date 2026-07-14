@@ -20,8 +20,12 @@ export interface AuthProvider {
   readonly id: 'github' | 'gitlab' | 'entra' | 'google' | 'local';
   /** Display name for the sign-in button (e.g. "GitHub", "Microsoft"). */
   readonly label: string;
-  /** True when this provider has every setting it needs to run. */
-  isConfigured(env: Env): boolean;
+  /**
+   * True when this provider has every setting it needs to run. Most providers
+   * check `env` synchronously; GitHub's also resolves wizard-stored DB
+   * credentials (ADR-019, PN-5), so the seam allows either shape.
+   */
+  isConfigured(env: Env): boolean | Promise<boolean>;
   /** Routes mounted under `/auth` (so paths begin `/{id}/...`). */
   readonly routes: Hono<AppContext>;
 }

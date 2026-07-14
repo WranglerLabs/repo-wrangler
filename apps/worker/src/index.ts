@@ -54,7 +54,7 @@ app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
 // Public sign-in configuration so the SPA renders one button per enabled
 // provider (GitHub, GitLab, Microsoft, Google, local-dev) without a session.
-app.get('/auth/config', (c) => c.json({ ...authConfig(c.env), version: APP_VERSION }));
+app.get('/auth/config', async (c) => c.json({ ...(await authConfig(c.env)), version: APP_VERSION }));
 
 // Mount every provider's routes; each handler guards on its own configuration,
 // and the registry decides which appear on the sign-in screen.
