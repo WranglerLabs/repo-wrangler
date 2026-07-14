@@ -321,6 +321,24 @@ export function useEstateRepositories() {
   });
 }
 
+/** Phase C2 — repositories discovered since the operator last reviewed the estate. */
+export function useNewSinceReview() {
+  return useQuery<RepositoryListItemDto[]>({
+    queryKey: ['estate-new-since-review'],
+    queryFn: () => apiGet('/api/v1/estate/new-since-review'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export async function markEstateReviewed(): Promise<{ ok: boolean; reviewedAt?: string }> {
+  return apiSend('/api/v1/estate/mark-reviewed', 'POST');
+}
+
+/** Phase B5/C — re-lists what a connection's credentials can now see (growing the estate). */
+export async function discoverConnectionWorkspaces(connectionId: string): Promise<ConnectionWorkspaceDto[]> {
+  return apiGet(`/api/v1/connections/${connectionId}/workspaces`);
+}
+
 export async function exchangeGitHubApp(code: string): Promise<ConnectResultDto> {
   return apiSend('/api/v1/connections/github/exchange', 'POST', { code });
 }

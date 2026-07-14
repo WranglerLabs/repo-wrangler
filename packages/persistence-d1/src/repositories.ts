@@ -310,6 +310,36 @@ export async function listRepositoryItems(
   return result.results;
 }
 
+/**
+ * Onboarding design Phase C2 — repositories first seen after the operator's
+ * last review, across every connection. A flat, lightweight projection (no
+ * branch/CR sub-counts) since this is a "what's new" surface, not the estate
+ * table; `rowToListItem` (apps/worker) tolerates the zeroed/absent columns.
+ */
+export async function listNewSinceReview(
+  db: D1Database,
+  since: string,
+): Promise<RepositoryListRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT r.*, w.slug AS workspace_slug, c.provider_type AS provider,
+         h.attention_level,
+         0 AS branches_ahead, 0 AS diverged_count, 0 AS untracked_count,
+         0 AS considered_count, 0 AS unknown_count, 0 AS open_crs,
+         NULL AS latest_run_conclusion, NULL AS latest_run_at
+       FROM repositories r
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       LEFT JOIN health_snapshots h ON h.repository_id = r.id
+       WHERE r.status IN ('active', 'inaccessible') AND r.first_seen_at > ?1
+       ORDER BY r.first_seen_at DESC
+       LIMIT 200`,
+    )
+    .bind(since)
+    .all<RepositoryListRow>();
+  return result.results;
+}
+
 export interface OverviewCounts {
   workspaces: number;
   repositories: number;

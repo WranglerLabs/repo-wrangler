@@ -33,6 +33,8 @@ import {
   listEstateSecurityFindings,
   listOpenChangeRequests,
   listOpenSecurityFindings,
+  getMeta,
+  listNewSinceReview,
   listRecentRuns,
   listRecentSyncJobEvents,
   listRepositoryItems,
@@ -43,6 +45,7 @@ import {
   listSavedViews,
   createSavedView,
   deleteSavedView,
+  setMeta,
   setRepositoryMonitoringState,
   setWorkspaceMonitoringState,
   type RepositoryListRow,
@@ -558,6 +561,28 @@ apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   await enqueueSyncJob(c.env.DB, 'billing', 'all', 8);
   await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery + billing enqueued');
   return c.json({ ok: true });
+});
+
+// Onboarding design Phase C2 — "new since last review". No marker yet means
+// no review has ever happened, so every currently-known repository counts as
+// new (the epoch default) rather than silently hiding a pre-existing estate.
+const ESTATE_REVIEW_META_KEY = 'estate.last_reviewed_at';
+const EPOCH = '1970-01-01T00:00:00.000Z';
+
+apiRoutes.get('/estate/new-since-review', async (c) => {
+  if (isDemoMode(c.env)) return c.json([] satisfies RepositoryListItemDto[]);
+  const since = (await getMeta(c.env.DB, ESTATE_REVIEW_META_KEY)) ?? EPOCH;
+  const rows = await listNewSinceReview(c.env.DB, since);
+  return c.json(rows.map(rowToListItem));
+});
+
+apiRoutes.post('/estate/mark-reviewed', requireAdmin, async (c) => {
+  if (isDemoMode(c.env)) return c.json({ ok: true, demo: true });
+  const reviewedAt = new Date().toISOString();
+  await setMeta(c.env.DB, ESTATE_REVIEW_META_KEY, reviewedAt);
+  const user = c.get('user');
+  await recordAuditEvent(c.env.DB, user.login, 'estate.reviewed', reviewedAt);
+  return c.json({ ok: true, reviewedAt });
 });
 
 // FR-012 saved views — instance-scoped, shareable within the deployment.

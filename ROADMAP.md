@@ -26,17 +26,17 @@ exactly which orgs/groups and repos RepoWrangler watches — plus a permanent
 Administration → Estate scope screen and discovery that respects your choices.
 On `main` now; hardening through live testing.
 
+**Grow the estate after onboarding** — from **Administration → Estate scope**,
+each connection gets an **"Add more organizations / groups"** panel: GitHub
+re-checks everywhere the existing App is installed (with a deep-link to
+install it on one more org) and upserts anything new as monitored, no second
+App or connection required; GitLab gets the same group-search-and-add flow the
+wizard uses. A **"new since your last review"** banner surfaces repositories
+discovered since the operator last looked (across every connection), with a
+one-click "mark all reviewed" to make the list genuinely incremental from
+there on.
+
 ## Next up
-
-### Grow the estate after onboarding — add orgs, groups, and repos any time
-
-Onboarding is not a one-shot: from **Administration → Estate scope** (and each
-connection's detail), an explicit **"Add more organizations"** flow installs
-your *existing* GitHub App on additional orgs (guided deep-link to the App's
-installation page, then automatic discovery and scope selection for what
-arrives) — no second App, no new connection. GitLab connections grow the same
-way by adding more groups to the existing token. "Connect another platform"
-stays for genuinely new providers or separate credentials.
 
 ### Invite additional users — Administration → Users
 
