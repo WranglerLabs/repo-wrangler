@@ -28,6 +28,15 @@ On `main` now; hardening through live testing.
 
 ## Next up
 
+### Invite additional users — Administration → Users
+
+Let the operator invite more people to their instance from the UI instead of
+editing server env vars. An **Administration → Users** screen lists who can
+sign in, adds a user by their provider identity (GitHub username first; other
+sign-in providers follow), and removes access just as easily — changes apply
+live, no restart. This replaces hand-editing the `ALLOWED_GITHUB_USERS`
+allowlist and is the foundation the Phase-6 **role-based views** build on.
+
 ### Architecture tiers — pick a tier, then a recipe
 
 Reorganize the deployment story into three named tiers: **Tier A — all-in-one**
