@@ -28,6 +28,7 @@ import {
   getRepositoryByFullName,
   getRepositoryGovernance,
   getWorkspaceMonitoringState,
+  listActiveMonitoredRepositories,
   listBranches,
   listOpenChangeRequests,
   listOpenSecurityFindings,
@@ -84,6 +85,23 @@ const SUBREQUEST_BUDGET = 40;
 const MAX_JOBS_PER_INVOCATION = 3;
 const DISCOVERY_INTERVAL_HOURS = 6;
 const ENRICH_BATCH_SIZE = 5;
+
+/**
+ * B3b: chain enrichment onto discovery. Per-repo detail (branches, pipeline
+ * runs, change requests) is written only by `enrich_repository` jobs, and
+ * discovery itself never used to enqueue any — only the periodic scheduler
+ * tick (`ensurePeriodicJobs`, a globally-bounded sample) or an inbound
+ * webhook did. A fresh instance, an admin-triggered sync, or a wizard
+ * connect could discover repos that then sat with empty detail forever.
+ * `enqueueSyncJob`'s own pending-job dedupe means re-running discovery for
+ * the same workspace never double-queues.
+ */
+async function enqueueEnrichmentForWorkspace(env: Env, workspaceId: string): Promise<void> {
+  const repos = await listActiveMonitoredRepositories(env.DB, workspaceId);
+  for (const repo of repos) {
+    await enqueueSyncJob(env.DB, 'enrich_repository', repo.full_name, 5);
+  }
+}
 
 interface DiscoveryCursor {
   installationIndex: number;
@@ -192,8 +210,15 @@ async function runJob(
   }
 }
 
-/** GitHub discovery reconciliation (installations → workspaces → repo pages). */
-async function runDiscovery(
+/**
+ * GitHub discovery reconciliation (installations → workspaces → repo pages).
+ * Exported for direct testing (B3b enrichment-chaining tests) so the
+ * discovery pass can be exercised without also draining the shared
+ * `sync_jobs` queue via `runScheduled` — the newly-enqueued
+ * `enrich_repository` jobs would otherwise be claimed in the same tick and
+ * hit real (unmocked) provider network calls.
+ */
+export async function runDiscovery(
   env: Env,
   jobId: string,
   cursorText: string | null,
@@ -275,6 +300,7 @@ async function runDiscovery(
 
     await markUnseenInaccessible(env.DB, workspaceId, seen);
     await markWorkspaceReconciled(env.DB, workspaceId);
+    await enqueueEnrichmentForWorkspace(env, workspaceId);
   }
 
   await recordConnectionSuccess(env.DB, connectionId);
@@ -289,7 +315,7 @@ async function runDiscovery(
  * exist; otherwise it falls back to `GITLAB_GROUPS`, so a GitOps operator who
  * prefers the env var keeps working unchanged.
  */
-async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
+export async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
   const credentials = await resolveGitLabCredentials(env, env.DB);
   if (!credentials) {
     await completeSyncJob(env.DB, jobId, 0);
@@ -331,6 +357,7 @@ async function runGitLabDiscovery(env: Env, jobId: string): Promise<number> {
       }
       await markUnseenInaccessible(env.DB, workspaceId, seen);
       await markWorkspaceReconciled(env.DB, workspaceId);
+      await enqueueEnrichmentForWorkspace(env, workspaceId);
     }
     await recordConnectionSuccess(env.DB, connectionId);
   } catch (error) {

@@ -184,6 +184,25 @@ export async function getRepositoryByExternalId(
     .first<RepositoryRow>();
 }
 
+/**
+ * Every active, monitored, non-archived repository in a workspace — the set
+ * a discovery pass should chain `enrich_repository` jobs for (B3b), as
+ * opposed to `claimEnrichmentBatch`'s globally-bounded periodic sample.
+ */
+export async function listActiveMonitoredRepositories(
+  db: D1Database,
+  workspaceId: string,
+): Promise<RepositoryRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT * FROM repositories
+       WHERE workspace_id = ?1 AND status = 'active' AND monitoring_state = 'monitored' AND is_archived = 0`,
+    )
+    .bind(workspaceId)
+    .all<RepositoryRow>();
+  return result.results;
+}
+
 /** Bounded batch of repositories most in need of enrichment. */
 export async function claimEnrichmentBatch(
   db: D1Database,
