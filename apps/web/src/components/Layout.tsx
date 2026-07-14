@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { signInOptions, useAuthConfig, useOnboardingStatus, useSessionUser } from '../api/client';
+import { signInOptions, signOut, useAuthConfig, useOnboardingStatus, useSessionUser } from '../api/client';
 import { AVAILABLE_THEMES, resolveInitialTheme } from '../themes/registry';
 import {
   CUSTOM_THEME_ID,
@@ -82,8 +82,27 @@ export function Layout() {
         </nav>
         <div className="footer">
           {user ? (
-            <div>
-              {user.login} ({user.role}){user.demo ? ' · demo' : ''}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <div>
+                {user.login} ({user.role}){user.demo ? ' · demo' : ''}
+              </div>
+              {!user.demo && (
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  style={{
+                    color: '#e0b45e',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Sign out
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

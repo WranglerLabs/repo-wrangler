@@ -8,6 +8,11 @@ semantic versioning.
 
 ### Added
 
+- **Sign out:** the sidebar footer now shows a *Sign out* button under the
+  signed-in user — it ends the session server-side (`POST /auth/logout`,
+  audited) and returns to the sign-in screen. Previously the UI had no way
+  to leave a session or reach `/sign-in` while a session cookie existed.
+
 - **Grow the estate (onboarding Phase C):** Estate Scope gains an *Add more
   organizations / groups* flow per connection — deep-link to the GitHub App's
   install page, then *Check for new organizations* matches installations and

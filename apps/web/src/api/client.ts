@@ -211,6 +211,19 @@ export function useSessionUser() {
   });
 }
 
+/**
+ * End the session server-side, then land on the sign-in screen with a full
+ * navigation so every cached query is dropped with the page. The redirect
+ * happens even if the logout call fails — the cookie may already be gone.
+ */
+export async function signOut(): Promise<void> {
+  try {
+    await fetch(apiUrl('/auth/logout'), { method: 'POST', credentials: 'include' });
+  } finally {
+    window.location.assign('/sign-in');
+  }
+}
+
 export interface AuthProviderOption {
   id: string;
   label: string;
