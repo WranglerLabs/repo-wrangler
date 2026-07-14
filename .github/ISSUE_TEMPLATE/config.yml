@@ -1,5 +1,5 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: Security vulnerability
-    url: https://github.com/Hybrid-Solutions-Cloud/repo-wrangler/security/policy
-    about: Please report security issues privately via the security policy, not a public issue.
+  - name: Question or discussion
+    url: https://github.com/orgs/Hybrid-Solutions-Cloud/discussions
+    about: For questions that aren't a bug, feature request, or task, use Discussions instead.
