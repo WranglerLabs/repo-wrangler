@@ -1,4 +1,4 @@
-# Mode B — build the SPA and publish to GitHub Pages.
+# Decoupled topology (Tier 0) — build the SPA and publish to GitHub Pages.
 # Copy to .github/workflows/deploy-pages.yml to enable.
 # Set repo variables: API_BASE_URL (your Worker URL), BASE_PATH (e.g. /repo-wrangler/
 # for a project site, or / for a user/org site). Enable Pages via GitHub Actions.

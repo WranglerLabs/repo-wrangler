@@ -6,7 +6,8 @@ backed by SQLite on a PersistentVolumeClaim. Same `apps/server` container as
 
 | | |
 |---|---|
-| **Topology** | C — Self-hosted (one container serves SPA + API) |
+| **Topology** | Self-hosted (one container serves SPA + API) |
+| **Cost tier** | Tier 2 with managed Postgres (multi-replica); Tier 0 single-node on PVC SQLite |
 | **Storage** | PVC (`ReadWriteOnce`) mounted at `/app/data` |
 | **Secrets** | Kubernetes `Secret` (or your external secrets operator) |
 | **Replicas** | 1 (SQLite is single-writer; `Recreate` strategy) |

@@ -1,4 +1,4 @@
-# Mode B — build the SPA and publish to Azure Static Web Apps.
+# Decoupled topology (Tier 0) — build the SPA and publish to Azure Static Web Apps.
 # Copy to .github/workflows/deploy-azure-swa.yml to enable.
 # Set repo variable API_BASE_URL (your Worker URL) and repo secret
 # AZURE_STATIC_WEB_APPS_API_TOKEN. The Worker must allow the SWA origin via

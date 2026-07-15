@@ -1,13 +1,13 @@
 # Docker / self-hosted — zero Cloudflare
 
 Run the **whole product** (SPA + API + scheduler) on your own machine or server,
-backed by SQLite. No Cloudflare account, no D1, no Workers. This is topology
-**C — Self-hosted** on top of the two Cloudflare topologies in
-[`../README.md`](../README.md).
+backed by SQLite. No Cloudflare account, no D1, no Workers. This is the
+**Self-hosted** topology on top of the two Cloudflare topologies in
+[`../README.md`](../README.md). Cost tier: **Tier 0** (your own compute).
 
-| Mode | What runs where | Cost | Use when |
+| Topology | What runs where | Cost | Use when |
 |---|---|---|---|
-| **C — Self-hosted** | One Node container serves the SPA **and** the API over SQLite | Free (your compute) | Home lab, a VM, Railway/Fly, Azure Container Apps, Kubernetes — anywhere that runs a container. |
+| **Self-hosted** | One Node container serves the SPA **and** the API over SQLite | Tier 0 — free (your compute) | Home lab, a VM, Railway/Fly, Azure Container Apps, Kubernetes — anywhere that runs a container. |
 
 ## Quick start
 

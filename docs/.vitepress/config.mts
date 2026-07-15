@@ -76,6 +76,10 @@ export default withMermaid({
         collapsed: false,
         items: [
           { text: 'Deployment guide', link: '/deployment' },
+          { text: 'Tier 0 — Free / self-run', link: '/deploy/tier-0' },
+          { text: 'Tier 1 — Low-cost / managed', link: '/deploy/tier-1' },
+          { text: 'Tier 2 — Team / scaled', link: '/deploy/tier-2' },
+          { text: 'Tier 3 — Enterprise', link: '/deploy/tier-3' },
           { text: 'Configuration reference', link: '/configuration' },
         ],
       },

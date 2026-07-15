@@ -49,14 +49,27 @@ allowlist and is the foundation the Phase-6 **role-based views** build on.
 
 ### Architecture tiers — pick a tier, then a recipe
 
-Reorganize the deployment story into three named tiers: **Tier A — all-in-one**
-(one container/compose stack, runs anywhere: Docker Desktop, a small VM, a home
-lab, Azure Container Apps); **Tier B — mid-level** (still inexpensive, a few
-managed parts: Cloudflare Pages/Worker + D1, Azure Static Web Apps + a low-cost
-database, container host + managed PostgreSQL); **Tier C — enterprise** (scaled
-out, separated controllers/workers, private networking, HA database,
-observability, SSO/RBAC hardening). The docs picker and the bootstrap installer
-both start from "which tier?".
+Reorganize the deployment story into named tiers, sorted by **cost and scale**
+(the thing most people decide first), so the docs picker and the bootstrap
+installer both start from "which tier?":
+
+- **Tier 0 — Free / self-run** ($0): one container on your own hardware, or the
+  Cloudflare free tier. Recipes: `docker`, `cloudflare`, and the free decoupled
+  options (`github-pages`, `azure-swa`).
+- **Tier 1 — Low-cost / managed** (~a few $/mo): a small always-on managed host —
+  Azure Container Apps in SQLite mode, a small VM, or a paid Cloudflare plan.
+- **Tier 2 — Team / scaled** (low $$/mo): managed parts with a real database —
+  container host + managed PostgreSQL, multi-replica, backups. `azure-container-apps`
+  (Postgres) or `kubernetes`.
+- **Tier 3 — Enterprise:** scaled out — separated controller/workers, private
+  networking, HA database, observability, SSO/RBAC hardening.
+
+**The "pick a tier → then a recipe" docs picker is now live** (deployment guide +
+per-tier pages), built on the recipes and platform-neutrality seams that already
+ship. The remaining forward work is **Tier 3** (the hardened topology is a target
+state today — its foundations ship, the composition doesn't) and the deployment
+automation below. Tiers are independent of **topology** (Integrated / Decoupled /
+Self-hosted, ADR-011) — that's a separate axis.
 
 ### Multiple connections per provider (multi-org, multi-credential)
 
@@ -78,7 +91,10 @@ flags loudly if anything holds write scopes this product never needs.
 Ready-to-adopt GitHub Actions / Azure DevOps pipelines and scripts per
 tier/recipe, all consuming **one config JSON schema** — the same JSON the
 bootstrap installer emits, so the wizard can kick off automation directly or
-hand the file to your own tooling.
+hand the file to your own tooling. **The config schema and these pipelines are
+owned by the Guided Bootstrap Installer** (above) — they ship with it rather than
+separately, so the automation isn't built twice. Until then, the copy-ready
+`deploy/*/ci.yml` workflow templates cover the manual path.
 
 ### Phase 5 — Notifications & controlled operations 🚧
 Partial: the outbound escalation webhook has shipped. Remaining: Teams / Slack /

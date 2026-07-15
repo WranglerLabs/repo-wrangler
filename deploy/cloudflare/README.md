@@ -1,4 +1,4 @@
-# Deploy — Cloudflare integrated Worker (Mode A)
+# Deploy — Cloudflare integrated Worker (Tier 0 · Integrated topology)
 
 The default topology: one Worker serves the SPA static assets and the API + D1.
 Zero cross-origin config, fits the Cloudflare free tier.

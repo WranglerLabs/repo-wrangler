@@ -6,7 +6,8 @@ locally — no Cloudflare required. The recipe supports two database modes:
 
 | | |
 |---|---|
-| **Topology** | C — Self-hosted (one container serves SPA + API) |
+| **Topology** | Self-hosted (one container serves SPA + API) |
+| **Cost tier** | Tier 1 (SQLite mode) · Tier 2 (Postgres mode) |
 | **Compute** | Azure Container Apps, 0.5 vCPU / 1 GiB, single replica |
 | **Database** | **PostgreSQL** (recommended for production) via a `database-url` Key Vault secret, **or** SQLite on an Azure Files share (demo/evaluation only — see warning below) |
 | **Secrets** | Key Vault references via the app's managed identity |

@@ -5,6 +5,15 @@
 - **Supersedes / relates to:** ADR-001 (Cloudflare Workers as the full-stack runtime),
   SPIKE-014 (keep domain/provider packages Cloudflare-free)
 
+> **Terminology update (2026-07-15).** This ADR named the topologies **Mode A**
+> (Integrated) and **Mode B** (Decoupled); a later self-hosted topology was
+> called **Mode C**. The `Mode A/B/C` letters have since been dropped in favor of
+> the names — **Integrated / Decoupled / Self-hosted** — so they don't collide
+> with the deployment **cost tiers** (Tier 0–3), which now own the numbers. Tier
+> and topology are orthogonal axes; see [`docs/deployment.md`](../deployment.md)
+> and [`deploy/README.md`](../../deploy/README.md). The decision below is
+> unchanged; only the labels are.
+
 ## Context
 
 ADR-001 makes a single Cloudflare Worker the reference runtime: it serves the

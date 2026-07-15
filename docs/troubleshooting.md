@@ -84,7 +84,7 @@ others.
 SQLite is single-writer; for concurrency/multiple replicas switch to PostgreSQL
 (`DATABASE_URL`). See [ADR-015](adr/ADR-015-postgres-storage-adapter.md).
 
-## Decoupled SPA (Mode B)
+## Decoupled SPA topology
 
 **API calls fail with CORS errors.**
 Add the exact SPA origin to `CORS_ALLOWED_ORIGINS` on the API, and build the SPA

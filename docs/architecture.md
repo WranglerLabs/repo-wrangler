@@ -133,10 +133,11 @@ Key packages:
 ## Deployment topologies
 
 See the [deployment guide](deployment.md) for the full matrix and decision
-flowchart. In short: **Mode A** integrated single-origin (Cloudflare Worker, or
-the Node host serving its own SPA); **Mode B** decoupled SPA (GitHub Pages / Azure
-SWA) calling a separate API origin with CORS; **Mode C** self-hosted container
-(Docker / Azure Container Apps / Kubernetes) on SQLite or PostgreSQL.
+flowchart. In short — three topologies (ADR-011): **Integrated** single-origin
+(Cloudflare Worker, or the Node host serving its own SPA); **Decoupled** SPA
+(GitHub Pages / Azure SWA) calling a separate API origin with CORS; **Self-hosted**
+container (Docker / Azure Container Apps / Kubernetes) on SQLite or PostgreSQL.
+Topology is independent of the deployment cost **tier** (Tier 0–3).
 
 ## Decision records
 

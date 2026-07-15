@@ -175,7 +175,7 @@ See [Providers → GitLab](providers/gitlab.md).
 
 | Setting | Secret | Default | Description |
 |---|---|---|---|
-| `CORS_ALLOWED_ORIGINS` | no | empty (same-origin) | Comma-separated exact SPA origins allowed to call the API cross-origin. Set only for the **decoupled** frontend topology (ADR-011, Mode B). Empty = integrated same-origin. |
+| `CORS_ALLOWED_ORIGINS` | no | empty (same-origin) | Comma-separated exact SPA origins allowed to call the API cross-origin. Set only for the **decoupled** frontend topology (ADR-011). Empty = integrated same-origin. |
 | `VITE_API_BASE_URL` | no (build-time) | empty | SPA build var: absolute API base for a decoupled SPA. Empty = same-origin. |
 | `VITE_BASE_PATH` | no (build-time) | `/` | SPA base path when hosted under a sub-path (e.g. GitHub Pages project site). |
 | `VITE_DEFAULT_THEME` | no (build-time) | `light` | Default UI theme id. See [theming guide](guide/theming.md). |

@@ -1,15 +1,26 @@
 # Deployment recipes
 
-RepoWrangler supports two topologies (see
-[ADR-011](../docs/adr/ADR-011-host-agnostic-frontend.md)). Pick one:
+Every recipe is described two ways: by **tier** (cost/scale — how the docs picker
+sorts them, see [`docs/deployment.md`](../docs/deployment.md)) and by **topology**
+(how the pieces are wired, per [ADR-011](../docs/adr/ADR-011-host-agnostic-frontend.md)).
+The two axes are independent.
 
-| Mode | What runs where | Cost | Use when |
+## Topologies
+
+Pick one topology; it's orthogonal to which tier you're on.
+
+| Topology | What runs where | Cost | Use when |
 |---|---|---|---|
-| **A — Integrated** | One Cloudflare Worker serves the SPA **and** the API + D1 | Free tier | Default. Simplest, zero cross-origin config. |
-| **B — Decoupled** | SPA on a static host (GitHub Pages / Azure SWA / Cloudflare Pages); API on a Worker | Free tier | You want the UI on a host you already use, or a custom domain served elsewhere. |
-| **C — Self-hosted** | One Node container serves the SPA **and** the API over SQLite — no Cloudflare | Free (your compute) | Home lab, a VM, another PaaS, or Kubernetes. See [`docker/`](docker/). |
+| **Integrated** | One Cloudflare Worker serves the SPA **and** the API + D1 | Free tier | Default. Simplest, zero cross-origin config. |
+| **Decoupled** | SPA on a static host (GitHub Pages / Azure SWA / Cloudflare Pages); API on a Worker | Free tier | You want the UI on a host you already use, or a custom domain served elsewhere. |
+| **Self-hosted** | One Node container serves the SPA **and** the API over SQLite/Postgres — no Cloudflare | Free (your compute) and up | Home lab, a VM, another PaaS, or Kubernetes. See [`docker/`](docker/). |
 
-## The one rule that makes Mode B work
+> **Historical note:** these three were previously labeled **Mode A / B / C**.
+> The letters were dropped in favor of the names so they don't collide with the
+> cost **tiers** (Tier 0–3), which now own the numbers. ADR-011 records the
+> original decision.
+
+## The one rule that makes the Decoupled topology work
 
 The SPA is a **pure static bundle**. Point it at your Worker API at **build time**:
 
@@ -23,21 +34,25 @@ VITE_API_BASE_URL=https://<your-worker-host> pnpm --filter @repo-wrangler/web bu
 wrangler secret put CORS_ALLOWED_ORIGINS   # e.g. https://you.github.io
 ```
 
-Empty `VITE_API_BASE_URL` + empty `CORS_ALLOWED_ORIGINS` = Mode A (same-origin).
+Empty `VITE_API_BASE_URL` + empty `CORS_ALLOWED_ORIGINS` = the Integrated
+topology (same-origin).
 
 ## Recipes
 
-- [`cloudflare/`](cloudflare/) — Mode A, the integrated Worker (recommended first deploy).
-- [`github-pages/`](github-pages/) — Mode B, SPA on GitHub Pages + Worker API.
-- [`azure-swa/`](azure-swa/) — Mode B, SPA on Azure Static Web Apps + Worker API.
-- [`docker/`](docker/) — Mode C, the self-hosted Node container (SQLite, zero Cloudflare).
-- [`azure-container-apps/`](azure-container-apps/) — Mode C on Azure Container Apps (bicep + `az acr build`, Azure Files volume, Key Vault secrets).
-- [`kubernetes/`](kubernetes/) — Mode C on any Kubernetes cluster (raw manifests + a Helm chart, PVC-backed SQLite).
+| Recipe | Tier | Topology | Notes |
+|---|---|---|---|
+| [`cloudflare/`](cloudflare/) | 0 | Integrated | The integrated Worker — recommended first deploy. |
+| [`docker/`](docker/) | 0 | Self-hosted | Node container on SQLite, zero Cloudflare. |
+| [`github-pages/`](github-pages/) | 0 | Decoupled | SPA on GitHub Pages + Worker API. Free but two-piece. |
+| [`azure-swa/`](azure-swa/) | 0 | Decoupled | SPA on Azure Static Web Apps + Worker API. Free but two-piece. |
+| [`azure-container-apps/`](azure-container-apps/) | 1 (SQLite) · 2 (Postgres) | Self-hosted | ACA (bicep + `az acr build`), Azure Files volume or Key Vault-backed Postgres. |
+| [`kubernetes/`](kubernetes/) | 2 | Self-hosted | Any cluster (raw manifests + a Helm chart), PVC SQLite or managed Postgres. |
 
-All Mode C recipes deploy the **same** `apps/server` container — the verified
+All Self-hosted recipes deploy the **same** `apps/server` container — the verified
 SQLite host. They differ only in the surrounding infrastructure (volume, secrets,
-ingress). A shared-database backend for multi-replica scale (Postgres) is the
-next platform-neutrality milestone (roadmap PN-1) and slots in behind the same
-host without changing these recipes.
+ingress). Pointing `DATABASE_URL` at a shared **PostgreSQL**
+([ADR-015](../docs/adr/ADR-015-postgres-storage-adapter.md)) unlocks multi-replica
+scale and moves a self-hosted recipe from Tier 1 to Tier 2 — same host, no recipe
+change.
 
 Each directory has a `README.md` recipe and a copy-ready CI workflow.
