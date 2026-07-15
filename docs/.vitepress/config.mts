@@ -2,15 +2,15 @@ import { withMermaid } from 'vitepress-plugin-mermaid';
 
 // RepoWrangler documentation site (VitePress). The same Markdown in `docs/`
 // renders on github.com and here — this config adds navigation, search, and
-// rendered Mermaid diagrams. Deployed free to GitHub Pages by
-// `.github/workflows/docs.yml`; the base path matches the project-site URL
-// https://wranglerlabs.github.io/repo-wrangler/.
+// rendered Mermaid diagrams. Deployed by `.github/workflows/docs.yml` to
+// Cloudflare Pages project wranglerlabs-docs, served at
+// https://docs.wranglerlabs.org (subdomain root, so base stays '/').
 export default withMermaid({
   title: 'RepoWrangler',
   description:
     'Open-source, read-only repository estate command center for GitHub and GitLab — platform-neutral, self-hostable, zero-cost.',
   lang: 'en-US',
-  base: '/repo-wrangler/',
+  base: '/',
   cleanUrls: true,
   lastUpdated: true,
 

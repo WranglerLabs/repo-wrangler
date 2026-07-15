@@ -47,6 +47,12 @@ export function Layout() {
   // B1 — real mode, zero monitored workspaces: route to the wizard. Only
   // once signed in (`user` present); an unauthenticated visitor is handled
   // by the API client's 401 → /sign-in redirect first.
+  // A demo instance labels its browser tab so it is never mistaken for a real
+  // deployment. Tab title only — the in-app brand stays "RepoWrangler".
+  useEffect(() => {
+    if (authConfig?.demo) document.title = 'RepoWrangler Demo';
+  }, [authConfig?.demo]);
+
   const onboardingStatus = useOnboardingStatus();
   useEffect(() => {
     if (
