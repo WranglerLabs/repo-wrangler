@@ -49,6 +49,7 @@ export default withMermaid({
       {
         text: 'Project',
         items: [
+          { text: 'Releases', link: '/releases/' },
           { text: 'Changelog', link: '/project/changelog' },
           { text: 'Roadmap', link: '/project/roadmap' },
           { text: 'Contributing', link: '/project/contributing' },
@@ -122,6 +123,8 @@ export default withMermaid({
         text: 'Project',
         collapsed: false,
         items: [
+          { text: 'Releases', link: '/releases/' },
+          { text: 'Release notes: v0.6.10', link: '/releases/v0.6.10' },
           { text: 'Changelog', link: '/project/changelog' },
           { text: 'Roadmap', link: '/project/roadmap' },
           { text: 'Credits & attribution', link: '/project/credits' },

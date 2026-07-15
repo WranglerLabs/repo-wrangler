@@ -35,6 +35,15 @@ jobs:
       - name: Build SPA
         run: pnpm --filter @repo-wrangler/web build
 
+      # Schema must be current before the new code serves traffic — a worker
+      # deployed ahead of its migrations 500s on any route that touches the
+      # missing tables (live incident 2026-07-14: /auth/config).
+      - name: Apply D1 migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm exec wrangler d1 migrations apply repo-wrangler --remote
+
       - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

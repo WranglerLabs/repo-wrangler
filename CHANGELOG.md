@@ -6,6 +6,14 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [0.6.10] - 2026-07-14
+
+First release under **Wrangler Labs** — the project moved to
+`WranglerLabs/repo-wrangler` (full history preserved) and rebranded; docs now
+live at https://docs.wranglerlabs.org and the public demo at
+https://repowrangler.dev. Consolidates the `v0.5.1-rc1`…`v0.6.10-rc1`
+hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
+
 ### Added
 
 - **Sign out:** the sidebar footer now shows a *Sign out* button under the
