@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: Try the live demo
-      link: https://repo-wrangler.hybridsolutionscloud.workers.dev
+      link: https://repowrangler.dev
     - theme: alt
       text: Get started
       link: /getting-started
@@ -20,7 +20,7 @@ hero:
       link: /deployment
     - theme: alt
       text: View on GitHub
-      link: https://github.com/Hybrid-Solutions-Cloud/repo-wrangler
+      link: https://github.com/WranglerLabs/repo-wrangler
 
 features:
   - icon: 🔭
@@ -61,7 +61,7 @@ features:
 ## Where to next
 
 - **Want to see it first?** Explore the
-  [**live demo**](https://repo-wrangler.hybridsolutionscloud.workers.dev) — the
+  [**live demo**](https://repowrangler.dev) — the
   whole product on mock data, no sign-in, no secrets.
 - **New here?** Start with [Getting started](/getting-started) — a running
   instance in a few minutes.

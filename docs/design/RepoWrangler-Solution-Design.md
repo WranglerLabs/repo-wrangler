@@ -100,13 +100,13 @@ Use two repositories only when they serve distinct purposes:
 
 ### Public product repository
 
-`Hybrid-Solutions-Cloud/repo-wrangler`
+`WranglerLabs/repo-wrangler`
 
 Contains the entire application, tests, schemas, migrations, public documentation, deployment templates, issue templates, ADRs, credits, and releases.
 
 ### Private operations repository
 
-`Hybrid-Solutions-Cloud/repo-wrangler-ops`
+`WranglerLabs/repo-wrangler-ops`
 
 Contains your private operating notes and policy—but not the application source and not secrets. The live deployment may be built directly from the public repository. The private repo is therefore optional and never blocks community users from deploying the software.
 
@@ -621,7 +621,7 @@ Cloudflare is the first hosting target, but core packages must not import Cloudf
 
 Primary project organization:
 
-`https://github.com/Hybrid-Solutions-Cloud`
+`https://github.com/WranglerLabs`
 
 Recommended repositories:
 
@@ -631,7 +631,7 @@ Recommended repositories:
 
 ### GitHub App
 
-Create a GitHub App owned by `Hybrid-Solutions-Cloud`.
+Create a GitHub App owned by `WranglerLabs`.
 
 Recommended names:
 
@@ -1811,7 +1811,7 @@ Future optional path:
 
 ## Upstream fork lifecycle
 
-1. Fork the latest upstream repositories into `Hybrid-Solutions-Cloud`.
+1. Fork the latest upstream repositories into `WranglerLabs`.
 2. Record upstream URL and exact commit SHA.
 3. Tag the imported state with a dated snapshot tag.
 4. Create an audit branch; do not start RepoWrangler development inside the forks.
@@ -1825,9 +1825,9 @@ Future optional path:
 Run after verifying the upstream default branch and current head:
 
 ```bash
-gh repo fork otto-de/gitactionboard   --org Hybrid-Solutions-Cloud   --clone=false
+gh repo fork otto-de/gitactionboard   --org WranglerLabs   --clone=false
 
-gh repo fork AKharytonchyk/git-pull-request-dashboard   --org Hybrid-Solutions-Cloud   --clone=false
+gh repo fork AKharytonchyk/git-pull-request-dashboard   --org WranglerLabs   --clone=false
 ```
 
 Public upstream repositories produce public forks. GitHub does not treat a normal public fork as a private copy.
@@ -2744,8 +2744,8 @@ A clean RepoWrangler mark could show three repository nodes or branch lines bein
 ## Naming and repositories
 
 - [ ] Confirm `RepoWrangler` product capitalization and `repo-wrangler` slug.
-- [ ] Create public `Hybrid-Solutions-Cloud/repo-wrangler`.
-- [ ] Create optional private `Hybrid-Solutions-Cloud/repo-wrangler-ops`.
+- [ ] Create public `WranglerLabs/repo-wrangler`.
+- [ ] Create optional private `WranglerLabs/repo-wrangler-ops`.
 - [ ] Fork both upstream projects into the organization.
 - [ ] Record exact upstream head SHAs and snapshot date.
 - [ ] Decide archive versus delete policy for temporary forks.

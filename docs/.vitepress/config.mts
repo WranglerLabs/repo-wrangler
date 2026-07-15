@@ -4,7 +4,7 @@ import { withMermaid } from 'vitepress-plugin-mermaid';
 // renders on github.com and here — this config adds navigation, search, and
 // rendered Mermaid diagrams. Deployed free to GitHub Pages by
 // `.github/workflows/docs.yml`; the base path matches the project-site URL
-// https://hybrid-solutions-cloud.github.io/repo-wrangler/.
+// https://wranglerlabs.github.io/repo-wrangler/.
 export default withMermaid({
   title: 'RepoWrangler',
   description:
@@ -58,7 +58,7 @@ export default withMermaid({
       },
       {
         text: 'GitHub',
-        link: 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler',
+        link: 'https://github.com/WranglerLabs/repo-wrangler',
       },
     ],
 
@@ -131,12 +131,12 @@ export default withMermaid({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler' },
+      { icon: 'github', link: 'https://github.com/WranglerLabs/repo-wrangler' },
     ],
 
     editLink: {
       pattern:
-        'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler/edit/main/docs/:path',
+        'https://github.com/WranglerLabs/repo-wrangler/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
 

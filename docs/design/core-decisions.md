@@ -11,10 +11,10 @@ ADRs — is the [combined solution design](RepoWrangler-Solution-Design.md); the
 
 | Repository                                          | Visibility            | Purpose                                                                                                                 |
 | --------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `Hybrid-Solutions-Cloud/repo-wrangler`              | Public                | Complete open-source application, documentation, UI, Worker API, migrations, tests, and releases                        |
-| `Hybrid-Solutions-Cloud/repo-wrangler-ops`          | Private, optional     | Your deployment runbooks, expected organization inventory, environment policy, recovery notes, and deployed-version pin |
-| `Hybrid-Solutions-Cloud/gitactionboard`             | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
-| `Hybrid-Solutions-Cloud/git-pull-request-dashboard` | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
+| `WranglerLabs/repo-wrangler`              | Public                | Complete open-source application, documentation, UI, Worker API, migrations, tests, and releases                        |
+| `WranglerLabs/repo-wrangler-ops`          | Private, optional     | Your deployment runbooks, expected organization inventory, environment policy, recovery notes, and deployed-version pin |
+| `WranglerLabs/gitactionboard`             | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
+| `WranglerLabs/git-pull-request-dashboard` | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
 
 The private operations repository will **not** contain a second copy of the application, provider credentials, GitHub App keys, GitLab tokens, or copied production data. Secrets belong in Cloudflare’s secret storage, while collected operational data belongs in D1.
 

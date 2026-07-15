@@ -24,4 +24,4 @@ the Cloudflare Workers platform.
 
 ## Maintainer
 
-Kristopher Turner — Hybrid Cloud Solutions LLC.
+Kristopher Turner — Wrangler Labs.

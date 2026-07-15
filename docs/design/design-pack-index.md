@@ -1,7 +1,7 @@
 # RepoWrangler Solution Design Pack
 
 **Solution:** RepoWrangler  
-**Organization:** `Hybrid-Solutions-Cloud`  
+**Organization:** `WranglerLabs`  
 **Status:** Architecture and planning baseline; no production code yet  
 **Prepared:** 2026-07-11
 
@@ -13,10 +13,10 @@ This design pack defines the expected product, architecture, security model, fre
 
 | Repository | Visibility | Purpose |
 |---|---|---|
-| `Hybrid-Solutions-Cloud/repo-wrangler` | Public | Open-source product code, documentation, tests, database migrations, UI, Worker API, provider adapters, and release artifacts. |
-| `Hybrid-Solutions-Cloud/repo-wrangler-ops` | Private, optional | Personal deployment notes, non-secret environment policy, expected organization/group inventory, runbooks, recovery procedures, and a pin to the deployed public release. |
-| `Hybrid-Solutions-Cloud/gitactionboard` | Public fork, temporary | Upstream research and provenance for GitactionBoard. Archive after the reuse audit rather than immediately deleting it. |
-| `Hybrid-Solutions-Cloud/git-pull-request-dashboard` | Public fork, temporary | Upstream research and provenance for Git Pull Request Dashboard. Archive after the reuse audit. |
+| `WranglerLabs/repo-wrangler` | Public | Open-source product code, documentation, tests, database migrations, UI, Worker API, provider adapters, and release artifacts. |
+| `WranglerLabs/repo-wrangler-ops` | Private, optional | Personal deployment notes, non-secret environment policy, expected organization/group inventory, runbooks, recovery procedures, and a pin to the deployed public release. |
+| `WranglerLabs/gitactionboard` | Public fork, temporary | Upstream research and provenance for GitactionBoard. Archive after the reuse audit rather than immediately deleting it. |
+| `WranglerLabs/git-pull-request-dashboard` | Public fork, temporary | Upstream research and provenance for Git Pull Request Dashboard. Archive after the reuse audit. |
 
 The private operations repository is **not** a private fork of the application and does not contain GitHub App private keys, GitLab tokens, session secrets, or copied production data. Secrets belong in the deployment's secret store (`ISecretProvider` — environment variables, Docker/Kubernetes secrets, Cloudflare secrets, or Azure Key Vault); runtime inventory belongs in the configured `IDataStore` (SQLite, PostgreSQL, or D1).
 

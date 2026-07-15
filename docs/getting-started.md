@@ -14,7 +14,7 @@ the whole product before connecting anything.
 The fastest way to see the whole app on your machine:
 
 ```bash
-git clone https://github.com/Hybrid-Solutions-Cloud/repo-wrangler.git
+git clone https://github.com/WranglerLabs/repo-wrangler.git
 cd repo-wrangler
 docker compose up
 ```
@@ -30,7 +30,7 @@ options.
 ## Option B — local development (pnpm)
 
 ```bash
-git clone https://github.com/Hybrid-Solutions-Cloud/repo-wrangler.git
+git clone https://github.com/WranglerLabs/repo-wrangler.git
 cd repo-wrangler
 corepack enable
 pnpm install

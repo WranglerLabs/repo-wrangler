@@ -69,7 +69,7 @@ export function Credits() {
         <p>
           Wrangle every repository into one clear view.{' '}
           <a
-            href="https://github.com/Hybrid-Solutions-Cloud/repo-wrangler"
+            href="https://github.com/WranglerLabs/repo-wrangler"
             target="_blank"
             rel="noreferrer"
           >

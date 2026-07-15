@@ -43,7 +43,7 @@ function randomSuffix(): string {
 function manifestJson(origin: string): string {
   return JSON.stringify({
     name: `repo-wrangler-${randomSuffix()}`,
-    url: 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler',
+    url: 'https://github.com/WranglerLabs/repo-wrangler',
     hook_attributes: { url: `${origin}/webhooks/github`, active: true },
     redirect_url: `${origin}/setup/github-app/callback`,
     callback_urls: [`${origin}/auth/github/callback`],

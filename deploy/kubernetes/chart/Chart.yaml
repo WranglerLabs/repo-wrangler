@@ -4,6 +4,6 @@ description: RepoWrangler — self-hosted (SPA + API + scheduler on SQLite, zero
 type: application
 version: 0.1.0
 appVersion: "0.3.0"
-home: https://github.com/Hybrid-Solutions-Cloud/repo-wrangler
+home: https://github.com/WranglerLabs/repo-wrangler
 sources:
-  - https://github.com/Hybrid-Solutions-Cloud/repo-wrangler
+  - https://github.com/WranglerLabs/repo-wrangler

@@ -8,7 +8,7 @@ import {
   useSessionUser,
 } from '../api/client';
 
-const REPO_URL = 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler';
+const REPO_URL = 'https://github.com/WranglerLabs/repo-wrangler';
 
 export function Administration() {
   const { data: user } = useSessionUser();

@@ -2,7 +2,7 @@
 
 **Wrangle every repository into one clear view.**
 
-📖 **[Documentation](https://hybrid-solutions-cloud.github.io/repo-wrangler/)** · 🚀 **[Live demo](https://repo-wrangler.hybridsolutionscloud.workers.dev)**
+📖 **[Documentation](https://wranglerlabs.github.io/repo-wrangler/)** · 🚀 **[Live demo](https://repowrangler.dev)**
 
 RepoWrangler is an open-source repository estate dashboard. It automatically
 discovers repositories across your GitHub organizations and GitLab groups,

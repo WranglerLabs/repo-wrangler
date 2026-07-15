@@ -21,7 +21,7 @@ import { EstateScopeTable, type ScopeWorkspace } from '../components/EstateScope
 
 type Platform = 'github' | 'gitlab';
 
-const REPO_URL = 'https://github.com/Hybrid-Solutions-Cloud/repo-wrangler';
+const REPO_URL = 'https://github.com/WranglerLabs/repo-wrangler';
 const WORKSPACE_POLL_MS = 10_000;
 
 /**

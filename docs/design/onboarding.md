@@ -477,7 +477,7 @@ The permanent `Administration → Estate scope` screen (B5) gains a per-connecti
 **Credentials** panel:
 
 ```
-Connection: github · Hybrid-Solutions-Cloud App
+Connection: github · WranglerLabs App
   App private key    ••••••••1a2b   updated 2026-07-14   [ Replace ]
   Webhook secret     ••••••••set    updated 2026-07-14   [ Replace ]
   Client secret      ••••••••9f0e   updated 2026-07-14   [ Replace ]

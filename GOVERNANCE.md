@@ -1,7 +1,7 @@
 # Governance
 
 RepoWrangler currently uses a **BDFL model**: Kristopher Turner
-(Hybrid Cloud Solutions LLC) is the maintainer and final decision-maker.
+(Wrangler Labs) is the maintainer and final decision-maker.
 
 - Significant design decisions are recorded as ADRs under `docs/design/`
   (ADR-001 through ADR-010 in the solution design pack) and new ADRs in
