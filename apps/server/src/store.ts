@@ -14,7 +14,6 @@
  */
 import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
-import { openSqliteD1, applyMigrations as applySqliteMigrations } from '@repo-wrangler/persistence-sqlite';
 import { openPostgresD1, applyPostgresMigrations } from '@repo-wrangler/persistence-postgres';
 import type { ServerConfig } from './env';
 
@@ -41,6 +40,11 @@ function redact(connectionString: string): string {
   }
 }
 
+/** Describe only the selected backend, without initializing either adapter. */
+export function storageLabel(config: Pick<ServerConfig, 'databaseUrl' | 'sqlitePath'>): string {
+  return config.databaseUrl ? redact(config.databaseUrl) : `sqlite (${config.sqlitePath})`;
+}
+
 /** Open the storage backend selected by configuration. */
 export async function openStore(config: ServerConfig): Promise<Store> {
   if (config.databaseUrl) {
@@ -49,11 +53,16 @@ export async function openStore(config: ServerConfig): Promise<Store> {
       d1: d1 as unknown as D1Database,
       applyMigrations: () => applyPostgresMigrations(pool, config.migrationsDir),
       close: () => pool.end(),
-      label: redact(config.databaseUrl),
+      label: storageLabel(config),
     };
   }
 
   await mkdir(dirname(config.sqlitePath), { recursive: true });
+  // Keep node:sqlite completely out of PostgreSQL processes. Importing the
+  // adapter eagerly makes Node emit its experimental SQLite warning at boot,
+  // even though DATABASE_URL selected PostgreSQL and no SQLite file is opened.
+  const { openSqliteD1, applyMigrations: applySqliteMigrations } =
+    await import('@repo-wrangler/persistence-sqlite');
   const { d1, raw } = openSqliteD1(config.sqlitePath);
   return {
     d1: d1 as unknown as D1Database,
@@ -65,6 +74,6 @@ export async function openStore(config: ServerConfig): Promise<Store> {
         /* already closed */
       }
     },
-    label: `sqlite (${config.sqlitePath})`,
+    label: storageLabel(config),
   };
 }
