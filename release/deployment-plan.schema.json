@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/WranglerLabs/repo-wrangler/release/deployment-plan.schema.json",
+  "title": "RepoWrangler deployment plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "release", "target"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "manifestUrl"],
+      "properties": {
+        "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$" },
+        "manifestUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "manifestSha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["azure-container-apps", "cloudflare", "local-compose", "remote-linux-compose"] }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "propertyNames": { "not": { "pattern": "(?:[Pp][Aa][Ss][Ss](?:[Ww][Oo][Rr][Dd]|[Pp][Hh][Rr][Aa][Ss][Ee])?|[Pp][Rr][Ii][Vv][Aa][Tt][Ee].?[Kk][Ee][Yy]|[Cc][Ll][Ii][Ee][Nn][Tt].?[Ss][Ee][Cc][Rr][Ee][Tt]|[Aa][Cc][Cc][Ee][Ss][Ss].?[Tt][Oo][Kk][Ee][Nn]|[Aa][Pp][Ii].?[Kk][Ee][Yy]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll])" } }
+    }
+  }
+}

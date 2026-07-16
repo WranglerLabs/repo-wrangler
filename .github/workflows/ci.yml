@@ -34,3 +34,6 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+
+      - name: Release contract tests
+        run: pnpm test:release-contracts
