@@ -1,7 +1,7 @@
 # Deploy — SPA on GitHub Pages + Worker API (Tier 0 · Decoupled topology)
 
 The UI is hosted free on GitHub Pages; the API runs on a Cloudflare Worker. See
-[ADR-011](../../docs/adr/ADR-011-host-agnostic-frontend.md).
+[ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend).
 
 ## 1. Deploy the API Worker
 

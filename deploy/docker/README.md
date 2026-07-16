@@ -36,7 +36,7 @@ docker compose up -d --build
 The container runs [`@repo-wrangler/server`](../../apps/server/README.md), which
 hosts the same Hono app as the Cloudflare Worker on `@hono/node-server` over the
 `node:sqlite`-backed D1 adapter. See
-[ADR-014](../../docs/adr/ADR-014-node-server-host.md).
+[ADR-014](https://wranglerlabs.org/adr/ADR-014-node-server-host).
 
 ## Beyond a single container
 

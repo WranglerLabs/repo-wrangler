@@ -8,7 +8,7 @@ RepoWrangler's roadmap is organized by confidence, not promised dates:
 - **Shipped** — capabilities already available today.
 
 For exact release contents, see the [changelog](CHANGELOG.md) and
-[release notes](docs/releases/index.md).
+[release notes](https://wranglerlabs.org/releases/).
 
 ## At a glance
 
@@ -153,6 +153,6 @@ systems are designed once rather than as separate, competing projects.
 
 ---
 
-RepoWrangler is **platform-neutral** ([ADR-013](docs/design/platform-neutrality.md)):
+RepoWrangler is **platform-neutral** ([ADR-013](https://wranglerlabs.org/design/platform-neutrality)):
 no cloud, host, database, or deployment model is required. Cloudflare is the
 reference implementation, not a product dependency.

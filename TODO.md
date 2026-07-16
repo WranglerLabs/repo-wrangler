@@ -1,7 +1,7 @@
 # TODO
 
 Owner-directed priorities. Larger design work referenced here lives in
-[`docs/design/`](docs/design/) and the [roadmap](ROADMAP.md).
+[the design pack](https://wranglerlabs.org/design/design-pack-index) and the [roadmap](ROADMAP.md).
 
 ## 1. Guided bootstrap installer ("the bootloader")
 
@@ -31,7 +31,7 @@ first, then a recipe inside it:
   document as a roadmap phase — not required for Tiers A/B users.
 
 Work items: map every existing `deploy/*` recipe into a tier, restructure
-[`docs/deployment.md`](docs/deployment.md) (picker, capability matrix, decision
+[deployment documentation](https://wranglerlabs.org/deployment) (picker, capability matrix, decision
 flowchart) around the tiers, and make the bootstrap installer's first question
 "which tier?".
 

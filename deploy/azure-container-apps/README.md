@@ -23,7 +23,7 @@ locally — no Cloudflare required. The recipe supports two database modes:
 > this (single-writer, and the one replica also owns the scheduler); Postgres
 > removes the database constraint, but wiring up multiple replicas
 > (`ENABLE_SCHEDULER=false` on all but one) isn't part of this recipe yet —
-> see [`docs/deployment.md`](../../docs/deployment.md).
+> see the [deployment guide](https://wranglerlabs.org/deployment).
 
 ## Before you begin — what you'll need
 
@@ -114,7 +114,7 @@ production one.
 ### 3a. Register the GitHub App and seed secrets
 
 The GitHub App has to exist before you can seed its secrets — its values are
-the input. Follow [`docs/providers/github-app.md`](../../docs/providers/github-app.md)
+the input. Follow the [GitHub App guide](https://wranglerlabs.org/providers/github-app)
 end to end, then come back here with six values: App ID, private key, OAuth
 client ID/secret, webhook secret, plus a session secret you generate.
 
@@ -183,7 +183,7 @@ RESOURCE_GROUP=rg-repo-wrangler ACR_NAME=<youracr> \
 
 `AUTH_PROVIDERS`/`-AuthProviders` takes a comma-separated list — combinations
 like `entra,github` are supported if you've also registered an Entra app (see
-[`docs/configuration.md`](../../docs/configuration.md)). Either script grants
+[configuration reference](https://wranglerlabs.org/configuration)). Either script grants
 the app's managed identity **Key Vault Secrets User** on your vault *before*
 deploying, so the first revision's secret references resolve.
 

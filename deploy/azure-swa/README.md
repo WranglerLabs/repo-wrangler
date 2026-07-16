@@ -1,7 +1,7 @@
 # Deploy — SPA on Azure Static Web Apps + Worker API (Tier 0 · Decoupled topology)
 
 The UI is hosted on Azure Static Web Apps (free tier); the API runs on a
-Cloudflare Worker. See [ADR-011](../../docs/adr/ADR-011-host-agnostic-frontend.md).
+Cloudflare Worker. See [ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend).
 
 ## 1. Deploy the API Worker
 

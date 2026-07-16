@@ -33,7 +33,7 @@ First release under **Wrangler Labs** — the project moved to
 `WranglerLabs/repo-wrangler` (full history preserved) and rebranded; marketing
 and public docs now share https://wranglerlabs.org and the public demo is at
 https://repowrangler.dev. Consolidates the `v0.5.1-rc1`…`v0.6.10-rc1`
-hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
+hardening series. See the [v0.6.10 release notes](https://wranglerlabs.org/releases/v0.6.10).
 
 ### Added
 
@@ -129,7 +129,7 @@ hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
   ("Sign in with Microsoft"). Web-Crypto-only, so it runs on both the Worker and
   the Node host. Closes roadmap **PN-5** (Entra).
 - **Documentation suite (DOC-1…8):** a full `docs/` tree with an
-  [index](docs/README.md) — getting-started, deployment (capability matrix +
+  [public documentation](https://wranglerlabs.org/getting-started) — getting-started, deployment (capability matrix +
   decision flowchart), configuration reference, provider guides (GitHub/GitLab/
   Entra), architecture (C4 + Mermaid), API reference, operations (backup/restore/
   DR/upgrade/migrations), security, developer guide, troubleshooting, service
@@ -157,7 +157,7 @@ hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
   switcher automatically (Hugo/Jekyll-style, via glob discovery), no code change.
   Ships with `light`, `dark`, `midnight`, `slate`, `sandstone`, `high-contrast`;
   deployers set the default with `VITE_DEFAULT_THEME`, users switch live (saved
-  per browser). See `docs/guide/theming.md`.
+  per browser). See the [theming guide](https://wranglerlabs.org/guide/theming).
 - **Theme Studio (live color customization):** a `/theme` editor with color
   pickers for every token — apply your palette live as the **Custom** theme
   (saved per browser, no rebuild), seed from the current theme or reset, and
@@ -186,7 +186,7 @@ hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
 ### Documentation
 
 - The **personal-account GitHub App** path is documented as first-class,
-  including the org-owner 404 and how to avoid it (`docs/setup/github-app.md`).
+  including the org-owner 404 and how to avoid it ([GitHub App setup](https://wranglerlabs.org/setup/github-app)).
 
 ## [0.3.0] - 2026-07-12
 
@@ -207,7 +207,7 @@ hardening series. See [docs/releases/v0.6.10](docs/releases/v0.6.10.md).
   `/activity`, with demo-mode fixtures.
 - Open-source baseline: issue/PR templates, CodeQL analysis workflow,
   operations runbooks (key rotation, D1 backup/recovery, upgrade, provider
-  reconnect), and research spike outcomes (`docs/research/`).
+  reconnect), and [research spike outcomes](https://wranglerlabs.org/research/).
 - Default owner allowlist configured via `ALLOWED_GITHUB_USERS`.
 
 ## [0.2.0] - 2026-07-12

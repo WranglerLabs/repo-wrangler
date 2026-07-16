@@ -1,6 +1,6 @@
 /* RepoWrangler structural styles. The design TOKENS (--rw-* custom properties)
    live in the drop-in theme stylesheets under src/themes/ (see themes/registry.ts
-   and docs/guide/theming.md). Everything here consumes those tokens via var(),
+   and https://wranglerlabs.org/guide/theming). Everything here consumes those tokens via var(),
    so a new theme is purely a new token file — no changes to this file. */
 
 * {

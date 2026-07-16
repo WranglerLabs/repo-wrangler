@@ -3,10 +3,6 @@ node_modules/
 dist/
 coverage/
 
-# VitePress docs site build output and cache
-docs/.vitepress/dist/
-docs/.vitepress/cache/
-
 # Cloudflare local state
 .wrangler/
 .dev.vars

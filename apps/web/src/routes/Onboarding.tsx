@@ -24,7 +24,6 @@ import { EstateScopeTable, type ScopeWorkspace } from '../components/EstateScope
 
 type Platform = 'github' | 'gitlab';
 
-const REPO_URL = 'https://github.com/WranglerLabs/repo-wrangler';
 const WORKSPACE_POLL_MS = 10_000;
 
 /**
@@ -247,7 +246,7 @@ export function Onboarding() {
           <p className="muted" style={{ marginTop: 12 }}>
             You can add another connection or change what's monitored any time from{' '}
             <strong>Administration → Estate scope</strong>. See the{' '}
-            <a href={`${REPO_URL}/blob/main/docs/design/onboarding.md`} target="_blank" rel="noreferrer">
+            <a href="https://wranglerlabs.org/design/onboarding" target="_blank" rel="noreferrer">
               onboarding design ↗
             </a>{' '}
             for details.

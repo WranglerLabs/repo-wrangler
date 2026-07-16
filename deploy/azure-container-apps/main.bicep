@@ -292,7 +292,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       // SQLite is single-writer; the scheduler must run on exactly one replica.
       // Keep 1/1 in both modes (scale-out on Postgres = add replicas with
-      // ENABLE_SCHEDULER=false — see docs/deployment.md).
+      // ENABLE_SCHEDULER=false — see https://wranglerlabs.org/deployment).
       scale: { minReplicas: 1, maxReplicas: 1 }
       volumes: sqliteMode ? [
         {

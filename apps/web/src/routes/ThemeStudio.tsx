@@ -119,7 +119,7 @@ export function ThemeStudio() {
         </pre>
         <p className="muted">
           Drop this into <code>apps/web/src/themes/{name || 'custom'}.css</code>, rebuild, and it
-          appears in the theme switcher for everyone (see docs/guide/theming.md).
+          appears in the theme switcher for everyone (see wranglerlabs.org/guide/theming).
         </p>
       </div>
     </div>

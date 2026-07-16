@@ -8,8 +8,6 @@ import {
   useSessionUser,
 } from '../api/client';
 
-const REPO_URL = 'https://github.com/WranglerLabs/repo-wrangler';
-
 export function Administration() {
   const { data: user } = useSessionUser();
   const { data: authConfig } = useAuthConfig();
@@ -71,11 +69,11 @@ export function Administration() {
             </p>
             <p className="muted">
               Prefer environment variables instead? That path still works unchanged — follow{' '}
-              <a href={`${REPO_URL}/blob/main/docs/setup/github-app.md`} target="_blank" rel="noreferrer">
+              <a href="https://wranglerlabs.org/setup/github-app" target="_blank" rel="noreferrer">
                 the GitHub App setup guide ↗
               </a>{' '}
               and{' '}
-              <a href={`${REPO_URL}/blob/main/docs/setup/deploy-cloudflare.md`} target="_blank" rel="noreferrer">
+              <a href="https://wranglerlabs.org/setup/deploy-cloudflare" target="_blank" rel="noreferrer">
                 the deployment guide ↗
               </a>
               .
@@ -121,11 +119,11 @@ export function Administration() {
         <p className="muted">
           Retention windows, branch exclusion patterns, and repository classifications currently
           ship as deployment configuration — see{' '}
-          <a href={`${REPO_URL}/blob/main/docs/setup/deploy-cloudflare.md`} target="_blank" rel="noreferrer">
+          <a href="https://wranglerlabs.org/setup/deploy-cloudflare" target="_blank" rel="noreferrer">
             the deployment guide ↗
           </a>
           . An in-app policy editor is tracked on the{' '}
-          <a href={`${REPO_URL}/blob/main/ROADMAP.md`} target="_blank" rel="noreferrer">
+          <a href="https://wranglerlabs.org/project/roadmap" target="_blank" rel="noreferrer">
             roadmap ↗
           </a>
           .

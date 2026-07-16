@@ -15,8 +15,8 @@ repositories.
 runs on a laptop, a self-hosted Docker container, Kubernetes, Azure, or Cloudflare —
 infrastructure is a swappable adapter, not a requirement. A **single Cloudflare
 Worker + D1** on the free tier is the *reference* deployment (the simplest, cheapest
-path), not a dependency — see [docs/design/platform-neutrality.md](docs/design/platform-neutrality.md)
-and [docs/design/infrastructure-deployment.md](docs/design/infrastructure-deployment.md).
+path), not a dependency — see the [platform-neutrality](https://wranglerlabs.org/design/platform-neutrality)
+and [infrastructure deployment](https://wranglerlabs.org/design/infrastructure-deployment) documentation.
 It is **read-only** toward your providers by design.
 
 ## Highlights
@@ -61,12 +61,12 @@ See [`apps/server`](apps/server/README.md) and the
 
 ## Documentation
 
-Full documentation is in **[`docs/`](docs/README.md)** — start there. Highlights:
+Full documentation is maintained at **[wranglerlabs.org](https://wranglerlabs.org/getting-started)**. Highlights:
 
-- [Getting started](docs/getting-started.md) · [Deployment guide](docs/deployment.md) (capability matrix + decision flowchart)
-- [Configuration reference](docs/configuration.md) · [Architecture](docs/architecture.md) · [API reference](docs/api.md)
-- Providers: [GitHub App](docs/providers/github-app.md) · [GitLab](docs/providers/gitlab.md) · [Entra ID sign-in](docs/providers/entra.md)
-- [Operations](docs/operations.md) · [Security](docs/security.md) · [Developer guide](docs/developer.md) · [Troubleshooting](docs/troubleshooting.md)
+- [Getting started](https://wranglerlabs.org/getting-started) · [Deployment guide](https://wranglerlabs.org/deployment)
+- [Configuration reference](https://wranglerlabs.org/configuration) · [Architecture](https://wranglerlabs.org/architecture) · [API reference](https://wranglerlabs.org/api)
+- Providers: [GitHub App](https://wranglerlabs.org/providers/github-app) · [GitLab](https://wranglerlabs.org/providers/gitlab) · [Entra ID](https://wranglerlabs.org/providers/entra)
+- [Operations](https://wranglerlabs.org/operations) · [Security](https://wranglerlabs.org/security) · [Developer guide](https://wranglerlabs.org/developer) · [Troubleshooting](https://wranglerlabs.org/troubleshooting)
 
 ## Deploying your own instance
 
@@ -108,9 +108,9 @@ repo so a `git pull` (or a Cloudflare Workers Build) can never wipe or leak them
 5. Pre-seeded GitOps remains supported: set the five `GITHUB_*` values and
    `ALLOWED_GITHUB_USERS` before switching to real mode instead of using the wizard.
 
-Full walkthrough: [docs/setup/deploy-cloudflare.md](docs/setup/deploy-cloudflare.md).
+Full walkthrough: [Deploy to Cloudflare](https://wranglerlabs.org/setup/deploy-cloudflare).
 Hosting the UI somewhere other than Cloudflare (GitHub Pages, Azure Static Web
-Apps, …)? See [docs/adr/ADR-011-host-agnostic-frontend.md](docs/adr/ADR-011-host-agnostic-frontend.md)
+Apps, …)? See [ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend)
 and the per-host recipes under [`deploy/`](deploy/).
 
 ## Architecture
@@ -138,7 +138,7 @@ flowchart LR
 - `packages/contracts` — shared API DTOs (zod).
 
 The complete architecture, requirements, ADRs, and roadmap live in the
-[solution design pack](docs/design/RepoWrangler-Solution-Design.md).
+[solution design pack](https://wranglerlabs.org/design/RepoWrangler-Solution-Design).
 
 ## Development
 

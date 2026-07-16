@@ -6,8 +6,8 @@ the built SPA and the API on a single port, so a fresh `docker compose up` gives
 you the whole product on `http://localhost:8080`.
 
 This is the reference realisation of the design's **Portability** section
-([ADR-011](../../docs/adr/ADR-011-host-agnostic-frontend.md),
-[ADR-013](../../docs/adr/ADR-013-platform-neutral-architecture.md)): the same
+([ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend),
+[ADR-013](https://wranglerlabs.org/adr/ADR-013-platform-neutral-architecture)): the same
 Hono app, providers, domain, and API that the Cloudflare Worker runs, hosted on
 a different shell over a different storage adapter. Cloudflare stays the
 *reference* implementation, not a requirement.

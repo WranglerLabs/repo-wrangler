@@ -1,8 +1,8 @@
 # Deployment recipes
 
 Every recipe is described two ways: by **tier** (cost/scale — how the docs picker
-sorts them, see [`docs/deployment.md`](../docs/deployment.md)) and by **topology**
-(how the pieces are wired, per [ADR-011](../docs/adr/ADR-011-host-agnostic-frontend.md)).
+sorts them, see the [deployment guide](https://wranglerlabs.org/deployment)) and by **topology**
+(how the pieces are wired, per [ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend)).
 The two axes are independent.
 
 ## Topologies
@@ -51,7 +51,7 @@ topology (same-origin).
 All Self-hosted recipes deploy the **same** `apps/server` container — the verified
 SQLite host. They differ only in the surrounding infrastructure (volume, secrets,
 ingress). Pointing `DATABASE_URL` at a shared **PostgreSQL**
-([ADR-015](../docs/adr/ADR-015-postgres-storage-adapter.md)) unlocks multi-replica
+([ADR-015](https://wranglerlabs.org/adr/ADR-015-postgres-storage-adapter)) unlocks multi-replica
 scale and moves a self-hosted recipe from Tier 1 to Tier 2 — same host, no recipe
 change.
 

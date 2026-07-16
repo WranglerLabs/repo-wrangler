@@ -29,7 +29,7 @@ export function SignIn() {
         <p className="muted">
           No sign-in method is configured yet — connect one via an admin. See{' '}
           <a
-            href="https://github.com/WranglerLabs/repo-wrangler/blob/main/docs/providers/signin.md"
+            href="https://wranglerlabs.org/providers/signin"
             target="_blank"
             rel="noreferrer"
           >
