@@ -278,6 +278,14 @@ table.data tr:hover td {
   margin-bottom: 14px;
 }
 
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 input[type='search'],
 select {
   background: var(--rw-surface);
