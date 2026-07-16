@@ -21,8 +21,8 @@
   ],
   "triggers": {
     // Two triggers stay well below the free-account limit of five.
-    // */15 — reconciliation + enrichment batches; 17 3 — daily billing/retention/compaction.
-    "crons": ["*/15 * * * *", "17 3 * * *"]
+    // */5 — reconciliation + enrichment queue drain; 17 3 — daily billing/retention/compaction.
+    "crons": ["*/5 * * * *", "17 3 * * *"]
   },
   "vars": {
     "AUTH_MODE": "github_app",

@@ -82,7 +82,11 @@ import { resolveGitHubAppCredentials, resolveGitLabCredentials } from '../lib/co
  */
 
 const SUBREQUEST_BUDGET = 40;
-const MAX_JOBS_PER_INVOCATION = 3;
+// B11: three jobs per tick let discovery enqueue hundreds of repository
+// enrichments faster than the scheduler could consume them. Keep the
+// subrequest budget as the hard safety boundary, but allow cheap jobs and
+// GitLab enrichments to use the remaining invocation capacity.
+const MAX_JOBS_PER_INVOCATION = 10;
 const DISCOVERY_INTERVAL_HOURS = 6;
 const BILLING_INTERVAL_HOURS = 24;
 const ENRICH_BATCH_SIZE = 5;

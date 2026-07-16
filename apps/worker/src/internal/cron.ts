@@ -18,7 +18,7 @@ import { runScheduled } from '../scheduled';
  */
 export const internalCronRoutes = new Hono<AppContext>();
 
-const PERIODIC_CRON = '*/15 * * * *';
+const PERIODIC_CRON = '*/5 * * * *';
 const DAILY_CRON = '17 3 * * *';
 
 /** Constant-time-ish comparison to avoid leaking the token via timing. */

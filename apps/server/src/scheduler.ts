@@ -1,7 +1,7 @@
 /**
  * In-process cron for the Node host.
  *
- * On Cloudflare the two triggers in wrangler.jsonc (`*​/15 * * * *` and
+ * On Cloudflare the two triggers in wrangler.jsonc (`*​/5 * * * *` and
  * `17 3 * * *`) call the Worker's `scheduled` handler, which delegates to
  * `runScheduled(env, cron)`. Here a minute-tick timer reproduces exactly those
  * two cron expressions and calls the same `runScheduled` — so reconciliation,
@@ -14,7 +14,7 @@
 import type { Env } from '@repo-wrangler/worker';
 import { runScheduled } from '@repo-wrangler/worker';
 
-const PERIODIC_CRON = '*/15 * * * *';
+const PERIODIC_CRON = '*/5 * * * *';
 const DAILY_CRON = '17 3 * * *';
 
 export interface Scheduler {
@@ -24,7 +24,7 @@ export interface Scheduler {
 type Logger = (message: string, error?: unknown) => void;
 
 /**
- * Start the in-process scheduler. Fires the periodic job at every quarter hour
+ * Start the in-process scheduler. Fires the periodic job every five minutes
  * and the daily maintenance job at 03:17 UTC — the exact wrangler triggers.
  */
 export function startScheduler(env: Env, log: Logger): Scheduler {
@@ -58,7 +58,7 @@ export function startScheduler(env: Env, log: Logger): Scheduler {
       void fire(DAILY_CRON);
       return;
     }
-    if (now.getUTCMinutes() % 15 === 0 && lastPeriodicKey !== minuteKey) {
+    if (now.getUTCMinutes() % 5 === 0 && lastPeriodicKey !== minuteKey) {
       lastPeriodicKey = minuteKey;
       void fire(PERIODIC_CRON);
     }
@@ -68,7 +68,7 @@ export function startScheduler(env: Env, log: Logger): Scheduler {
   timer.unref?.();
 
   // Prime the estate once shortly after boot so a fresh instance starts syncing
-  // without waiting up to 15 minutes for the first quarter-hour tick.
+  // without waiting up to five minutes for the first periodic tick.
   const kickoff = setTimeout(() => void fire(PERIODIC_CRON), 5_000);
   kickoff.unref?.();
 

@@ -145,7 +145,7 @@ metadata:
   # Leave SCHEDULER_MODE=in-process (default) on a single SQLite replica and this
   # CronJob is harmless (the endpoint returns 404 unless external mode is on).
 spec:
-  schedule: "*/15 * * * *"
+  schedule: "*/5 * * * *"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:

@@ -48,7 +48,7 @@ existingSecret: ""
 # needs an in-process timer. Harmless to leave configured when in-process.
 scheduler:
   image: curlimages/curl:8.11.0
-  schedule: "*/15 * * * *"
+  schedule: "*/5 * * * *"
 
 persistence:
   size: 2Gi
