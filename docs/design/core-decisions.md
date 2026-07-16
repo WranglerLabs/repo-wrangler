@@ -12,7 +12,7 @@ ADRs — is the [combined solution design](RepoWrangler-Solution-Design.md); the
 | Repository                                          | Visibility            | Purpose                                                                                                                 |
 | --------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `WranglerLabs/repo-wrangler`              | Public                | Complete open-source application, documentation, UI, Worker API, migrations, tests, and releases                        |
-| `WranglerLabs/repo-wrangler-ops`          | Private, optional     | Your deployment runbooks, expected organization inventory, environment policy, recovery notes, and deployed-version pin |
+| `WranglerLabs/wrangler-ops`               | Private               | Project PMO, deployment runbooks, expected organization inventory, environment policy, recovery notes, and deployed-version records |
 | `WranglerLabs/gitactionboard`             | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
 | `WranglerLabs/git-pull-request-dashboard` | Public temporary fork | Upstream research, comparison, and provenance                                                                           |
 

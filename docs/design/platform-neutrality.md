@@ -53,8 +53,8 @@ Cloudflare, Azure, GitHub, etc.
 
 ## Repository strategy
 
-One public repo (`repo-wrangler`) with all application code. An optional private
-`repo-wrangler-ops` holds **only** deployment docs, runbooks, environment notes,
+One public repo (`repo-wrangler`) with all application code. The private
+`wrangler-ops` repository holds **only** PMO records, deployment docs, runbooks, environment notes,
 inventory, and upgrade history — never application code, secrets, or production data.
 
 ## Cloudflare's role

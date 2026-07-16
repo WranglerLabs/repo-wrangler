@@ -14,7 +14,7 @@ This design pack defines the expected product, architecture, security model, fre
 | Repository | Visibility | Purpose |
 |---|---|---|
 | `WranglerLabs/repo-wrangler` | Public | Open-source product code, documentation, tests, database migrations, UI, Worker API, provider adapters, and release artifacts. |
-| `WranglerLabs/repo-wrangler-ops` | Private, optional | Personal deployment notes, non-secret environment policy, expected organization/group inventory, runbooks, recovery procedures, and a pin to the deployed public release. |
+| `WranglerLabs/wrangler-ops` | Private | Project PMO, deployment notes, non-secret environment policy, expected organization/group inventory, runbooks, recovery procedures, and deployed-release records. |
 | `WranglerLabs/gitactionboard` | Public fork, temporary | Upstream research and provenance for GitactionBoard. Archive after the reuse audit rather than immediately deleting it. |
 | `WranglerLabs/git-pull-request-dashboard` | Public fork, temporary | Upstream research and provenance for Git Pull Request Dashboard. Archive after the reuse audit. |
 

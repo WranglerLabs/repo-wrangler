@@ -1,8 +1,8 @@
-name: Deploy docs to docs.wranglerlabs.org
+name: Request Wrangler Labs docs deployment
 
-# Builds the VitePress docs and deploys them to the Cloudflare Pages project
-# `wranglerlabs-docs`, served at https://docs.wranglerlabs.org. Requires repo
-# secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+# The private site repository owns the combined marketing + docs deployment.
+# This workflow uses the installed GitHub App to request that deployment; no
+# Cloudflare credentials are stored in the public OSS repository.
 
 on:
   push:
@@ -24,28 +24,21 @@ on:
 permissions:
   contents: read
 
-# One concurrent deploy; don't cancel an in-progress one.
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Create short-lived site deployment token
+        id: app-token
+        uses: actions/create-github-app-token@v2
         with:
-          fetch-depth: 0 # lastUpdated needs full history
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Build VitePress site
-        run: pnpm docs:build
-      - name: Deploy to Cloudflare Pages (wranglerlabs-docs)
+          app-id: ${{ secrets.DEPLOY_APP_ID }}
+          private-key: ${{ secrets.DEPLOY_APP_PRIVATE_KEY }}
+          owner: WranglerLabs
+          repositories: repo-wrangler.org
+
+      - name: Request combined marketing and docs deployment
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: pnpm exec wrangler pages deploy docs/.vitepress/dist --project-name wranglerlabs-docs --branch main --commit-dirty=true
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PRODUCT_REF: ${{ github.sha }}
+        run: gh workflow run deploy.yml --repo WranglerLabs/repo-wrangler.org --ref main -f product_ref="$PRODUCT_REF"

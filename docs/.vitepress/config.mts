@@ -2,9 +2,8 @@ import { withMermaid } from 'vitepress-plugin-mermaid';
 
 // RepoWrangler documentation site (VitePress). The same Markdown in `docs/`
 // renders on github.com and here — this config adds navigation, search, and
-// rendered Mermaid diagrams. Deployed by `.github/workflows/docs.yml` to
-// Cloudflare Pages project wranglerlabs-docs, served at
-// https://docs.wranglerlabs.org (subdomain root, so base stays '/').
+// rendered Mermaid diagrams. The public site repository sources this tree and
+// deploys the combined marketing + docs site at https://wranglerlabs.org.
 export default withMermaid({
   title: 'RepoWrangler',
   description:
@@ -21,10 +20,10 @@ export default withMermaid({
 
   head: [
     ['meta', { name: 'theme-color', content: '#1f4d3a' }],
-    ['link', { rel: 'icon', href: '/repo-wrangler/favicon.ico', sizes: 'any' }],
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/repo-wrangler/lasso.svg' }],
-    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/repo-wrangler/favicon-32x32.png' }],
-    ['link', { rel: 'apple-touch-icon', href: '/repo-wrangler/apple-touch-icon.png' }],
+    ['link', { rel: 'icon', href: '/favicon.ico', sizes: 'any' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/lasso.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' }],
+    ['link', { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
   ],
 
   themeConfig: {

@@ -106,7 +106,7 @@ Contains the entire application, tests, schemas, migrations, public documentatio
 
 ### Private operations repository
 
-`WranglerLabs/repo-wrangler-ops`
+`WranglerLabs/wrangler-ops`
 
 Contains your private operating notes and policy—but not the application source and not secrets. The live deployment may be built directly from the public repository. The private repo is therefore optional and never blocks community users from deploying the software.
 
@@ -489,7 +489,7 @@ flowchart LR
   CRON[Cron triggers] --> WORKER
   WORKER --> GHAPI[GitHub API]
   WORKER --> GLAPI[GitLab API]
-  OPS[Private repo-wrangler-ops] -. runbooks and instance notes .-> DEPLOY
+  OPS[Private wrangler-ops] -. runbooks and instance notes .-> DEPLOY
 ```
 
 The private operations repo is outside the build path unless the owner later chooses to automate environment-specific smoke tests from it.
@@ -626,7 +626,7 @@ Primary project organization:
 Recommended repositories:
 
 - `repo-wrangler` — public product repo.
-- `repo-wrangler-ops` — private personal operations repo.
+- `wrangler-ops` — private project operations and PMO repo.
 - temporary public forks of the two upstream projects.
 
 ### GitHub App
@@ -1727,7 +1727,7 @@ REUSE.toml or equivalent provenance configuration
 - Automated changelog/release workflow.
 - DCO sign-off preferred over a heavy CLA unless project governance later requires one.
 
-## Private repository: `repo-wrangler-ops`
+## Private repository: `wrangler-ops`
 
 ### Purpose
 
@@ -1736,7 +1736,7 @@ Your personal operating repository—not a second source tree.
 Suggested structure:
 
 ```text
-repo-wrangler-ops/
+wrangler-ops/
 ├── README.md
 ├── repo-wrangler.lock              # deployed public release/commit
 ├── environments/
@@ -1775,7 +1775,7 @@ Preferred initial path:
 - Cloudflare Workers Builds connects directly to public `repo-wrangler`.
 - Secrets/configuration are set in Cloudflare.
 - Personal policy is configured in the application's D1-backed admin UI.
-- `repo-wrangler-ops` records what was deployed and the operating procedures.
+- `wrangler-ops` records what was deployed and the operating procedures.
 
 Future optional path:
 
@@ -2602,7 +2602,7 @@ pnpm deploy
 - secrets in Cloudflare;
 - mutable instance policy in D1;
 - public defaults and JSON schema in the code repo;
-- optional private operating notes in `repo-wrangler-ops`.
+- optional private operating notes in `wrangler-ops`.
 
 ## Observability contracts
 
@@ -2745,7 +2745,7 @@ A clean RepoWrangler mark could show three repository nodes or branch lines bein
 
 - [ ] Confirm `RepoWrangler` product capitalization and `repo-wrangler` slug.
 - [ ] Create public `WranglerLabs/repo-wrangler`.
-- [ ] Create optional private `WranglerLabs/repo-wrangler-ops`.
+- [x] Create private `WranglerLabs/wrangler-ops`.
 - [ ] Fork both upstream projects into the organization.
 - [ ] Record exact upstream head SHAs and snapshot date.
 - [ ] Decide archive versus delete policy for temporary forks.
@@ -2976,7 +2976,7 @@ Deploy one full-stack React + Vite application to Cloudflare Workers. Serve stat
 
 ## Decision
 
-Maintain public `repo-wrangler` as the only application source repository. Maintain optional private `repo-wrangler-ops` for instance notes, expected inventory, runbooks, and deployed-version pinning. Store secrets in Cloudflare and live repository data in D1.
+Maintain public `repo-wrangler` as the only application source repository. Maintain private `wrangler-ops` for PMO records, instance notes, expected inventory, runbooks, and deployed-version pinning. Store secrets in Cloudflare and live repository data in D1.
 
 ## Rationale
 
