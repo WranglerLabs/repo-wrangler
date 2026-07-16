@@ -17,6 +17,18 @@ semantic versioning.
 - **Account menu:** the sidebar identity control now shows the active provider,
   role, and sign-out action in one consistent menu.
 
+### Changed
+
+- **Public documentation ownership:** the complete VitePress documentation
+  source, assets, dependencies, and Cloudflare deployment workflow now live in
+  the private `WranglerLabs/repo-wrangler-org` website repository. This public
+  repository contains the open-source product code only; published docs remain
+  available at <https://wranglerlabs.org>.
+- **Environment deployment ownership:** the public demo deployment trigger was
+  removed from this repository. The private `WranglerLabs/repo-wrangler.dev`
+  repository independently owns its release lock, build, and Cloudflare
+  deployment workflow.
+
 ### Fixed
 
 - Signed sessions now record their issuing provider. Disabling or removing an

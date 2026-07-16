@@ -52,6 +52,10 @@ pnpm test                    # vitest
 - Commits: `type(scope): summary` (Conventional Commits).
 - Never commit secrets, real database ids, or per-deployment values — the
   committed `wrangler.jsonc` holds placeholders only.
+- This repository does not own or trigger Wrangler Labs environment builds or
+  deployments. The private `repo-wrangler.dev` repository independently builds
+  and deploys its pinned OSS release; HCS production is owned by its private
+  instance repository.
 
 ## Key design decisions
 
