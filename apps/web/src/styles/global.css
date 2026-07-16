@@ -278,6 +278,17 @@ table.data tr:hover td {
   margin-bottom: 14px;
 }
 
+.page-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.page-heading-row > div {
+  min-width: 0;
+}
+
 .estate-connection > summary {
   display: flex;
   align-items: center;
@@ -335,6 +346,39 @@ button {
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.button-link {
+  display: inline-block;
+  flex: none;
+  background: var(--rw-green);
+  color: #fff;
+  border-radius: var(--rw-radius);
+  padding: 8px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: normal;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  background: var(--rw-green-strong);
+}
+
+@media (max-width: 640px) {
+  .page-heading-row {
+    align-items: stretch;
+    flex-direction: column;
+    margin-bottom: 18px;
+  }
+
+  .page-heading-row .page-subtitle {
+    margin-bottom: 0;
+  }
+
+  .page-heading-row .button-link {
+    text-align: center;
+  }
 }
 
 button:hover {

@@ -80,12 +80,14 @@ export function Administration() {
             </p>
           </>
         ) : (
-          <p>
-            {health.data?.connections.length ?? 0} connection(s) configured — status and last
-            errors are on <Link to="/platform">Platform Health</Link>. Manage what's monitored on{' '}
-            <Link to="/admin/estate-scope">Estate scope</Link>, or{' '}
-            <Link to="/onboarding?add=1">connect another platform</Link>.
-          </p>
+          <>
+            <p>
+              {health.data?.connections.length ?? 0} connection(s) configured — status and last
+              errors are on <Link to="/platform">Platform Health</Link>. Manage what's monitored on{' '}
+              <Link to="/admin/estate-scope">Estate scope</Link>.
+            </p>
+            <Link className="button-link" to="/onboarding?add=1">Connect another platform</Link>
+          </>
         )}
       </div>
 

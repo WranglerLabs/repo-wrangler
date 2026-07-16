@@ -76,21 +76,23 @@ export function EstateScope() {
 
   return (
     <>
-      <h1 className="page-title">Estate scope</h1>
-      <p className="page-subtitle">
-        Choose which organizations, groups, and repositories RepoWrangler monitors — the same
-        controls as the onboarding wizard, available any time.{' '}
-        <Link to="/onboarding?add=1">Connect another platform →</Link>
-      </p>
+      <div className="page-heading-row">
+        <div>
+          <h1 className="page-title">Estate scope</h1>
+          <p className="page-subtitle">
+            Choose which organizations, groups, and repositories RepoWrangler monitors — the same
+            controls as the onboarding wizard, available any time.
+          </p>
+        </div>
+        <Link className="button-link" to="/onboarding?add=1">Connect another platform</Link>
+      </div>
 
       <NewSinceReviewBanner />
 
       {connections.data?.length === 0 && (
         <div className="panel">
           <p className="muted">No connections yet. Start with the onboarding wizard.</p>
-          <Link to="/onboarding">
-            <button>Connect a platform</button>
-          </Link>
+          <Link className="button-link" to="/onboarding">Connect a platform</Link>
         </div>
       )}
 
