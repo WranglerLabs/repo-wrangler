@@ -278,6 +278,36 @@ table.data tr:hover td {
   margin-bottom: 14px;
 }
 
+.estate-connection > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.estate-connection > summary::-webkit-details-marker {
+  display: none;
+}
+
+.estate-connection > summary::before {
+  content: '▸';
+  color: var(--rw-text-muted);
+  transition: transform 120ms ease;
+}
+
+.estate-connection[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.estate-connection-count {
+  margin-left: auto;
+}
+
+.estate-connection-content {
+  margin-top: 16px;
+}
+
 .pagination {
   display: flex;
   justify-content: flex-end;

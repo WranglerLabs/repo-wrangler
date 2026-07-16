@@ -118,30 +118,35 @@ export function EstateScope() {
         }
 
         return (
-          <div className="panel" key={connection.id}>
-            <h2>
-              {connection.provider === 'github' ? 'GitHub' : 'GitLab'} — {connection.displayName}
+          <details className="panel estate-connection" key={connection.id} open>
+            <summary>
+              <strong>{connection.provider === 'github' ? 'GitHub' : 'GitLab'} — {connection.displayName}</strong>
               <span className={`badge ${connection.status === 'active' ? 'info' : 'outline'}`} style={{ marginLeft: 8 }}>
                 {connection.status}
               </span>
-            </h2>
-            {connection.lastErrorCode && (
-              <p className="capability">Last error: {connection.lastErrorCode}</p>
-            )}
-            {scopeWorkspaces.length === 0 ? (
-              <p className="muted">No workspaces discovered yet for this connection.</p>
-            ) : (
-              <EstateScopeTable
-                workspaces={scopeWorkspaces}
-                repositoriesByWorkspace={repositoriesByWorkspace}
-                onToggleWorkspace={toggleWorkspace}
-                onToggleRepo={toggleRepo}
-                pending={pending}
-              />
-            )}
-            <GrowEstatePanel connection={connection} />
-            <CredentialsPanel connectionId={connection.id} />
-          </div>
+              <span className="estate-connection-count muted">
+                {scopeWorkspaces.length} workspace{scopeWorkspaces.length === 1 ? '' : 's'}
+              </span>
+            </summary>
+            <div className="estate-connection-content">
+              {connection.lastErrorCode && (
+                <p className="capability">Last error: {connection.lastErrorCode}</p>
+              )}
+              {scopeWorkspaces.length === 0 ? (
+                <p className="muted">No workspaces discovered yet for this connection.</p>
+              ) : (
+                <EstateScopeTable
+                  workspaces={scopeWorkspaces}
+                  repositoriesByWorkspace={repositoriesByWorkspace}
+                  onToggleWorkspace={toggleWorkspace}
+                  onToggleRepo={toggleRepo}
+                  pending={pending}
+                />
+              )}
+              <GrowEstatePanel connection={connection} />
+              <CredentialsPanel connectionId={connection.id} />
+            </div>
+          </details>
         );
       })}
     </>
