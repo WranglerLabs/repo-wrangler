@@ -14,27 +14,18 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 | Horizon | Focus | Intended outcome |
 |---|---|---|
-| **Now** | Complete the pre-release review and publish the next release | A secure, documented release with clean dependency and code-inspection gates |
+| **Now** | Stabilize the v1.0 GA line and respond to operator feedback | A dependable latest-patch release with verified upgrade and rollback guidance |
 | **Next** | Make setup, access, and operations easier | A new operator can deploy confidently, add users, and understand sync health without editing configuration or querying the database |
 | **Later** | Scale administration, security, providers, and cost visibility | RepoWrangler grows from a strong estate dashboard into a broader operations platform |
 
 ---
 
-## Now — publish the hardened release
+## Now — stabilize v1.0 GA
 
-**Status: In review.** The implementation is complete and locally verified.
-The remaining steps are to merge the review branch, choose the release version,
-publish versioned release notes, create the tag, and deploy the release artifacts.
-
-This release adds:
-
-- secure first boot without an authentication deadlock;
-- provider-aware account controls and sign-out;
-- immediate rejection of sessions issued by disabled providers;
-- build-derived version reporting;
-- remediated independent code-inspection findings;
-- a history-aware open-source hygiene and documentation audit; and
-- pnpm 11 with a clean dependency audit enforced in CI.
+**Status: GA.** RepoWrangler v1.0.8 is the current supported patch release.
+The immediate focus is operator feedback, reproducible deployment recipes,
+upgrade safety, and correction of release-blocking defects. Support is
+best-effort and targets the latest patch release only.
 
 ---
 
@@ -69,14 +60,6 @@ systems are designed once rather than as separate, competing projects.
 
 ## Later — directional investments
 
-### Everyday usability
-
-| Initiative | Intended outcome |
-|---|---|
-| Repository and workspace search, sort, and filters | Large estates remain quick to navigate at roughly 100 workspaces and hundreds of repositories |
-| Collapsible Estate Scope sections | Dense connection and scope pages stay manageable |
-| Stronger “Connect another platform” action | Adding a provider is obvious rather than hidden as a low-emphasis link |
-
 ### Security, deployment, and scale
 
 | Initiative | Intended outcome |
@@ -99,8 +82,6 @@ systems are designed once rather than as separate, competing projects.
 
 ### Important dependencies
 
-- The current release must be merged, tagged, documented, and deployed before
-  post-release feature work begins.
 - The bootstrap installer owns the shared configuration schema used by future
   deployment pipelines.
 - User management establishes the identity model needed by role-based views.
@@ -115,6 +96,17 @@ systems are designed once rather than as separate, competing projects.
 
 ### Recent product work
 
+- **Large-estate navigation** — repository and workspace search, filter, sort,
+  and pagination controls keep hundreds of repositories and roughly 100
+  workspaces manageable.
+- **Estate Scope usability** — connection sections collapse cleanly and a
+  prominent action starts another provider connection from Estate Scope or
+  Administration.
+- **Deployment clarity and clean PostgreSQL boot** — ACA inputs and exact Key
+  Vault secret names appear before deployment steps; PostgreSQL startup no
+  longer initializes or mentions SQLite.
+- **v1.0 GA** — immutable v1.0.0 through v1.0.8 tags, explicit upgrade/rollback
+  policy, and best-effort latest-patch support.
 - **Onboarding and estate scoping** — connect GitHub or GitLab, store credentials
   server-side, and select monitored organizations, groups, and repositories.
 - **Grow the estate** — add organizations or groups to an existing connection

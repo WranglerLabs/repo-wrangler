@@ -6,6 +6,50 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-07-16
+
+### Fixed
+
+- PostgreSQL server processes no longer load the SQLite adapter at startup, so
+  PostgreSQL deployments do not emit SQLite warnings or paths in their boot log.
+
+## [1.0.7] - 2026-07-16
+
+### Changed
+
+- The Azure Container Apps recipe now lists the region, resource group,
+  registry, Key Vault, exact secret names, public URL, and naming inputs before
+  the deployment steps begin.
+
+## [1.0.6] - 2026-07-16
+
+### Changed
+
+- Estate Scope and Administration now expose a full-weight **Connect another
+  platform** action instead of hiding the workflow in inline prose.
+
+## [1.0.5] - 2026-07-16
+
+### Added
+
+- Estate Scope connection sections can be expanded and collapsed while keeping
+  their status and workspace counts visible in the summary.
+
+## [1.0.4] - 2026-07-16
+
+### Added
+
+- Workspaces now support search, provider/kind/attention/monitoring filters,
+  multiple sort orders, selectable page sizes, and pagination for large estates.
+
+## [1.0.3] - 2026-07-16
+
+### Added
+
+- Repositories now support provider, workspace, language, status, and attention
+  filters plus name, attention, activity, synchronization, and pull-request
+  sorting. Saved views preserve the expanded filter and sort definition.
+
 ## [1.0.2] - 2026-07-16
 
 ### Fixed
