@@ -4,6 +4,47 @@ Run the whole product (SPA + API + scheduler) on **Azure Container Apps**. This
 deploys the same `apps/server` container that `docker compose up` runs
 locally — no Cloudflare required. The recipe supports two database modes:
 
+## Required inputs — decide these before deploying
+
+Do not start the deployment until every value in the applicable column is
+known. The scripts create the Container App resources, but they cannot choose
+your subscription scope, globally unique names, public URL, or credentials.
+
+| Input | Demo / evaluation | Production | Script input |
+|---|---:|---:|---|
+| Azure subscription | Required | Required | Active `az` login |
+| Azure region | Required | Required | `LOCATION` / `-Location` |
+| Resource group name | Required | Required | `RESOURCE_GROUP` / `-ResourceGroup` |
+| Existing ACR name | Required | Required | `ACR_NAME` / `-AcrName` |
+| Base application name | Optional | Required for your naming standard | `NAME` / `-Name` |
+| Container App, environment, logs, and identity names | Optional; defaults from base name | Required if your naming standard controls them | See the naming table below |
+| Storage account name | Optional; generated when omitted | Not used with PostgreSQL | `STORAGE_ACCOUNT_NAME` / `-StorageAccountName` |
+| Existing Key Vault name | Not required | Required | `KEY_VAULT_NAME` / `-KeyVaultName` |
+| Existing PostgreSQL connection string | Not required | Required in the vault | Secret `database-url` |
+| Provider and application secrets | Not required | Required in the vault | Exact names below |
+| Allowed GitHub login(s) | Not required | Required for GitHub sign-in | `ALLOWED_GITHUB_USERS` / `-AllowedGithubUsers` |
+| Authentication providers | Not required | Required | `AUTH_PROVIDERS` / `-AuthProviders` |
+| Public HTTPS base URL | Not required | Required for callbacks/webhooks | `PUBLIC_BASE_URL` / `-PublicBaseUrl` |
+| Custom domain and managed-certificate name | Not required | Required only when preserving a custom-domain binding | `CUSTOM_DOMAIN_NAME`, `CUSTOM_DOMAIN_CERTIFICATE_NAME` / PowerShell equivalents |
+
+Production's Key Vault must contain these exact secret names before the first
+deployment. The template references the names literally:
+
+| Secret name | Required for | Value |
+|---|---|---|
+| `database-url` | PostgreSQL | PostgreSQL connection string with TLS enabled |
+| `github-app-id` | GitHub | GitHub App numeric ID |
+| `github-app-private-key` | GitHub | Complete multiline private-key PEM |
+| `github-webhook-secret` | GitHub | GitHub App webhook shared secret |
+| `github-client-id` | GitHub sign-in | OAuth client ID |
+| `github-client-secret` | GitHub sign-in | OAuth client secret |
+| `session-secret` | All real-mode deployments | Random 32-byte-or-longer signing secret |
+| `secret-encryption-key` | All real-mode deployments | Random 32-byte encryption key |
+
+Naming inputs and examples are listed in [Values you decide up
+front](#values-you-decide-up-front). If your organization has a naming
+standard, settle every name there before running Step 1.
+
 | | |
 |---|---|
 | **Topology** | Self-hosted (one container serves SPA + API) |
@@ -25,7 +66,7 @@ locally — no Cloudflare required. The recipe supports two database modes:
 > (`ENABLE_SCHEDULER=false` on all but one) isn't part of this recipe yet —
 > see the [deployment guide](https://wranglerlabs.org/deployment).
 
-## Before you begin — what you'll need
+## Before you begin
 
 ### Tools
 
@@ -36,8 +77,9 @@ locally — no Cloudflare required. The recipe supports two database modes:
 | This repo, cloned | The scripts read `apps/server/Dockerfile` and `main.bicep` relative to the repo root. |
 | bash **or** PowerShell 7 | `deploy.sh` and `deploy.ps1` are functionally identical — pick whichever shell you're already in. |
 
-Nothing else needs to pre-exist. Not the resource group, not the registry,
-not the Key Vault — every step below creates what it needs.
+The resource group can be created by Step 1. The registry must exist before
+the deploy script runs. Production also requires the Key Vault and its secrets
+to exist before the first template deployment; Steps 3a and 3b create them.
 
 ### Values you decide up front
 
