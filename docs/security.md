@@ -7,11 +7,11 @@ vulnerability.
 
 ## Core guarantees
 
-- **Read-only against providers** ([ADR-003](adr/README.md),
-  [ADR-008](adr/README.md)). RepoWrangler requests no write scopes and performs no
+- **Read-only against providers** ([ADR-003](adr/),
+  [ADR-008](adr/)). RepoWrangler requests no write scopes and performs no
   write actions on GitHub or GitLab. The worst case for a compromised instance is
   disclosure of the metadata it already stores — not modification of your repos.
-- **Single-tenant** ([ADR-010](adr/README.md)). Each operator runs their own
+- **Single-tenant** ([ADR-010](adr/)). Each operator runs their own
   instance with their own credentials; there is no shared multi-tenant surface.
 - **No secret values in the repo.** The codebase contains only placeholders and
   config *names*. Real values live in your platform's secret store.

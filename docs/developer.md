@@ -1,7 +1,7 @@
 # Developer guide
 
 How the monorepo is laid out and how to extend it. See
-[architecture.md](architecture.md) for the design and [ADR index](adr/README.md)
+[architecture.md](architecture.md) for the design and [ADR index](adr/)
 for the decisions behind it.
 
 ## Prerequisites
@@ -101,7 +101,7 @@ See [ADR-016 / Entra](adr/ADR-016-entra-id-authentication.md) for the reference.
 
 Add the route in `apps/worker/src/api/routes.ts`, the DTO in `contracts`, the
 query in `persistence-d1`, and the SPA hook in `apps/web/src/api/client.ts`. Keep
-it read-only ([ADR-008](adr/README.md)). Update [api.md](api.md).
+it read-only ([ADR-008](adr/)). Update [api.md](api.md).
 
 ## Testing & CI
 
@@ -118,5 +118,5 @@ it read-only ([ADR-008](adr/README.md)). Update [api.md](api.md).
   tag as `--build-arg APP_VERSION=<tag>`; runtime `APP_VERSION` overrides the
   package fallback.
 - Record notable decisions as a new numbered ADR in
-  [`docs/adr/`](adr/README.md) using the Context / Decision / Consequences format.
+  [`docs/adr/`](adr/) using the Context / Decision / Consequences format.
 - See [CONTRIBUTING.md](../CONTRIBUTING.md).

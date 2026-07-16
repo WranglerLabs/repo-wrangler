@@ -115,4 +115,4 @@ generated client-side from the list endpoints above.
 - Read endpoints reflect the **last synced snapshot**; freshness metadata is on
   each record. Trigger `/api/v1/admin/sync` or wait for the schedule/webhooks.
 - Everything is read-only against providers — there is no endpoint that writes to
-  GitHub or GitLab ([ADR-008](adr/README.md)).
+  GitHub or GitLab ([ADR-008](adr/)).

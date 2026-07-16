@@ -19,7 +19,7 @@ flowchart LR
 ```
 
 RepoWrangler **reads** from providers and **never writes** to them
-([ADR-003](adr/README.md), [ADR-008](adr/README.md)). It stores a normalized
+([ADR-003](adr/), [ADR-008](adr/)). It stores a normalized
 snapshot of the estate and evaluates health locally.
 
 ## C4 level 2 — containers
@@ -126,7 +126,7 @@ Key packages:
 - **Sync** is checkpointed and resumable: bounded, claimable `sync_jobs` are
   driven by the scheduler (`*/15 * * * *` incremental, `17 3 * * *` daily) and by
   **webhooks** for near-real-time updates, with idempotency by delivery ID
-  ([ADR-006](adr/README.md)).
+  ([ADR-006](adr/)).
 - **Health** is evaluated locally by explainable rules in `domain`, producing a
   per-repository attention level with the findings that justify it.
 
@@ -141,7 +141,7 @@ Topology is independent of the deployment cost **tier** (Tier 0–3).
 
 ## Decision records
 
-The full rationale lives in the [ADR index](adr/README.md). Most relevant here:
+The full rationale lives in the [ADR index](adr/). Most relevant here:
 ADR-004 (provider-neutral domain), ADR-005 (D1), ADR-011 (host-agnostic
 frontend), ADR-013 (platform neutrality), ADR-014 (Node host), ADR-015
 (PostgreSQL adapter), ADR-016 (Entra sign-in). The original design pack is under

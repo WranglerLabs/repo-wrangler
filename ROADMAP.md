@@ -1,200 +1,158 @@
 # Roadmap
 
-What's coming to RepoWrangler, roughly in priority order. Everything already
-shipped is summarized at the bottom under [Already shipped](#already-shipped).
+RepoWrangler's roadmap is organized by confidence, not promised dates:
+
+- **Now** — active release work.
+- **Next** — ranked work intended to follow the release.
+- **Later** — directional investments whose order may change.
+- **Shipped** — capabilities already available today.
+
+For exact release contents, see the [changelog](CHANGELOG.md) and
+[release notes](docs/releases/index.md).
+
+## At a glance
+
+| Horizon | Focus | Intended outcome |
+|---|---|---|
+| **Now** | Complete the pre-release review and publish the next release | A secure, documented release with clean dependency and code-inspection gates |
+| **Next** | Make setup, access, and operations easier | A new operator can deploy confidently, add users, and understand sync health without editing configuration or querying the database |
+| **Later** | Scale administration, security, providers, and cost visibility | RepoWrangler grows from a strong estate dashboard into a broader operations platform |
 
 ---
 
-## 🚀 Coming very soon — Guided Bootstrap Installer
+## Now — publish the hardened release
 
-A one-command **guided installer** that makes standing up RepoWrangler effortless:
-run a small bootstrap script → a local **React wizard** opens in your browser →
-**pick your target and options** (Cloudflare / Docker / Azure Container Apps /
-Kubernetes / SWA — demo or real, auth, secrets, **CAF naming presets**) → it asks
-for **exactly the inputs that deploy needs** → a background script **kicks off the
-deployment while the same page streams live status** and hands you the final URL.
-No hand-naming, no shell mismatch, no doc-hunting — a junior admin gets a running,
-correctly named instance without opening the docs or touching bash. Ships with
-**PowerShell *and* bash** bootstrap scripts.
+**Status: In review.** The implementation is complete and locally verified.
+The remaining steps are to merge the review branch, choose the release version,
+publish versioned release notes, create the tag, and deploy the release artifacts.
 
-## Just landed (pre-release, stabilizing)
+This release adds:
 
-**Pre-release security and operability gate** — fresh real-mode installations
-can securely configure their first sign-in provider without an authentication
-deadlock; account controls show identity, role, provider, and sign-out; signed
-sessions are bound to their issuing provider and are rejected when that provider
-is disabled. Runtime version reporting now follows the release build, an
-independent code inspection and history-aware open-source hygiene sweep are
-complete, documentation has been reconciled with shipped behavior, and the
-dependency audit is clean and enforced in CI. Release tagging and deployment are
-the remaining publication steps.
-
-**Repo onboarding & estate scoping** — a first-run, in-app wizard: connect
-GitHub (one-tap App creation) or GitLab (token + group search) by entering
-credentials right in the UI (encrypted at rest on your instance), then choose
-exactly which orgs/groups and repos RepoWrangler watches — plus a permanent
-Administration → Estate scope screen and discovery that respects your choices.
-On `main` now; hardening through live testing.
-
-**Grow the estate after onboarding** — from **Administration → Estate scope**,
-each connection gets an **"Add more organizations / groups"** panel: GitHub
-re-checks everywhere the existing App is installed (with a deep-link to
-install it on one more org) and upserts anything new as monitored, no second
-App or connection required; GitLab gets the same group-search-and-add flow the
-wizard uses. A **"new since your last review"** banner surfaces repositories
-discovered since the operator last looked (across every connection), with a
-one-click "mark all reviewed" to make the list genuinely incremental from
-there on.
-
-## Next up
-
-### Invite additional users — Administration → Users
-
-Let the operator invite more people to their instance from the UI instead of
-editing server env vars. An **Administration → Users** screen lists who can
-sign in, adds a user by their provider identity (GitHub username first; other
-sign-in providers follow), and removes access just as easily — changes apply
-live, no restart. This replaces hand-editing the `ALLOWED_GITHUB_USERS`
-allowlist and is the foundation the Phase-6 **role-based views** build on.
-
-### Architecture tiers — pick a tier, then a recipe
-
-Reorganize the deployment story into named tiers, sorted by **cost and scale**
-(the thing most people decide first), so the docs picker and the bootstrap
-installer both start from "which tier?":
-
-- **Tier 0 — Free / self-run** ($0): one container on your own hardware, or the
-  Cloudflare free tier. Recipes: `docker`, `cloudflare`, and the free decoupled
-  options (`github-pages`, `azure-swa`).
-- **Tier 1 — Low-cost / managed** (~a few $/mo): a small always-on managed host —
-  Azure Container Apps in SQLite mode, a small VM, or a paid Cloudflare plan.
-- **Tier 2 — Team / scaled** (low $$/mo): managed parts with a real database —
-  container host + managed PostgreSQL, multi-replica, backups. `azure-container-apps`
-  (Postgres) or `kubernetes`.
-- **Tier 3 — Enterprise:** scaled out — separated controller/workers, private
-  networking, HA database, observability, SSO/RBAC hardening.
-
-**The "pick a tier → then a recipe" docs picker is now live** (deployment guide +
-per-tier pages), built on the recipes and platform-neutrality seams that already
-ship. The remaining forward work is **Tier 3** (the hardened topology is a target
-state today — its foundations ship, the composition doesn't) and the deployment
-automation below. Tiers are independent of **topology** (Integrated / Decoupled /
-Self-hosted, ADR-011) — that's a separate axis.
-
-### Multiple connections per provider (multi-org, multi-credential)
-
-Real estates aren't one-token tidy: separate GitHub Apps per org, several GitLab
-tokens across groups or instances. N connections per provider, each with its own
-credentials (the encrypted per-connection store already supports this), scope,
-and health — and the wizard grows "Add another connection."
-
-### Credentials & Access security screen
-
-One screen inventorying **every credential the instance holds** — GitHub Apps,
-GitLab tokens (ADO/Bitbucket when they land) — with each credential's **actual
-granted permissions pulled live from the provider**, where it's applied
-(orgs/groups/repos), age/last-used, and a **read-only verification badge** that
-flags loudly if anything holds write scopes this product never needs.
-
-### Deployment automation & pipelines (in-repo, inert)
-
-Ready-to-adopt GitHub Actions / Azure DevOps pipelines and scripts per
-tier/recipe, all consuming **one config JSON schema** — the same JSON the
-bootstrap installer emits, so the wizard can kick off automation directly or
-hand the file to your own tooling. **The config schema and these pipelines are
-owned by the Guided Bootstrap Installer** (above) — they ship with it rather than
-separately, so the automation isn't built twice. Until then, the copy-ready
-`deploy/*/ci.yml` workflow templates cover the manual path.
-
-### Phase 5 — Notifications & controlled operations 🚧
-Partial: the outbound escalation webhook has shipped. Remaining: Teams / Slack /
-Discord connectors, acknowledgements & quiet hours, an optional rerun action via a
-separate write path, and a PWA shell.
-
-### Phase 6 — Ecosystem (priority order)
-1. **Azure DevOps repository provider** — Repos, Pipelines, PRs (top of the list).
-2. Bitbucket / Gitea / Forgejo providers.
-3. Multi-user views — multiple signed-in people with scoped, role-based views.
-4. MCP server exposing estate data to AI clients.
-
-### Multi-cloud cost & quota observability
-A cross-cutting dashboard that pulls **cost, billing, and usage-against-free-tier**
-from every platform an estate touches, so you see *before* "free" tips into paid —
-the way GitHub Actions minutes or Cloudflare Workers requests silently approach a
-cap. Extends the Phase-3 budget sync from GitHub-only to a provider matrix:
-
-- **Providers:** Cloudflare (Workers/D1/Pages usage vs free limits), Azure (Cost
-  Management), AWS (Cost Explorer / Budgets), GCP (Billing), plus CI minutes
-  (GitHub Actions, GitLab) and any provider already connected for repo data.
-- **Surface:** a unified "Cost & Quota" estate page — spend to date, projected
-  month-end, and **percent-of-free-tier consumed** with threshold alerts, reusing
-  the existing capability-state UX (available / not-configured / unsupported).
-- **Neutral by construction:** each billing source is an `ICostProvider` adapter
-  behind the same seam pattern as storage/auth — no provider is required.
-
-### PN-6 — Cache / Notify / Jobs seams
-Formalize the `ICacheProvider` / `INotificationProvider` / `IBackgroundJobProvider`
-interfaces and ship adapters: Redis, Teams/Slack/Discord, and queue/Hangfire.
+- secure first boot without an authentication deadlock;
+- provider-aware account controls and sign-out;
+- immediate rejection of sessions issued by disabled providers;
+- build-derived version reporting;
+- remediated independent code-inspection findings;
+- a history-aware open-source hygiene and documentation audit; and
+- pnpm 11 with a clean dependency audit enforced in CI.
 
 ---
 
-## Already shipped
+## Next — ranked post-release work
 
-Everything below is **done and in the product today.**
+Work is expected to proceed in this order. The ordering is deliberate; a new
+item entering this list should displace or move an existing item.
 
-### Platform neutrality — core seams ✅
-Every infrastructure concern is an interface with swappable adapters, so the same
-app runs on Cloudflare, Azure, Docker/self-hosted, or a home lab unchanged.
+| Priority | Initiative | Outcome | Key dependency |
+|---:|---|---|---|
+| 1 | **Guided Bootstrap Installer** | One command opens a local wizard, asks only for required inputs, deploys to the selected target, and returns the final URL | Current release; existing tier picker |
+| 2 | **Invite and manage users** | Administrators add or remove allowed identities in the UI without editing environment variables or restarting | Provider identity model |
+| 3 | **Operations and sync history** | Administration shows discovery runs, queue state, failures, duration, and repositories found—no direct database queries required | Existing sync-job data |
+| 4 | **Faster enrichment after discovery** | Newly discovered repositories receive branch, PR/MR, pipeline, security, and billing data promptly instead of trickling in | Existing rate-limit and job-budget controls |
+| 5 | **Budget settings audit** | Operators see organization and repository budget settings, plus a clear capability message when provider credentials cannot read them | GitHub billing API capability probe |
+| 6 | **GitLab URL normalization** | Pasting a group URL safely resolves to the GitLab origin and produces accurate authentication versus connectivity errors | None |
+| 7 | **Per-connection scope picker** | Operators explicitly select which visible organizations or groups a connection monitors | Existing grow-estate flow |
 
-- **PN-1 Storage (`IDataStore`):** `persistence-core` seam + D1-compatible **SQLite**
-  and **PostgreSQL** adapters (`DATABASE_URL`-selected; shared migrations via a
-  unit-tested translator; runtime-verified against real PostgreSQL —
-  [ADR-015](docs/adr/ADR-015-postgres-storage-adapter.md)). Unlocks **multi-replica**
-  self-hosted deployments.
-- **PN-2 Host:** Node/Hono server host (`apps/server`) so the backend runs with no
-  Cloudflare — auto-applied migrations, self-served SPA, Docker/compose packaging
-  ([ADR-014](docs/adr/ADR-014-node-server-host.md)).
-- **PN-3 Scheduling (`IScheduler`):** Cloudflare Cron + Node in-process timer + an
-  **external-tick** driver — a token-guarded `POST /internal/cron/run` that lets
-  Linux cron, a Kubernetes `CronJob`, GitHub Actions, or an Azure Functions timer
-  drive sync (`SCHEDULER_MODE` — [ADR-018](docs/adr/ADR-018-scheduler-drivers.md)).
-- **PN-4 Secrets (`ISecretProvider`):** environment variables, **Docker/Kubernetes
-  mounted files**, and **Azure Key Vault** (managed identity, SDK-free), with a
-  composite that layers them (`SECRET_SOURCE` —
-  [ADR-017](docs/adr/ADR-017-secret-provider-seam.md)).
-- **PN-5 Auth (`IAuthenticationProvider`):** a provider **registry** — GitHub OAuth,
-  GitLab OAuth, Microsoft Entra ID, Google, and local-dev are peer adapters behind
-  one signed session cookie; enable any combination with `AUTH_PROVIDERS`
-  ([ADR-019](docs/adr/ADR-019-authentication-provider-registry.md)).
-- **PN-7 Per-target deploy recipes + adapter-matrix CI:** recipes for Cloudflare,
-  GitHub Pages, Azure SWA, Docker/compose, Azure Container Apps (bicep + `az acr
-  build` + Azure Files + Key Vault), and Kubernetes (manifests + Helm), plus a CI
-  adapter-matrix job that boots the real server on SQLite and PostgreSQL.
+### Guided Bootstrap Installer
 
-### Documentation suite ✅
-RepoWrangler ships as a **fully documented open-source product**.
+The installer is the headline next step. A PowerShell or bash bootstrap command
+will open a local React wizard where the operator selects a target—Cloudflare,
+Docker, Azure Container Apps, Kubernetes, or Azure SWA—plus demo/real mode,
+authentication, secret storage, region, scale, and optional CAF naming presets.
+The wizard will generate one reusable configuration document, stream deployment
+progress, and return the running URL.
 
-- **DOC-1 … DOC-7:** structure/index, quick-starts, deployment guides (capability
-  matrix + decision flowchart), C4 architecture set, reference (API, configuration,
-  service catalog, provider matrix, schema), operations & security, developer guide.
-- **DOC-8 Docs website:** VitePress site published to GitHub Pages via
-  `.github/workflows/docs.yml`, decoupled from the app host.
-
-### Product phases delivered ✅
-- **Phase 0 — Foundation & governance** — public repo, license/credits, CI + CodeQL,
-  templates, runbooks, demo mode without secrets, host-agnostic frontend (ADR-011).
-- **Phase 1 — GitHub estate MVP** — App connection, discovery, inventory, Command
-  Center, workflow/PR state, connection health.
-- **Phase 2 — Branch & change intelligence** — estate Branches and Change Requests,
-  comparison semantics, exclusion patterns.
-- **Phase 3 — Governance, security, budgets, usage** — protection/hygiene checks,
-  security alert reconciliation, budget sync, estate Security and Budgets & Usage
-  pages, JSON export.
-- **Phase 4 — GitLab provider** — groups/subgroups discovery, pipelines, MRs, branch
-  comparison, optional webhooks, unified estate views.
+The installer owns the configuration schema and deployment automation so those
+systems are designed once rather than as separate, competing projects.
 
 ---
 
-*RepoWrangler is **platform-neutral** ([ADR-013](docs/design/platform-neutrality.md)):
-no cloud, host, database, or deployment model is a hard requirement. Cloudflare is
-the reference implementation, not the required one.*
+## Later — directional investments
+
+### Everyday usability
+
+| Initiative | Intended outcome |
+|---|---|
+| Repository and workspace search, sort, and filters | Large estates remain quick to navigate at roughly 100 workspaces and hundreds of repositories |
+| Collapsible Estate Scope sections | Dense connection and scope pages stay manageable |
+| Stronger “Connect another platform” action | Adding a provider is obvious rather than hidden as a low-emphasis link |
+
+### Security, deployment, and scale
+
+| Initiative | Intended outcome |
+|---|---|
+| **Credentials & Access** | Inventory every configured credential without exposing its value; verify live reach and flag failing, unused, or over-scoped access |
+| Multiple connections per provider | Support separate Apps, tokens, organizations, groups, and health state for each connection |
+| Tier 3 architecture | Compose the existing platform-neutral foundations into a hardened enterprise topology with private networking, HA data, observability, SSO, and RBAC |
+| Deployment automation and pipelines | Ship opt-in GitHub Actions and Azure DevOps templates that consume the bootstrap installer's configuration schema |
+
+### Ecosystem and observability
+
+| Initiative | Intended outcome |
+|---|---|
+| Notifications and controlled operations | Teams, Slack, and Discord notifications; acknowledgements, quiet hours, and a separate guarded write path for reruns |
+| Azure DevOps provider | Add Azure Repos, Pipelines, and pull requests as the next repository provider |
+| Additional repository providers | Add Bitbucket, Gitea, and Forgejo behind the existing provider interfaces |
+| MCP server and role-based views | Expose estate data to AI clients and tailor views to signed-in user roles |
+| Actual cost and quota visibility | Tie Cloudflare and Azure spend to deployed applications and repositories; show projected spend and free-tier consumption |
+| Cache, notification, and job seams | Formalize `ICacheProvider`, `INotificationProvider`, and `IBackgroundJobProvider` with production adapters |
+
+### Important dependencies
+
+- The current release must be merged, tagged, documented, and deployed before
+  post-release feature work begins.
+- The bootstrap installer owns the shared configuration schema used by future
+  deployment pipelines.
+- User management establishes the identity model needed by role-based views.
+- Cost and budget work must surface provider capability honestly when a token
+  cannot access billing APIs.
+- Tier 3 work builds on the platform-neutral adapters that already ship; it does
+  not replace them.
+
+---
+
+## Shipped
+
+### Recent product work
+
+- **Onboarding and estate scoping** — connect GitHub or GitLab, store credentials
+  server-side, and select monitored organizations, groups, and repositories.
+- **Grow the estate** — add organizations or groups to an existing connection
+  and review repositories discovered since the last acknowledgement.
+- **Sign-out and version visibility** — end sessions from the UI and see the
+  deployed version in the sidebar, About page, and health/auth APIs.
+- **GitLab discovery repair** — connect, group selection, and manual sync all
+  enqueue GitLab discovery correctly.
+- **Wrangler Labs release** — full project history, documentation, demo, legal
+  ownership, and governance moved under Wrangler Labs.
+
+### Platform foundations
+
+| Area | Shipped capability |
+|---|---|
+| Storage | SQLite/D1 and PostgreSQL through the shared persistence seam |
+| Hosting | Cloudflare Worker and Node/Hono server with self-served SPA and Docker packaging |
+| Scheduling | Cloudflare Cron, Node timer, and guarded external tick driver |
+| Secrets | Environment, mounted files, Azure Key Vault, and composite resolution |
+| Authentication | GitHub, GitLab, Microsoft Entra ID, Google, and local development providers behind one registry |
+| Deployment | Cloudflare, Docker, GitHub Pages, Azure SWA, Azure Container Apps, Kubernetes manifests, and Helm |
+| Documentation | VitePress site with deployment, architecture, API, configuration, operations, security, and developer guides |
+
+### Product phases delivered
+
+1. **Foundation and governance** — public project, CI/CodeQL, demo mode, and
+   host-agnostic frontend.
+2. **GitHub estate MVP** — discovery, inventory, Command Center, workflow/PR
+   state, and connection health.
+3. **Branch and change intelligence** — estate-wide branches, change requests,
+   comparison semantics, and exclusions.
+4. **Governance, security, budgets, and usage** — hygiene checks, security-alert
+   reconciliation, budget sync, estate views, and JSON export.
+5. **GitLab provider** — group/subgroup discovery, pipelines, merge requests,
+   branch comparison, optional webhooks, and unified estate views.
+
+---
+
+RepoWrangler is **platform-neutral** ([ADR-013](docs/design/platform-neutrality.md)):
+no cloud, host, database, or deployment model is required. Cloudflare is the
+reference implementation, not a product dependency.

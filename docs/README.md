@@ -51,7 +51,7 @@ anything up.
   target, read-only guarantee, webhook verification, vulnerability reporting.
 - **Developer** — [developer.md](developer.md): monorepo layout, how to add a
   provider / storage adapter / auth provider, migrations, releases, ADRs.
-- **Decisions** — [ADR index](adr/README.md): the architectural decision records.
+- **Decisions** — [ADR index](adr/): the architectural decision records.
 
 ## Project docs
 

@@ -2,7 +2,7 @@
 
 GitHub is RepoWrangler's primary data provider and the default sign-in method.
 Each operator creates and owns **their own** read-only GitHub App — the project
-never sees your credentials ([ADR-003](../adr/README.md)).
+never sees your credentials ([ADR-003](../adr/)).
 
 ## What it gives you
 

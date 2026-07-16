@@ -65,9 +65,9 @@ runtime-entry requirement makes unavoidable); Phase C adds none.
 
 ## Non-goals
 
-- No provider **write** actions — consistent with [ADR-008](../adr/README.md). Onboarding
+- No provider **write** actions — consistent with [ADR-008](../adr/). Onboarding
   reads and monitors; it never creates, forks, or modifies upstream repositories.
-- No multi-tenant model. This remains single-tenant per [ADR-010](../adr/README.md); the
+- No multi-tenant model. This remains single-tenant per [ADR-010](../adr/); the
   wizard configures *this* deployment's estate, not per-user views.
 - No new authentication provider. Sign-in continues to use the registry from
   [ADR-019](../adr/ADR-019-authentication-provider-registry.md); onboarding is about
@@ -80,7 +80,7 @@ runtime-entry requirement makes unavoidable); Phase C adds none.
 
 ## Concepts — connection, workspace, monitoring state
 
-RepoWrangler's provider-neutral core ([ADR-004](../adr/README.md)) already models the
+RepoWrangler's provider-neutral core ([ADR-004](../adr/)) already models the
 hierarchy this design needs:
 
 ```text
@@ -555,7 +555,7 @@ either way the new value overwrites the old in the connection's namespace.
 
 The scheduled re-discovery pass already exists and runs under the configured scheduler
 ([ADR-018](../adr/ADR-018-scheduler-drivers.md)); reconciliation on a cadence is a
-settled decision ([ADR-006](../adr/README.md)). Phase C adds *awareness* of what
+settled decision ([ADR-006](../adr/)). Phase C adds *awareness* of what
 changed, not a new discovery mechanism.
 
 ### C1 — New-repo default: recommendation
@@ -668,7 +668,7 @@ Record two decisions, both Context / Decision / Consequences per the ADR README
 convention:
 
 - **ADR-020 — Estate scope and monitoring state** — extends
-  [ADR-004](../adr/README.md) and [ADR-006](../adr/README.md); supersedes nothing.
+  [ADR-004](../adr/) and [ADR-006](../adr/); supersedes nothing.
 - **ADR-021 — Runtime-entered provider credentials** — the writable `db` secret
   backend and on-demand credential reads; **extends** rather than replaces
   [ADR-017](../adr/ADR-017-secret-provider-seam.md) (the boot seam is unchanged for

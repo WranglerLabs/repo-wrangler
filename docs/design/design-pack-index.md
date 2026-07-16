@@ -33,7 +33,7 @@ The full design pack is consolidated into a single document:
   implementation readiness checklist, sources, and the architectural decision
   records (ADR-001…010).
 - **[Core decisions](core-decisions.md)** — the distilled decision summary.
-- **[Architectural decision records](../adr/README.md)** — ADR-001 onward,
+- **[Architectural decision records](../adr/)** — ADR-001 onward,
   including the post-design ADR-011…016.
 
 For deployer- and contributor-facing documentation (not design history), start at
