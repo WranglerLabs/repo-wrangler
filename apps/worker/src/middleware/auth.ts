@@ -2,6 +2,7 @@ import type { Context, Next } from 'hono';
 import type { SessionUserDto } from '@repo-wrangler/contracts';
 import { isDemoMode, type Env } from '../bindings';
 import { readSession } from '../lib/session';
+import { isSessionProviderEnabled, isSetupMode } from '../auth/registry';
 
 export type AppContext = {
   Bindings: Env;
@@ -23,19 +24,61 @@ export type AppContext = {
  */
 export async function requireAuth(c: Context<AppContext>, next: Next): Promise<Response | void> {
   if (isDemoMode(c.env)) {
-    c.set('user', { login: 'demo', role: 'viewer', demo: true });
+    c.set('user', { login: 'demo', role: 'viewer', provider: 'demo', demo: true });
     return next();
   }
+
   const secret = c.env.SESSION_SECRET;
-  if (!secret) {
-    return c.json({ error: 'SESSION_SECRET is not configured.' }, 500);
+  const user = secret ? await readSession(secret, c.req.header('cookie')) : null;
+  if (user && (await isSessionProviderEnabled(c.env, user.provider))) {
+    c.set('user', user);
+    return next();
   }
-  const user = await readSession(secret, c.req.header('cookie'));
-  if (!user) {
-    return c.json({ error: 'unauthenticated' }, 401);
+
+  if (isSetupRoute(c.req.method, c.req.path) && (await isSetupMode(c.env))) {
+    if (c.env.SETUP_TOKEN) {
+      const supplied = c.req.header('x-setup-token') ?? '';
+      if (!(await constantTimeTokenEqual(supplied, c.env.SETUP_TOKEN))) {
+        return c.json({ error: 'invalid setup token' }, 401);
+      }
+    }
+    c.set('user', { login: 'setup', role: 'owner', provider: 'setup' });
+    return next();
   }
-  c.set('user', user);
-  return next();
+
+  if (!secret) return c.json({ error: 'SESSION_SECRET is not configured.' }, 500);
+  return c.json({ error: 'unauthenticated' }, 401);
+}
+
+const SETUP_ROUTES: readonly [string, RegExp][] = [
+  ['GET', /^\/api\/v1\/onboarding\/status$/],
+  ['GET', /^\/api\/v1\/connections$/],
+  ['POST', /^\/api\/v1\/connections\/github\/(exchange|credentials)$/],
+  ['POST', /^\/api\/v1\/connections\/gitlab$/],
+  ['GET', /^\/api\/v1\/connections\/[^/]+\/workspaces$/],
+  ['GET', /^\/api\/v1\/connections\/[^/]+\/search-groups$/],
+  ['POST', /^\/api\/v1\/connections\/[^/]+\/workspaces$/],
+  ['PATCH', /^\/api\/v1\/workspaces\/[^/]+$/],
+];
+
+export function isSetupRoute(method: string, path: string): boolean {
+  return SETUP_ROUTES.some(([allowedMethod, pattern]) =>
+    allowedMethod === method.toUpperCase() && pattern.test(path),
+  );
+}
+
+/** Hash both values first so even unequal-length tokens take the same comparison path. */
+async function constantTimeTokenEqual(supplied: string, expected: string): Promise<boolean> {
+  const encoder = new TextEncoder();
+  const [left, right] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(supplied)),
+    crypto.subtle.digest('SHA-256', encoder.encode(expected)),
+  ]);
+  const a = new Uint8Array(left);
+  const b = new Uint8Array(right);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
 }
 
 /**

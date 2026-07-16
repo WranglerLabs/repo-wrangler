@@ -215,15 +215,18 @@ permanent management screen.
 
 ### B1 — First-run detection
 
-Show the wizard when the deployment is in **real mode** and has **no monitored
-estate yet**. Real mode is already computed by `isDemoMode` (`bindings.ts:118`) — it is
-demo only when `DEMO_MODE` is unset/true *and* no provider is configured. Add a small
-status endpoint the SPA calls on load:
+Show the wizard when the deployment is in **real mode** and either has no usable
+non-local sign-in provider (setup mode) or has no monitored estate yet. Setup
+mode is computed on every request from the configured auth-provider registry.
+When real sign-in first becomes usable, a durable completion latch is written so
+later provider removal cannot reopen setup against a populated instance.
 
 ```
-GET /api/v1/onboarding/status        (requireAuth)
+GET /api/v1/onboarding/status        (session, or setup allowlist)
   200: {
     "demo": false,
+    "setupMode": true,         // no usable non-local sign-in provider
+    "setupTokenRequired": true,// SETUP_TOKEN is configured; value is never returned
     "connections": 0,          // provider_connections count
     "monitoredWorkspaces": 0,  // workspaces with monitoring_state='monitored'
     "firstRun": true           // real mode AND monitoredWorkspaces == 0
@@ -232,6 +235,12 @@ GET /api/v1/onboarding/status        (requireAuth)
 
 `firstRun` drives a redirect to `/onboarding`. Once at least one workspace is
 monitored, the wizard is no longer forced; it remains reachable from Administration.
+When `setupMode` is true, the wizard is reachable without a session. The setup
+allowlist contains only the status and connection/workspace operations required
+by the wizard; estate-data endpoints still return `401`. If `SETUP_TOKEN` is
+set, the wizard asks for it first and sends `X-Setup-Token` on setup requests.
+Storing working sign-in credentials makes `setupMode` false on the next request,
+after which the operator completes the first normal sign-in.
 
 ### B2 — Wizard flow (text sketch)
 

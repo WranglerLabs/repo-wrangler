@@ -22,9 +22,11 @@ RUN pnpm --filter @repo-wrangler/web build
 # --- runtime ---------------------------------------------------------------
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
+ARG APP_VERSION
 ENV NODE_ENV=production \
     PORT=8080 \
-    SQLITE_PATH=/app/data/repo-wrangler.db
+    SQLITE_PATH=/app/data/repo-wrangler.db \
+    APP_VERSION=${APP_VERSION}
 
 RUN corepack enable
 

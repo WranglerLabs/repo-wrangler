@@ -79,6 +79,40 @@ a:hover {
   color: #b9c4b6;
 }
 
+.account-menu summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.provider-badge {
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  color: var(--rw-gold);
+  font-size: 10px;
+}
+
+.account-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.account-menu-panel button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rw-gold);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .main {
   flex: 1;
   min-width: 0;

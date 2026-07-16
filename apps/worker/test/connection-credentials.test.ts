@@ -23,7 +23,7 @@ import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
 
 const migrationsDir = join(__dirname, '../../../migrations');
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 const viewer: SessionUserDto = { login: 'guest', role: 'viewer' };
 
 function testApp(user: SessionUserDto | null) {

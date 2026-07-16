@@ -359,6 +359,8 @@ export type ActivityEventDto = z.infer<typeof activityEventSchema>;
 export const sessionUserSchema = z.object({
   login: z.string(),
   role: z.enum(['owner', 'admin', 'viewer']),
+  /** Identity source captured in signed sessions; setup/demo are synthetic request identities. */
+  provider: z.enum(['github', 'gitlab', 'entra', 'google', 'local', 'setup', 'demo']).optional(),
   demo: z.boolean().optional(),
 });
 export type SessionUserDto = z.infer<typeof sessionUserSchema>;
@@ -376,6 +378,10 @@ export type SavedViewDto = z.infer<typeof savedViewSchema>;
 
 export const onboardingStatusSchema = z.object({
   demo: z.boolean(),
+  /** No real sign-in provider is currently usable, so the narrow setup allowlist is active. */
+  setupMode: z.boolean(),
+  /** The operator must supply X-Setup-Token on setup-mode API requests. */
+  setupTokenRequired: z.boolean(),
   /** `provider_connections` count. */
   connections: z.number(),
   /** Workspaces with `monitoring_state = 'monitored'`. */

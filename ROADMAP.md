@@ -19,6 +19,16 @@ correctly named instance without opening the docs or touching bash. Ships with
 
 ## Just landed (pre-release, stabilizing)
 
+**Pre-release security and operability gate** — fresh real-mode installations
+can securely configure their first sign-in provider without an authentication
+deadlock; account controls show identity, role, provider, and sign-out; signed
+sessions are bound to their issuing provider and are rejected when that provider
+is disabled. Runtime version reporting now follows the release build, an
+independent code inspection and history-aware open-source hygiene sweep are
+complete, documentation has been reconciled with shipped behavior, and the
+dependency audit is clean and enforced in CI. Release tagging and deployment are
+the remaining publication steps.
+
 **Repo onboarding & estate scoping** — a first-run, in-app wizard: connect
 GitHub (one-tap App creation) or GitLab (token + group search) by entering
 credentials right in the UI (encrypted at rest on your instance), then choose

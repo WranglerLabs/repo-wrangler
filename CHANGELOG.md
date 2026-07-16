@@ -6,6 +6,27 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- **Secure first boot:** a fresh real-mode instance enters a narrowly scoped
+  setup mode so the onboarding wizard can configure the first sign-in provider
+  without a pre-existing session. Operators may protect this flow with
+  `SETUP_TOKEN`; setup access closes as soon as a real provider is usable.
+- **Build-derived versioning:** `APP_VERSION` can override the checked-in package
+  version at runtime, and container builds accept `--build-arg APP_VERSION=<tag>`.
+- **Account menu:** the sidebar identity control now shows the active provider,
+  role, and sign-out action in one consistent menu.
+
+### Fixed
+
+- Signed sessions now record their issuing provider. Disabling or removing an
+  auth provider invalidates its sessions immediately; legacy provider-less
+  cookies are rejected.
+- Dependency auditing works again after upgrading the project toolchain to
+  pnpm 11. Known Vite and esbuild advisories are remediated with targeted
+  overrides, lifecycle scripts use an explicit allowlist, and CI now enforces
+  both a frozen lockfile and a clean audit.
+
 ## [0.6.10] - 2026-07-14
 
 First release under **Wrangler Labs** — the project moved to

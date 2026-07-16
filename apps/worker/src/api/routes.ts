@@ -66,7 +66,7 @@ import {
   demoWorkspaces,
 } from '@repo-wrangler/provider-mock';
 import { CREDITS } from '@repo-wrangler/credits';
-import { APP_VERSION, isDemoMode } from '../bindings';
+import { appVersion, isDemoMode } from '../bindings';
 import { resolveGitLabCredentials } from '../lib/connection-secrets';
 import { requireAdmin, type AppContext } from '../middleware/auth';
 
@@ -478,7 +478,7 @@ apiRoutes.get('/workspaces', async (c) => {
 });
 
 apiRoutes.get('/platform-health', async (c) => {
-  if (isDemoMode(c.env)) return c.json(demoPlatformHealth(APP_VERSION));
+  if (isDemoMode(c.env)) return c.json(demoPlatformHealth(appVersion(c.env)));
   const connections = await listConnections(c.env.DB);
   const sync = await getSyncStats(c.env.DB);
   const webhooks = await getWebhookStats(c.env.DB);
@@ -493,7 +493,7 @@ apiRoutes.get('/platform-health', async (c) => {
     })),
     sync: { ...sync },
     webhooks,
-    version: APP_VERSION,
+    version: appVersion(c.env),
     migrationOk: true,
     generatedAt: new Date().toISOString(),
   };

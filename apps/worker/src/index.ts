@@ -1,15 +1,22 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { CREDITS } from '@repo-wrangler/credits';
-import { APP_VERSION, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
+import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
+import { appVersion, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
 import { connectionRoutes } from './api/connections';
-import { authConfig, ALL_PROVIDERS } from './auth/registry';
+import {
+  authConfig,
+  ALL_PROVIDERS,
+  isSessionProviderEnabled,
+  isSetupMode,
+} from './auth/registry';
 import { setupRoutes } from './setup/manifest';
 import { githubWebhookRoutes } from './webhooks/github';
 import { gitlabWebhookRoutes } from './webhooks/gitlab';
 import { internalCronRoutes } from './internal/cron';
 import { requireAuth, securityHeaders, type AppContext } from './middleware/auth';
+import { clearSessionCookie, readSession } from './lib/session';
 import { runScheduled } from './scheduled';
 
 const app = new Hono<AppContext>();
@@ -25,7 +32,7 @@ app.use('/api/*', (c, next) => {
     origin: (origin) => (allowed.includes(origin) ? origin : null),
     credentials: true,
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Accept'],
+    allowHeaders: ['Content-Type', 'Accept', 'X-Setup-Token'],
   })(c, next);
 });
 app.use('/auth/*', (c, next) => {
@@ -34,12 +41,12 @@ app.use('/auth/*', (c, next) => {
     origin: (origin) => (allowed.includes(origin) ? origin : null),
     credentials: true,
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Accept'],
+    allowHeaders: ['Content-Type', 'Accept', 'X-Setup-Token'],
   })(c, next);
 });
 
 // Liveness/readiness — no provider calls.
-app.get('/health/live', (c) => c.json({ ok: true, version: APP_VERSION }));
+app.get('/health/live', (c) => c.json({ ok: true, version: appVersion(c.env) }));
 app.get('/health/ready', async (c) => {
   try {
     await c.env.DB.prepare('SELECT 1 FROM meta LIMIT 1').first();
@@ -54,7 +61,39 @@ app.get('/api/v1/credits', (c) => c.json(CREDITS));
 
 // Public sign-in configuration so the SPA renders one button per enabled
 // provider (GitHub, GitLab, Microsoft, Google, local-dev) without a session.
-app.get('/auth/config', async (c) => c.json({ ...(await authConfig(c.env)), version: APP_VERSION }));
+app.get('/auth/config', async (c) => {
+  const setupMode = await isSetupMode(c.env);
+  return c.json({
+    ...(await authConfig(c.env)),
+    version: appVersion(c.env),
+    setupMode,
+    setupTokenRequired: setupMode && Boolean(c.env.SETUP_TOKEN),
+  });
+});
+
+// Shared session endpoints belong to the registry, not to any one provider.
+app.post('/auth/logout', async (c) => {
+  const secret = c.env.SESSION_SECRET;
+  if (secret) {
+    const user = await readSession(secret, c.req.header('cookie'));
+    if (user) await recordAuditEvent(c.env.DB, user.login, 'logout');
+  }
+  c.header('Set-Cookie', clearSessionCookie(corsAllowedOrigins(c.env).length ? 'None' : 'Lax'));
+  return c.json({ ok: true });
+});
+
+app.get('/auth/me', async (c) => {
+  if (isDemoMode(c.env)) {
+    return c.json({ login: 'demo', role: 'viewer', provider: 'demo', demo: true });
+  }
+  const secret = c.env.SESSION_SECRET;
+  if (!secret) return c.json({ error: 'unconfigured' }, 500);
+  const user = await readSession(secret, c.req.header('cookie'));
+  if (!user || !(await isSessionProviderEnabled(c.env, user.provider))) {
+    return c.json({ error: 'unauthenticated' }, 401);
+  }
+  return c.json(user);
+});
 
 // Mount every provider's routes; each handler guards on its own configuration,
 // and the registry decides which appear on the sign-in screen.

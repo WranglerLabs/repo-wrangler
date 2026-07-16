@@ -7,6 +7,10 @@ provider, `*_ALLOWED_USERS` is a CSV where the **first principal is the owner** 
 the rest are admins. Each registers a redirect URI of
 `{PUBLIC_BASE_URL}/auth/<id>/callback`.
 
+The provider id is signed into every session cookie. Removing a provider from
+`AUTH_PROVIDERS` invalidates sessions issued by it immediately; users must sign
+in through one of the remaining configured providers.
+
 > **Maturity:** implemented and unit-tested; validate the flow against your
 > identity provider before production (pre-1.0). GitHub and Entra have their own
 > pages ([GitHub App](github-app.md), [Entra ID](entra.md)).

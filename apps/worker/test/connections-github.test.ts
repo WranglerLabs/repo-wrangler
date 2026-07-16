@@ -36,7 +36,7 @@ vi.mock('@repo-wrangler/provider-github', async () => {
   };
 });
 
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 const viewer: SessionUserDto = { login: 'guest', role: 'viewer' };
 
 function testApp(user: SessionUserDto | null) {

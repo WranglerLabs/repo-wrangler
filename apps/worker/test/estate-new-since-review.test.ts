@@ -41,7 +41,7 @@ function testApp(user: SessionUserDto | null) {
   return app;
 }
 
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 const viewer: SessionUserDto = { login: 'guest', role: 'viewer' };
 
 describe('GET /api/v1/estate/new-since-review and POST /estate/mark-reviewed — C2', () => {

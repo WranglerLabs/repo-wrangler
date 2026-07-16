@@ -1,8 +1,8 @@
 name: CI
 
 # Manual/PR-only by operator preference — no push-triggered runs.
-# CI verifies code (typecheck + unit tests) only. It does NOT build, bundle, or
-# boot the app — building/deploying is not a CI concern in this repo.
+# CI verifies dependencies and code (audit + typecheck + unit tests). It does
+# NOT build, bundle, or boot the app — building/deploying is not a CI concern.
 on:
   pull_request:
   workflow_dispatch:
@@ -24,7 +24,10 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit
 
       - name: Typecheck
         run: pnpm typecheck

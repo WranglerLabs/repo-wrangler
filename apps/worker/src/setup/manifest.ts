@@ -172,18 +172,21 @@ setupRoutes.get('/github-app/callback', (c) => {
              var watchdog = setTimeout(function () {
                showFallback('Automatic setup is taking longer than expected — complete it manually below.');
              }, 8000);
-             function showFallback(message) {
+              function showFallback(message) {
                if (settled) return;
                settled = true;
                clearTimeout(watchdog);
                statusEl.style.display = 'none';
                fallbackMessageEl.textContent = message;
-               fallbackEl.style.display = 'block';
-             }
-             fetch('/api/v1/connections/github/exchange', {
-               method: 'POST',
-               credentials: 'same-origin',
-               headers: { 'content-type': 'application/json' },
+                fallbackEl.style.display = 'block';
+              }
+              var setupToken = sessionStorage.getItem('rw-setup-token');
+              var headers = { 'content-type': 'application/json' };
+              if (setupToken) headers['X-Setup-Token'] = setupToken;
+              fetch('/api/v1/connections/github/exchange', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: headers,
                body: JSON.stringify({ code: code }),
              }).then(function (res) {
                if (res.ok) {

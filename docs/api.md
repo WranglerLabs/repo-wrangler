@@ -13,6 +13,10 @@ SPA.
   `CORS_ALLOWED_ORIGINS`.
 - **Demo mode.** When `DEMO_MODE=true`, `/api/v1/*` is served with a synthetic
   `demo` viewer — no sign-in needed.
+- **First-boot setup mode.** In real mode with no usable non-local sign-in
+  provider, only the onboarding/connection allowlist is available without a
+  session. If `SETUP_TOKEN` is configured, send it in `X-Setup-Token`. Setup
+  mode closes permanently when a provider becomes usable once.
 - **Roles.** `owner` > `admin` > `viewer`. Mutating admin endpoints require
   `admin` or `owner`.
 
@@ -30,8 +34,8 @@ returns `403`.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/auth/config` | none | Active sign-in mode: `{ mode: 'github_app' \| 'entra', demo }`. |
-| GET | `/auth/me` | cookie | Current session user, or `401`. In demo mode returns the demo viewer. |
+| GET | `/auth/config` | none | Public provider list and bootstrap state: `{ demo, providers, version, setupMode, setupTokenRequired }`. |
+| GET | `/auth/me` | cookie | Current session user and issuing provider, or `401`. In demo mode returns the demo viewer. |
 | GET | `/auth/github/login` | none | Begin GitHub OAuth sign-in (redirect). |
 | GET | `/auth/github/callback` | none | GitHub OAuth callback; sets the session cookie. |
 | GET | `/auth/entra/login` | none | Begin Entra OIDC sign-in (redirect). `AUTH_MODE=entra`. |
@@ -43,6 +47,19 @@ returns `403`.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/setup/github-app` | none | One-tap GitHub App Manifest flow to create your own App. See [providers/github-app.md](providers/github-app.md). |
+
+While `setupMode=true`, the following API operations accept the synthetic
+`setup` owner instead of a session (and require `X-Setup-Token` when configured):
+onboarding status; connection listing/creation/exchange; workspace discovery,
+group selection, and monitoring-state selection. No estate data endpoint is
+opened by setup mode.
+
+For SSRF safety, tokenless setup may connect only to `https://gitlab.com`.
+Self-managed/custom GitLab origins require either a normal admin session or a
+deployment-configured `SETUP_TOKEN`.
+
+`GET /api/v1/onboarding/status` returns `{ demo, setupMode,
+setupTokenRequired, connections, monitoredWorkspaces, firstRun }`.
 
 ## Estate — read
 

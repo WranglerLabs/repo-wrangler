@@ -1,14 +1,8 @@
 import { Hono } from 'hono';
-import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
 import { isDemoMode, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { resolveGitHubOAuthClient } from '../lib/connection-secrets';
-import {
-  clearSessionCookie,
-  createStateToken,
-  readSession,
-  verifyStateToken,
-} from '../lib/session';
+import { createStateToken, verifyStateToken } from '../lib/session';
 import {
   clearTransientCookie,
   completeSignIn,
@@ -89,27 +83,6 @@ authRoutes.get('/github/callback', async (c) => {
     identity: userData.login,
     allowedUsers: c.env.ALLOWED_GITHUB_USERS,
   });
-});
-
-authRoutes.post('/logout', async (c) => {
-  const secret = c.env.SESSION_SECRET;
-  if (secret) {
-    const user = await readSession(secret, c.req.header('cookie'));
-    if (user) await recordAuditEvent(c.env.DB, user.login, 'logout');
-  }
-  c.header('Set-Cookie', clearSessionCookie());
-  return c.json({ ok: true });
-});
-
-authRoutes.get('/me', async (c) => {
-  if (isDemoMode(c.env)) {
-    return c.json({ login: 'demo', role: 'viewer', demo: true });
-  }
-  const secret = c.env.SESSION_SECRET;
-  if (!secret) return c.json({ error: 'unconfigured' }, 500);
-  const user = await readSession(secret, c.req.header('cookie'));
-  if (!user) return c.json({ error: 'unauthenticated' }, 401);
-  return c.json(user);
 });
 
 export const githubProvider: AuthProvider = {

@@ -77,7 +77,7 @@ describe('ensurePeriodicJobs — billing gate (B12)', () => {
 
 describe('POST /api/v1/admin/sync — enqueues billing alongside discovery (B12)', () => {
   let db: D1Database;
-  const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+  const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 
   beforeEach(() => {
     const { d1, raw } = openSqliteD1(':memory:');

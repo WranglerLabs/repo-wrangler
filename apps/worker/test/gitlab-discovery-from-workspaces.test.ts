@@ -40,7 +40,7 @@ vi.mock('@repo-wrangler/provider-gitlab', async () => {
   };
 });
 
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 
 async function storeGitLabToken(db: D1Database, connectionId: string, token: string): Promise<void> {
   const key = await deriveEncryptionKey('test-key');

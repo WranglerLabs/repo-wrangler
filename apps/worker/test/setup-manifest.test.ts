@@ -62,6 +62,8 @@ describe('GET /setup/github-app/callback', () => {
     // Auto-exchange, same-origin so the wizard session cookie rides along.
     expect(html).toContain("fetch('/api/v1/connections/github/exchange'");
     expect(html).toContain('credentials: \'same-origin\'');
+    expect(html).toContain("sessionStorage.getItem('rw-setup-token')");
+    expect(html).toContain("headers['X-Setup-Token'] = setupToken");
     expect(html).toContain("window.location.href = '/onboarding'");
     // Fallback UI for when the exchange fails (401 / network error).
     expect(html).toContain('id="copyBtn"');

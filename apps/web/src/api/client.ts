@@ -40,6 +40,7 @@ export class ApiError extends Error {
 // SWA, …) at a Worker on another origin (Mode B); the Worker must then allow this
 // SPA's origin via CORS_ALLOWED_ORIGINS.
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const SETUP_TOKEN_KEY = 'rw-setup-token';
 
 /** Resolve an app-relative API path against the configured API base. */
 export function apiUrl(path: string): string {
@@ -59,6 +60,18 @@ function redirectToSignIn(): void {
   window.location.assign('/sign-in');
 }
 
+function setupTokenHeader(): Record<string, string> {
+  if (typeof sessionStorage === 'undefined') return {};
+  const token = sessionStorage.getItem(SETUP_TOKEN_KEY);
+  return token ? { 'X-Setup-Token': token } : {};
+}
+
+function isSetupApiPath(path: string): boolean {
+  return path === '/api/v1/onboarding/status' ||
+    path.startsWith('/api/v1/connections') ||
+    path.startsWith('/api/v1/workspaces/');
+}
+
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: string };
@@ -70,12 +83,12 @@ async function readErrorMessage(response: Response, fallback: string): Promise<s
 
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(apiUrl(path), {
-    headers: { accept: 'application/json' },
+    headers: { accept: 'application/json', ...setupTokenHeader() },
     // Send the session cookie cross-origin in Mode B; harmless same-origin.
     credentials: 'include',
   });
   if (!response.ok) {
-    if (response.status === 401) redirectToSignIn();
+    if (response.status === 401 && !isSetupApiPath(path)) redirectToSignIn();
     throw new ApiError(response.status, await readErrorMessage(response, `Request failed: ${response.status}`));
   }
   return (await response.json()) as T;
@@ -86,11 +99,15 @@ async function apiSend<T>(path: string, method: string, body?: unknown): Promise
   const response = await fetch(apiUrl(path), {
     method,
     credentials: 'include',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      ...setupTokenHeader(),
+    },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    if (response.status === 401) redirectToSignIn();
+    if (response.status === 401 && !isSetupApiPath(path)) redirectToSignIn();
     throw new ApiError(response.status, await readErrorMessage(response, `Request failed: ${response.status}`));
   }
   if (response.status === 204) return undefined as T;
@@ -203,11 +220,12 @@ export function useCredits() {
   });
 }
 
-export function useSessionUser() {
+export function useSessionUser(enabled = true) {
   return useQuery<SessionUserDto>({
     queryKey: ['me'],
     queryFn: () => apiGet('/auth/me'),
     retry: false,
+    enabled,
   });
 }
 
@@ -235,6 +253,8 @@ export interface AuthConfigDto {
   providers: AuthProviderOption[];
   /** Deployed application version (e.g. "0.4.0"). */
   version?: string;
+  setupMode: boolean;
+  setupTokenRequired: boolean;
 }
 
 export function useAuthConfig() {
@@ -251,9 +271,9 @@ export function signInOptions(
 ): { href: string; label: string }[] {
   const providers = config?.providers ?? [];
   if (providers.length === 0) {
-    return [{ href: '/auth/github/login', label: 'Sign in with GitHub' }];
+    return [{ href: apiUrl('/auth/github/login'), label: 'Sign in with GitHub' }];
   }
-  return providers.map((p) => ({ href: p.loginUrl, label: `Sign in with ${p.label}` }));
+  return providers.map((p) => ({ href: apiUrl(p.loginUrl), label: `Sign in with ${p.label}` }));
 }
 
 /** First configured provider — for spots that show a single sign-in link. */
@@ -299,19 +319,41 @@ export async function triggerManualSync(): Promise<void> {
 // Onboarding design Phase B — first-run wizard, connect API, estate scope.
 // ---------------------------------------------------------------------------
 
-export function useOnboardingStatus() {
+export function useOnboardingStatus(enabled = true) {
   return useQuery<OnboardingStatusDto>({
     queryKey: ['onboarding-status'],
     queryFn: () => apiGet('/api/v1/onboarding/status'),
     retry: false,
+    enabled,
   });
 }
 
-export function useConnections() {
+export function useConnections(enabled = true) {
   return useQuery<ConnectionDto[]>({
     queryKey: ['connections'],
     queryFn: () => apiGet('/api/v1/connections'),
+    enabled,
   });
+}
+
+export function hasStoredSetupToken(): boolean {
+  return typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem(SETUP_TOKEN_KEY));
+}
+
+export function clearStoredSetupToken(): void {
+  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SETUP_TOKEN_KEY);
+}
+
+/** Validate and retain the optional first-boot token for subsequent wizard requests. */
+export async function authorizeSetup(token: string): Promise<void> {
+  const response = await fetch(apiUrl('/api/v1/onboarding/status'), {
+    credentials: 'include',
+    headers: { accept: 'application/json', 'X-Setup-Token': token },
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, 'Setup token rejected'));
+  }
+  if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(SETUP_TOKEN_KEY, token);
 }
 
 export function useConnectionWorkspaces(

@@ -49,8 +49,8 @@ features:
   - icon: 🔑
     title: Sign in your way
     details: >-
-      GitHub user-authorization or Microsoft Entra ID (OIDC). An allowlist gates
-      access; the first person in becomes the owner.
+      GitHub, GitLab, Microsoft Entra ID, or Google. An allowlist gates access;
+      its first listed principal is the owner.
   - icon: 📈
     title: Scales when you do
     details: >-

@@ -35,22 +35,25 @@ Deploy with both configs layered: `wrangler deploy -c wrangler.jsonc -c wrangler
 pnpm db:migrate:remote
 ```
 
-### 3. Set secrets
+### 3. Set first-boot secrets
 
 ```bash
-wrangler secret put GITHUB_APP_ID
-wrangler secret put GITHUB_APP_PRIVATE_KEY   # paste full PEM
-wrangler secret put GITHUB_WEBHOOK_SECRET
-wrangler secret put GITHUB_CLIENT_ID
-wrangler secret put GITHUB_CLIENT_SECRET
 wrangler secret put SESSION_SECRET           # long random string
-wrangler secret put ALLOWED_GITHUB_USERS     # comma-separated; first login is the owner
+wrangler secret put SECRET_ENCRYPTION_KEY    # encrypts wizard-stored credentials
+wrangler secret put SETUP_TOKEN              # optional; recommended on a public URL
 ```
 
-(Skip all of these to run a demo-mode deployment with synthetic data.)
+(Skip all of these to run a demo-mode deployment with synthetic data.) When
+`DEMO_MODE=false`, the browser opens the first-run wizard. It creates or connects
+the GitHub App and stores the five `GITHUB_*` values in D1 encrypted by
+`SECRET_ENCRYPTION_KEY`.
 
-Keep your allowlist a **secret**, not a committed `var` — that keeps your login
-out of the public repo and survives Workers-Builds redeploys.
+For a pre-seeded/GitOps deployment, set the five `GITHUB_*` secrets plus
+`ALLOWED_GITHUB_USERS` before switching to real mode instead. The first login
+listed in the allowlist is the owner; the rest are admins.
+
+Keep a pre-seeded allowlist a **secret**, not a committed `var` — that keeps
+logins out of the public repo and survives Workers-Builds redeploys.
 
 ### 4. Configure vars
 
@@ -60,13 +63,14 @@ the dashboard, or in your git-ignored `wrangler.local.jsonc`): set
 `database_id` or `ALLOWED_GITHUB_USERS` to the committed `wrangler.jsonc` — the
 first lives in `wrangler.local.jsonc` (step 1), the second is a secret (step 3).
 
-The first login in `ALLOWED_GITHUB_USERS` gets the `owner` role; the rest get
-`admin`.
+The first listed login in `ALLOWED_GITHUB_USERS` gets the `owner` role; the rest
+get `admin`.
 
 ### 5. Build and deploy
 
 ```bash
-pnpm deploy        # = pnpm build && wrangler deploy
+pnpm build
+wrangler deploy -c wrangler.jsonc -c wrangler.local.jsonc
 ```
 
 ### 6. Continuous deployment (recommended)

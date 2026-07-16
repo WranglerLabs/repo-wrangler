@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import type { Hono } from 'hono';
 import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
-import type { Env } from '../bindings';
+import { corsAllowedOrigins, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { createSessionCookie } from '../lib/session';
 
@@ -73,9 +73,15 @@ export async function completeSignIn(
     'login.success',
     `provider=${opts.provider} role=${role}`,
   );
-  const cookie = await createSessionCookie(secret, { login: opts.identity, role }, true);
+  const spaOrigin = corsAllowedOrigins(c.env)[0];
+  const cookie = await createSessionCookie(
+    secret,
+    { login: opts.identity, role, provider: opts.provider },
+    true,
+    spaOrigin ? 'None' : 'Lax',
+  );
   c.header('Set-Cookie', cookie, { append: true });
-  return c.redirect('/');
+  return c.redirect(spaOrigin ?? '/');
 }
 
 /** Read a single cookie value from a Cookie header. */

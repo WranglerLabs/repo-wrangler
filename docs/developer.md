@@ -75,13 +75,14 @@ See [ADR-015](adr/ADR-015-postgres-storage-adapter.md) for the reference.
 
 ### Add an auth provider
 
-`AUTH_MODE` selects the sign-in provider; each issues the **same signed session
-cookie** so nothing downstream changes:
+`AUTH_PROVIDERS` selects one or more sign-in providers; each issues the same
+signed session shape, including its provider id so disabling that provider
+revokes its cookies:
 
 1. Add routes under `apps/worker/src/auth/<provider>.ts` (login + callback) that,
-   on success, call `createSessionCookie(...)` with an allowlisted role.
-2. Add config to `bindings.ts` + `apps/server` `buildEnv`, extend `authMode()`,
-   and surface it in `/auth/config` so the SPA renders the right button.
+   on success, call `completeSignIn(...)` with the provider id and identity.
+2. Add config to `bindings.ts` + `apps/server` `buildEnv`, register the provider
+   in `auth/registry.ts`, and surface it in `/auth/config`.
 3. Document it under `docs/providers/` and add an ADR.
 
 See [ADR-016 / Entra](adr/ADR-016-entra-id-authentication.md) for the reference.
@@ -113,7 +114,9 @@ it read-only ([ADR-008](adr/README.md)). Update [api.md](api.md).
 ## Releases & ADRs
 
 - Update [CHANGELOG.md](../CHANGELOG.md) and [ROADMAP.md](../ROADMAP.md).
-- Bump `APP_VERSION` in `apps/worker/src/bindings.ts`.
+- Bump the root and worker package versions. Release container builds pass the
+  tag as `--build-arg APP_VERSION=<tag>`; runtime `APP_VERSION` overrides the
+  package fallback.
 - Record notable decisions as a new numbered ADR in
   [`docs/adr/`](adr/README.md) using the Context / Decision / Consequences format.
 - See [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -14,7 +14,7 @@ import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
 
 const migrationsDir = join(__dirname, '../../../migrations');
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 
 function testApp() {
   const app = new Hono<AppContext>();
@@ -68,7 +68,7 @@ describe('POST /api/v1/connections/gitlab — B3', () => {
   });
 
   it('a valid token creates the connection and stores it', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ username: 'kris' })));
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ username: 'operator' })));
     const res = await testApp().request(
       '/api/v1/connections/gitlab',
       { method: 'POST', body: JSON.stringify({ token: 'glpat-good', baseUrl: 'https://gitlab.example.com' }) },
@@ -100,7 +100,7 @@ describe('GET /api/v1/connections/:id/search-groups and POST .../workspaces', ()
   });
 
   async function connect(): Promise<string> {
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ username: 'kris' })));
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ username: 'operator' })));
     const res = await testApp().request(
       '/api/v1/connections/gitlab',
       { method: 'POST', body: JSON.stringify({ token: 'glpat-good' }) },

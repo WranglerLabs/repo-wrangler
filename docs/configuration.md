@@ -31,6 +31,9 @@ everywhere.
 | `AUTH_MODE` | no | `github_app` | Legacy single-provider selector, used only when `AUTH_PROVIDERS` is empty: `github_app` or `entra`. |
 | `PUBLIC_BASE_URL` | no | request origin | Public URL of this instance; used to build OAuth callback URLs and links. Must match the redirect URI registered with your identity provider. |
 | `SESSION_SECRET` | **yes** | — | Long random string that signs the session cookie (HMAC-SHA-256). Required in real mode. Generate with `openssl rand -base64 48`. |
+| `SECRET_ENCRYPTION_KEY` | **yes** | — | Long random infrastructure secret used to encrypt provider credentials entered through the wizard. Required for wizard credential writes; back it up separately from the database. |
+| `SETUP_TOKEN` | **yes** | — | Optional first-boot token. While no non-local sign-in provider is usable, setup API calls must send it as `X-Setup-Token`. Leave unset for trusted/local first boot. |
+| `APP_VERSION` | no | package version | Deployed release identifier returned by health/auth APIs and shown in the UI. Container release builds set it from `--build-arg APP_VERSION=<tag>`. |
 | `DEFAULT_RETENTION_DAYS` | no | provider default | Days of pipeline-run / webhook history to retain before compaction. |
 
 ## Storage (Node host only)
@@ -120,6 +123,9 @@ combination with `AUTH_PROVIDERS` (ordered CSV); each appears on the sign-in
 screen only when it is also configured. For every provider, `*_ALLOWED_USERS` is a
 CSV where the **first principal is the owner** and the rest are admins. Each
 provider registers a redirect URI of `{PUBLIC_BASE_URL}/auth/<id>/callback`.
+The provider id is part of the signed cookie: removing a provider from
+`AUTH_PROVIDERS` (or making it unusable) invalidates its existing sessions on
+their next request.
 
 **GitHub** (`github`) — OAuth via the GitHub App user-authorization flow. Uses
 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (see GitHub App above) and
@@ -175,7 +181,7 @@ See [Providers → GitLab](providers/gitlab.md).
 
 | Setting | Secret | Default | Description |
 |---|---|---|---|
-| `CORS_ALLOWED_ORIGINS` | no | empty (same-origin) | Comma-separated exact SPA origins allowed to call the API cross-origin. Set only for the **decoupled** frontend topology (ADR-011). Empty = integrated same-origin. |
+| `CORS_ALLOWED_ORIGINS` | no | empty (same-origin) | Comma-separated exact SPA origins allowed to call the API cross-origin. Set only for the **decoupled** frontend topology (ADR-011). The first entry is the canonical post-login redirect. Empty = integrated same-origin. |
 | `VITE_API_BASE_URL` | no (build-time) | empty | SPA build var: absolute API base for a decoupled SPA. Empty = same-origin. |
 | `VITE_BASE_PATH` | no (build-time) | `/` | SPA base path when hosted under a sub-path (e.g. GitHub Pages project site). |
 | `VITE_DEFAULT_THEME` | no (build-time) | `light` | Default UI theme id. See [theming guide](guide/theming.md). |
@@ -196,6 +202,7 @@ See [Providers → GitLab](providers/gitlab.md).
 DEMO_MODE=false
 PUBLIC_BASE_URL=https://repowrangler.example.com
 SESSION_SECRET=<openssl rand -base64 48>
+SECRET_ENCRYPTION_KEY=<openssl rand -base64 48>
 GITHUB_APP_ID=123456
 GITHUB_APP_PRIVATE_KEY=<pem>
 GITHUB_CLIENT_ID=Iv1.abc123

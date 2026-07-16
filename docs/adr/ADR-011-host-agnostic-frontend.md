@@ -61,6 +61,9 @@ To make this real:
   The SPA continues to import **no** Worker or Cloudflare types.
 - The Worker applies CORS on `/api/*` from `CORS_ALLOWED_ORIGINS`; when the var is
   empty (Mode A) no cross-origin access is granted, which is the safe default.
+- Auth links target `VITE_API_BASE_URL`; cross-site sessions use a
+  `Secure; SameSite=None` cookie. After OAuth, the Worker redirects to the first
+  `CORS_ALLOWED_ORIGINS` entry, which is therefore the canonical SPA origin.
 - `deploy/` ships one recipe + CI workflow per supported host:
   `deploy/cloudflare/` (Mode A), `deploy/github-pages/`, `deploy/azure-swa/`
   (Mode B). Each documents the exact `VITE_API_BASE_URL` / `CORS_ALLOWED_ORIGINS`

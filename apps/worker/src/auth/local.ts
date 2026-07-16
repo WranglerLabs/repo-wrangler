@@ -33,13 +33,24 @@ export function isLocalDevConfigured(env: Env): boolean {
 }
 
 function loginForm(state: string, users: string[]): string {
-  const options = users.map((u) => `<option value="${u}">${u}</option>`).join('');
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const options = users
+    .map((user) => {
+      const escaped = escapeHtml(user);
+      return `<option value="${escaped}">${escaped}</option>`;
+    })
+    .join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Local sign-in</title></head>
 <body style="font-family:system-ui;max-width:24rem;margin:4rem auto">
 <h1>RepoWrangler — local sign-in</h1>
 <p style="color:#b45309">Development sign-in. Do not enable in production.</p>
 <form method="post" action="/auth/local/login">
-<input type="hidden" name="state" value="${state}">
+<input type="hidden" name="state" value="${escapeHtml(state)}">
 <label>User <select name="user">${options}</select></label>
 <button type="submit">Sign in</button>
 </form></body></html>`;

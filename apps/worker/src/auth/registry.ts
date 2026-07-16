@@ -1,4 +1,5 @@
 import { authMode, isDemoMode, type Env } from '../bindings';
+import { getMeta, setMeta } from '@repo-wrangler/persistence-d1';
 import type { AuthProvider } from './types';
 import { githubProvider } from './github';
 import { gitlabProvider } from './gitlab';
@@ -52,6 +53,36 @@ export async function enabledProviders(env: Env): Promise<AuthProvider[]> {
     .filter((p): p is AuthProvider => Boolean(p));
   const configured = await Promise.all(candidates.map((p) => p.isConfigured(env)));
   return candidates.filter((_, i) => configured[i]);
+}
+
+/** True when at least one operator-enabled, non-development provider can sign users in. */
+export async function isSignInConfigured(env: Env): Promise<boolean> {
+  return (await enabledProviders(env)).some((provider) => provider.id !== 'local');
+}
+
+const SETUP_COMPLETED_KEY = 'auth.setup_completed';
+
+/**
+ * First boot may use the setup allowlist until real sign-in works once. The
+ * durable latch prevents provider removal from ever reopening setup against a
+ * populated instance.
+ */
+export async function isSetupMode(env: Env): Promise<boolean> {
+  if (isDemoMode(env)) return false;
+  if (await isSignInConfigured(env)) {
+    await setMeta(env.DB, SETUP_COMPLETED_KEY, 'true');
+    return false;
+  }
+  return (await getMeta(env.DB, SETUP_COMPLETED_KEY)) !== 'true';
+}
+
+/** Session issuers must remain both enabled and configured for their cookies to stay valid. */
+export async function isSessionProviderEnabled(
+  env: Env,
+  providerId: string | undefined,
+): Promise<boolean> {
+  if (!providerId || providerId === 'setup' || providerId === 'demo') return false;
+  return (await enabledProviders(env)).some((provider) => provider.id === providerId);
 }
 
 export interface AuthConfigDto {

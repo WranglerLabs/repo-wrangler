@@ -6,6 +6,10 @@ GITHUB_WEBHOOK_SECRET=
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 SESSION_SECRET=change-me-to-a-long-random-string
+# Encrypts provider credentials entered through the first-run wizard.
+SECRET_ENCRYPTION_KEY=change-me-to-another-long-random-string
+# Optional protection for internet-facing first boot; leave empty for local setup.
+SETUP_TOKEN=
 PUBLIC_BASE_URL=http://localhost:8787
 ALLOWED_GITHUB_USERS=
 ALLOWED_GITHUB_ORGS=

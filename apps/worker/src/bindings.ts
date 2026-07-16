@@ -1,3 +1,5 @@
+import rootPackage from '../../../package.json';
+
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
@@ -9,6 +11,8 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  /** Optional first-boot bearer used only while no real sign-in provider is configured. */
+  SETUP_TOKEN?: string;
   GITLAB_TOKEN?: string;
   GITLAB_WEBHOOK_SECRET?: string;
   /** GitLab OAuth application id/secret — used by the GitLab sign-in provider. */
@@ -85,9 +89,17 @@ export interface Env {
   GITLAB_GROUPS?: string;
   /** Optional outbound webhook for critical/high attention escalations. */
   NOTIFY_WEBHOOK_URL?: string;
+  /** Runtime release identifier; container builds set this from their image tag. */
+  APP_VERSION?: string;
 }
 
-export const APP_VERSION = '0.6.10';
+/** Build/package fallback used when the host does not provide APP_VERSION. */
+export const BUILD_VERSION = rootPackage.version;
+
+/** Deployed version: runtime/image override first, then the checked-in package version. */
+export function appVersion(env: Env): string {
+  return env.APP_VERSION?.trim() || BUILD_VERSION;
+}
 
 export function isGitLabConfigured(env: Env): boolean {
   return Boolean(env.GITLAB_TOKEN && env.GITLAB_GROUPS);

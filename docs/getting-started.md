@@ -69,12 +69,17 @@ provider and turn off demo mode:
 2. **Connect a provider:**
    - GitHub → [Providers → GitHub App](providers/github-app.md)
    - GitLab → [Providers → GitLab](providers/gitlab.md)
-3. **Set `DEMO_MODE=false`** and provide the provider secrets (as Cloudflare
-   secrets, a `.env` file, Key Vault, or a Kubernetes Secret depending on target
-   — see [configuration](configuration.md)).
-4. **Choose how people sign in** — GitHub (default) or
-   [Microsoft Entra ID](providers/entra.md). Add yourself to the allowlist; the
-   first person to sign in becomes the owner.
+3. **Set the infrastructure secrets** (`SESSION_SECRET` and
+   `SECRET_ENCRYPTION_KEY`), then set `DEMO_MODE=false`. On first boot the app
+   opens directly to the connection wizard; no pre-existing sign-in is needed.
+   The wizard stores provider credentials in the encrypted connection-secret
+   store and setup mode closes as soon as a real sign-in provider works.
+4. **For an internet-facing first boot, set `SETUP_TOKEN`** in the deployment's
+   secret store. The wizard asks for it before any setup API is available. It is
+   optional and no token is generated or required when the setting is absent.
+5. **Choose how people sign in** — any configured provider in
+   `AUTH_PROVIDERS`. Add yourself to its allowlist; after the wizard finishes,
+   sign in normally. The first listed principal is the owner.
 
 First sign-in and first sync are covered per provider in the provider guides, and
 operationally in [operations.md](operations.md).

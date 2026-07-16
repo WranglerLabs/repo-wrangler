@@ -14,7 +14,7 @@ import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
 
 const migrationsDir = join(__dirname, '../../../migrations');
-const admin: SessionUserDto = { login: 'kris', role: 'admin' };
+const admin: SessionUserDto = { login: 'operator', role: 'admin' };
 
 function testApp() {
   const app = new Hono<AppContext>();
@@ -45,20 +45,41 @@ describe('GET /api/v1/onboarding/status — B1 first-run detection', () => {
 
   it('demo: never first-run, everything zeroed', async () => {
     const res = await testApp().request('/api/v1/onboarding/status', {}, demoEnv(db));
-    expect(await res.json()).toEqual({ demo: true, connections: 0, monitoredWorkspaces: 0, firstRun: false });
+    expect(await res.json()).toEqual({
+      demo: true,
+      setupMode: false,
+      setupTokenRequired: false,
+      connections: 0,
+      monitoredWorkspaces: 0,
+      firstRun: false,
+    });
   });
 
   it('real mode, no connections yet: firstRun is true', async () => {
     const res = await testApp().request('/api/v1/onboarding/status', {}, realEnv(db));
     const body = await res.json();
-    expect(body).toEqual({ demo: false, connections: 0, monitoredWorkspaces: 0, firstRun: true });
+    expect(body).toEqual({
+      demo: false,
+      setupMode: true,
+      setupTokenRequired: false,
+      connections: 0,
+      monitoredWorkspaces: 0,
+      firstRun: true,
+    });
   });
 
   it('real mode, a connection exists but nothing monitored yet: still firstRun', async () => {
     await ensureGitHubConnection(db);
     const res = await testApp().request('/api/v1/onboarding/status', {}, realEnv(db));
     const body = await res.json();
-    expect(body).toEqual({ demo: false, connections: 1, monitoredWorkspaces: 0, firstRun: true });
+    expect(body).toEqual({
+      demo: false,
+      setupMode: true,
+      setupTokenRequired: false,
+      connections: 1,
+      monitoredWorkspaces: 0,
+      firstRun: true,
+    });
   });
 
   it('real mode with a monitored workspace: firstRun flips false', async () => {
@@ -67,6 +88,13 @@ describe('GET /api/v1/onboarding/status — B1 first-run detection', () => {
     await upsertRepository(db, workspaceId, makeRepositorySnapshot());
     const res = await testApp().request('/api/v1/onboarding/status', {}, realEnv(db));
     const body = await res.json();
-    expect(body).toEqual({ demo: false, connections: 1, monitoredWorkspaces: 1, firstRun: false });
+    expect(body).toEqual({
+      demo: false,
+      setupMode: true,
+      setupTokenRequired: false,
+      connections: 1,
+      monitoredWorkspaces: 1,
+      firstRun: false,
+    });
   });
 });

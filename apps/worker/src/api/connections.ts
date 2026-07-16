@@ -33,6 +33,7 @@ import {
 } from '@repo-wrangler/provider-github';
 import { GitLabClient, countGroupProjects, getGroupWorkspace, searchGroups } from '@repo-wrangler/provider-gitlab';
 import { isDemoMode } from '../bindings';
+import { isSetupMode } from '../auth/registry';
 import { requireAdmin, type AppContext } from '../middleware/auth';
 import {
   resolveGitHubAppCredentials,
@@ -55,6 +56,8 @@ connectionRoutes.get('/onboarding/status', async (c) => {
   if (isDemoMode(c.env)) {
     const body: OnboardingStatusDto = {
       demo: true,
+      setupMode: false,
+      setupTokenRequired: false,
       connections: 0,
       monitoredWorkspaces: 0,
       firstRun: false,
@@ -63,8 +66,11 @@ connectionRoutes.get('/onboarding/status', async (c) => {
   }
   const connections = await listConnections(c.env.DB);
   const monitoredWorkspaces = await countMonitoredWorkspaces(c.env.DB);
+  const setupMode = await isSetupMode(c.env);
   const body: OnboardingStatusDto = {
     demo: false,
+    setupMode,
+    setupTokenRequired: setupMode && Boolean(c.env.SETUP_TOKEN),
     connections: connections.length,
     monitoredWorkspaces,
     firstRun: monitoredWorkspaces === 0,
@@ -294,9 +300,33 @@ connectionRoutes.post('/connections/gitlab', requireAdmin, async (c) => {
   } catch {
     return c.json({ error: 'invalid JSON body' }, 400);
   }
-  const baseUrl = (body.baseUrl?.trim() || 'https://gitlab.com').replace(/\/+$/, '');
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(body.baseUrl?.trim() || 'https://gitlab.com');
+  } catch {
+    return c.json({ error: 'GitLab base URL must be a valid http(s) origin.' }, 400);
+  }
+  if (
+    !['http:', 'https:'].includes(parsedBaseUrl.protocol) ||
+    parsedBaseUrl.username ||
+    parsedBaseUrl.password ||
+    (parsedBaseUrl.pathname !== '/' && parsedBaseUrl.pathname !== '') ||
+    parsedBaseUrl.search ||
+    parsedBaseUrl.hash
+  ) {
+    return c.json({ error: 'GitLab base URL must contain only scheme, host, and optional port.' }, 400);
+  }
+  const baseUrl = parsedBaseUrl.origin;
   const token = body.token?.trim();
   if (!token) return c.json({ error: 'token is required' }, 400);
+
+  const user = c.get('user');
+  if (user.provider === 'setup' && !c.env.SETUP_TOKEN && parsedBaseUrl.hostname !== 'gitlab.com') {
+    return c.json(
+      { error: 'Custom GitLab origins require SETUP_TOKEN during unauthenticated first boot.' },
+      400,
+    );
+  }
 
   const client = new GitLabClient(token, baseUrl);
   const check = await client.request<{ username?: string }>('/user');
@@ -317,7 +347,6 @@ connectionRoutes.post('/connections/gitlab', requireAdmin, async (c) => {
   await secrets.set('GITLAB_TOKEN', token);
   await setConnectionSecretReference(c.env.DB, connectionId, connectionId);
 
-  const user = c.get('user');
   await recordAuditEvent(c.env.DB, user.login, 'connection.gitlab.created', `user=${check.data.username}`);
   // B11: 'discovery' is the GitHub reconciliation job — a fresh GitLab
   // connection must enqueue its own job type or no scan ever runs until the

@@ -5,12 +5,15 @@ import type { ConnectionDto } from '@repo-wrangler/contracts';
 import type { AuthProviderOption } from '../api/client';
 import {
   ApiError,
+  authorizeSetup,
+  clearStoredSetupToken,
   connectGitLab,
   createGitLabWorkspaces,
   exchangeGitHubApp,
   pasteGitHubCredentials,
   searchGitLabGroups,
   setWorkspaceMonitoringState,
+  hasStoredSetupToken,
   triggerManualSync,
   useAuthConfig,
   useConnections,
@@ -51,9 +54,24 @@ export function Onboarding() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(forceNewConnection);
+  const [setupAuthorized, setSetupAuthorized] = useState(hasStoredSetupToken);
 
-  const connections = useConnections();
   const authConfig = useAuthConfig();
+  const setupTokenRequired = authConfig.data?.setupTokenRequired === true;
+  const connections = useConnections(
+    Boolean(authConfig.data) && (!setupTokenRequired || setupAuthorized),
+  );
+
+  useEffect(() => {
+    if (setupTokenRequired && connections.error instanceof ApiError && connections.error.status === 401) {
+      clearStoredSetupToken();
+      setSetupAuthorized(false);
+    }
+  }, [setupTokenRequired, connections.error]);
+
+  useEffect(() => {
+    if (authConfig.data && !authConfig.data.setupMode) clearStoredSetupToken();
+  }, [authConfig.data]);
 
   // The finish step must judge sign-in readiness on credentials stored
   // DURING this wizard run, not on a config cached at first paint (the
@@ -129,7 +147,18 @@ export function Onboarding() {
       // scheduled reconciliation picks it up regardless.
     }
     await queryClient.invalidateQueries({ queryKey: ['onboarding-status'] });
+    await queryClient.invalidateQueries({ queryKey: ['auth-config'] });
+    const currentAuth = queryClient.getQueryData<{ setupMode: boolean }>(['auth-config']);
+    if (currentAuth && !currentAuth.setupMode) {
+      clearStoredSetupToken();
+      window.location.assign('/sign-in');
+      return;
+    }
     navigate('/');
+  }
+
+  if (setupTokenRequired && !setupAuthorized) {
+    return <SetupTokenGate onAuthorized={() => setSetupAuthorized(true)} />;
   }
 
   return (
@@ -229,10 +258,52 @@ export function Onboarding() {
   );
 }
 
+function SetupTokenGate({ onAuthorized }: { onAuthorized: () => void }) {
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function unlock() {
+    setBusy(true);
+    setError(null);
+    try {
+      await authorizeSetup(token);
+      onAuthorized();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Setup token rejected.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <h1 className="page-title">Secure initial setup</h1>
+      <p className="page-subtitle">Enter the setup token configured by this deployment.</p>
+      <div className="panel">
+        {error && <div className="error-box">{error}</div>}
+        <label className="field mono-field">
+          Setup token
+          <input
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && void unlock()}
+          />
+        </label>
+        <button onClick={() => void unlock()} disabled={busy || !token}>
+          {busy ? 'Checking…' : 'Continue'}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /**
  * Setup must never end with a locked front door: on a fresh real-mode
- * install the only session is the setup-mode/local bridge, and once that
- * goes away an instance with no configured provider has no way back in.
+ * install the request-scoped setup identity disappears as soon as a real
+ * provider works. The durable setup latch prevents that door reopening later.
  * The finish step states plainly whether real sign-in works — and how to
  * fix it before leaving the wizard if it doesn't.
  */
@@ -247,16 +318,16 @@ function SignInReadiness({
   if (providers.length > 0) {
     return (
       <p>
-        ✓ Sign-in is ready — {providers.map((p) => p.label).join(', ')}. After you sign out (or
-        this setup session ends), sign back in with{' '}
+        ✓ Sign-in is ready — {providers.map((p) => p.label).join(', ')}. Setup access is now
+        closed; sign in with{' '}
         {providers.map((p) => p.label).join(' or ')}.
       </p>
     );
   }
   return (
     <div className="error-box">
-      <strong>No sign-in provider is configured.</strong> When this setup session ends you will
-      not be able to sign back in. For GitHub: open your GitHub App's settings, generate a client
+      <strong>No sign-in provider is configured.</strong> Setup remains available, but you cannot
+      enter the dashboard normally yet. For GitHub: open your GitHub App's settings, generate a client
       secret, then add the OAuth client ID and secret via{' '}
       <a href="/onboarding?add=1">Connect → I already have a GitHub App</a> before you finish.
     </div>

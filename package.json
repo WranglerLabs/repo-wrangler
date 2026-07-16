@@ -1,11 +1,11 @@
 {
   "name": "repo-wrangler",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.6.10",
   "description": "RepoWrangler — wrangle every repository into one clear view.",
   "license": "Apache-2.0",
   "type": "module",
-  "packageManager": "pnpm@10.4.1",
+  "packageManager": "pnpm@11.13.1",
   "engines": {
     "node": ">=20"
   },
@@ -25,7 +25,7 @@
     "docs:preview": "vitepress preview docs"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250620.0",
+    "@cloudflare/workers-types": "^5.20260708.1",
     "mermaid": "^11.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.3",

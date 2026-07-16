@@ -93,7 +93,7 @@ flowchart TD
   t2 --> real
   demo --> donedemo([Done — demo running on mock data])
   real -->|"Not yet"| donedemo
-  real -->|"Yes"| ga["Create a GitHub App,<br/>set the 6 secrets,<br/>DEMO_MODE=false,<br/>set ALLOWED_GITHUB_USERS"]
+  real -->|"Yes"| ga["Set session + encryption secrets,<br/>DEMO_MODE=false,<br/>complete the first-run wizard"]
   ga --> pointat["Point the App's OAuth callback<br/>+ webhook at your public URL"]
   pointat --> donereal([Done — real instance running])
 ```
@@ -111,19 +111,30 @@ the recipe's "real mode" section.
 
 ## Going to real mode
 
-Real mode needs a **GitHub App** (read-only — ADR-003) and a handful of secrets.
-The flow is the same everywhere, in every tier:
+Real mode needs infrastructure secrets and at least one read-only provider. The
+flow is the same everywhere, in every tier:
 
 1. Create a GitHub App (each operator owns their own — design line 620). A
    personal-account app works even if you don't own an org; see
    [`deploy/cloudflare/README.md`](../deploy/cloudflare/README.md) for the manifest flow.
-2. Set the six secrets — `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`,
-   `GITHUB_WEBHOOK_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`,
-   `SESSION_SECRET` — where the target keeps secrets (Cloudflare `secret put`,
-   `.env`, Key Vault, or a Kubernetes `Secret`).
-3. Set `DEMO_MODE=false` and `ALLOWED_GITHUB_USERS` to your login (first to sign
-   in becomes the owner).
-4. Point the App's OAuth callback and webhook URL at your instance's public URL.
+2. Set `SESSION_SECRET` and `SECRET_ENCRYPTION_KEY` where the target keeps
+   infrastructure secrets (Cloudflare `secret put`, `.env`, Key Vault, or a
+   Kubernetes `Secret`). For a public-internet first boot, also set the optional
+   `SETUP_TOKEN`.
+3. Set `DEMO_MODE=false` and open the instance. With no usable sign-in provider,
+   RepoWrangler enters setup mode and sends the browser to the onboarding wizard.
+4. Use the wizard to store the GitHub App/OAuth credentials and select the
+   estate. As soon as OAuth sign-in is usable, setup endpoints lock and the app
+   sends you to normal sign-in.
+5. Point the App's OAuth callback and webhook URL at your instance's public URL.
+
+For traceable container releases, build with the release tag:
+
+```bash
+docker build -f apps/server/Dockerfile \
+  --build-arg APP_VERSION=v0.6.10 \
+  -t repo-wrangler-server:v0.6.10 .
+```
 
 See [configuration.md](configuration.md) for every setting.
 

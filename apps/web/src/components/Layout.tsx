@@ -36,10 +36,22 @@ function useTheme(): [string, (id: string) => void] {
   return [theme, setTheme];
 }
 
+function providerLabel(provider: string | undefined): string {
+  switch (provider) {
+    case 'github': return 'GitHub';
+    case 'gitlab': return 'GitLab';
+    case 'entra': return 'Microsoft';
+    case 'google': return 'Google';
+    case 'local': return 'Local dev';
+    default: return 'Session';
+  }
+}
+
 export function Layout() {
   const [theme, setTheme] = useTheme();
-  const { data: user } = useSessionUser();
   const { data: authConfig } = useAuthConfig();
+  const setupMode = authConfig?.setupMode === true;
+  const { data: user } = useSessionUser(Boolean(authConfig) && !setupMode);
   const signIns = signInOptions(authConfig);
   const location = useLocation();
   const navigate = useNavigate();
@@ -53,8 +65,12 @@ export function Layout() {
     if (authConfig?.demo) document.title = 'RepoWrangler Demo';
   }, [authConfig?.demo]);
 
-  const onboardingStatus = useOnboardingStatus();
+  const onboardingStatus = useOnboardingStatus(Boolean(user) && !setupMode);
   useEffect(() => {
+    if (setupMode && location.pathname !== '/onboarding') {
+      navigate('/onboarding');
+      return;
+    }
     if (
       user &&
       onboardingStatus.data?.firstRun &&
@@ -62,7 +78,7 @@ export function Layout() {
     ) {
       navigate('/onboarding');
     }
-  }, [user, onboardingStatus.data?.firstRun, location.pathname, navigate]);
+  }, [setupMode, user, onboardingStatus.data?.firstRun, location.pathname, navigate]);
 
   return (
     <div className="layout">
@@ -87,29 +103,23 @@ export function Layout() {
           ))}
         </nav>
         <div className="footer">
-          {user ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <div>
-                {user.login} ({user.role}){user.demo ? ' · demo' : ''}
+          {setupMode ? (
+            <div>Initial setup</div>
+          ) : user ? (
+            <details className="account-menu">
+              <summary>
+                <span>{user.login}</span>
+                <span className="provider-badge">{providerLabel(user.provider)}</span>
+              </summary>
+              <div className="account-menu-panel">
+                <span className="muted">Role: {user.role}{user.demo ? ' · demo' : ''}</span>
+                {!user.demo && (
+                  <button type="button" onClick={() => void signOut()}>
+                    Sign out
+                  </button>
+                )}
               </div>
-              {!user.demo && (
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  style={{
-                    color: '#e0b45e',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    font: 'inherit',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Sign out
-                </button>
-              )}
-            </div>
+            </details>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               {signIns.map((s) => (

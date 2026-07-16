@@ -92,23 +92,21 @@ repo so a `git pull` (or a Cloudflare Workers Build) can never wipe or leak them
 
    Deploy with the override applied: `wrangler deploy -c wrangler.jsonc -c wrangler.local.jsonc`.
 2. Apply migrations: `pnpm db:migrate:remote`
-3. Create a **read-only GitHub App** and install it on your organizations (or
-   your personal account) — see [docs/setup/github-app.md](docs/setup/github-app.md).
-4. Set secrets (these live in Cloudflare, never in the repo):
+3. Set the first-boot infrastructure secrets (these live in Cloudflare, never
+   in the repo):
 
    ```bash
-   wrangler secret put GITHUB_APP_ID
-   wrangler secret put GITHUB_APP_PRIVATE_KEY
-   wrangler secret put GITHUB_WEBHOOK_SECRET
-   wrangler secret put GITHUB_CLIENT_ID
-   wrangler secret put GITHUB_CLIENT_SECRET
    wrangler secret put SESSION_SECRET
-   wrangler secret put ALLOWED_GITHUB_USERS   # comma-separated; first user is the owner
+   wrangler secret put SECRET_ENCRYPTION_KEY
+   wrangler secret put SETUP_TOKEN # optional; recommended for internet-facing first boot
    ```
 
-   Setting `ALLOWED_GITHUB_USERS` as a **secret** (not a committed `var`) keeps
-   your login out of the public repo and survives redeploys.
-5. Set `PUBLIC_BASE_URL` and `DEMO_MODE=false` on your deployment, then `pnpm deploy`.
+4. Set `PUBLIC_BASE_URL` and `DEMO_MODE=false`, then deploy and open the app. The
+   first-run wizard creates or connects the read-only GitHub App, stores its
+   credentials encrypted, and asks which organizations to monitor. Setup access
+   closes permanently when normal sign-in becomes usable.
+5. Pre-seeded GitOps remains supported: set the five `GITHUB_*` values and
+   `ALLOWED_GITHUB_USERS` before switching to real mode instead of using the wizard.
 
 Full walkthrough: [docs/setup/deploy-cloudflare.md](docs/setup/deploy-cloudflare.md).
 Hosting the UI somewhere other than Cloudflare (GitHub Pages, Azure Static Web

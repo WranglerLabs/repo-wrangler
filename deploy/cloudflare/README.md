@@ -26,16 +26,13 @@ Zero cross-origin config, fits the Cloudflare free tier.
    pnpm db:migrate:remote
    ```
 
-3. **Set secrets** (never committed):
+3. **Set first-boot infrastructure secrets** (never committed):
 
    ```bash
-   wrangler secret put GITHUB_APP_ID
-   wrangler secret put GITHUB_APP_PRIVATE_KEY
-   wrangler secret put GITHUB_WEBHOOK_SECRET
-   wrangler secret put GITHUB_CLIENT_ID
-   wrangler secret put GITHUB_CLIENT_SECRET
    wrangler secret put SESSION_SECRET
-   wrangler secret put ALLOWED_GITHUB_USERS
+   wrangler secret put SECRET_ENCRYPTION_KEY
+   # Recommended when the initial deployment is reachable from the internet:
+   wrangler secret put SETUP_TOKEN
    ```
 
 4. **Build and deploy:**
@@ -45,8 +42,10 @@ Zero cross-origin config, fits the Cloudflare free tier.
    wrangler deploy -c wrangler.jsonc -c wrangler.local.jsonc
    ```
 
-5. Set `DEMO_MODE=false` and `PUBLIC_BASE_URL` on the deployment once your GitHub
-   App is installed.
+5. Set `DEMO_MODE=false` and `PUBLIC_BASE_URL`, then open the deployment. The
+   first-run wizard creates or connects the GitHub App and stores its provider
+   credentials. If you prefer GitOps/pre-seeded credentials, set the five
+   `GITHUB_*` secrets and `ALLOWED_GITHUB_USERS` before switching modes instead.
 
 `VITE_API_BASE_URL` and `CORS_ALLOWED_ORIGINS` stay **empty** in this mode — the
 SPA and API share an origin.
