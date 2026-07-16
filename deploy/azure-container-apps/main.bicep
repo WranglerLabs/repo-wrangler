@@ -50,6 +50,9 @@ param authProviders string = 'github'
 @description('Public URL the instance is reachable at (OAuth callbacks/links).')
 param publicBaseUrl string = ''
 
+@description('Run the in-process scheduler. Disable on a staging revision before traffic cutover.')
+param enableScheduler bool = true
+
 // --- Per-resource names (CAF-friendly) ----------------------------------------
 // Each defaults to the original derived value, so existing deployments are
 // unchanged. Cloud Adoption Framework callers pass explicit, prefix-correct
@@ -153,7 +156,7 @@ resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if
   properties: {
     azureFile: {
       accountName: sqliteMode ? storage.name : ''
-      accountKey: sqliteMode ? storage.listKeys().keys[0].value : ''
+      accountKey: sqliteMode ? storage!.listKeys().keys[0].value : ''
       shareName: fileShareName
       accessMode: 'ReadWrite'
     }
@@ -168,6 +171,7 @@ var kvSecretNames = [
   'github-client-id'
   'github-client-secret'
   'session-secret'
+  'secret-encryption-key'
 ]
 
 // Real mode = not demo AND a vault was supplied.
@@ -196,7 +200,7 @@ var baseEnv = [
   { name: 'ALLOWED_GITHUB_USERS', value: allowedGithubUsers }
   { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
   // One replica owns the scheduler (and the SQLite file in sqlite mode).
-  { name: 'ENABLE_SCHEDULER', value: 'true' }
+  { name: 'ENABLE_SCHEDULER', value: string(enableScheduler) }
 ]
 
 var sqliteEnv = [
@@ -214,6 +218,7 @@ var secretEnv = [
   { name: 'GITHUB_CLIENT_ID', secretRef: 'github-client-id' }
   { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }
   { name: 'SESSION_SECRET', secretRef: 'session-secret' }
+  { name: 'SECRET_ENCRYPTION_KEY', secretRef: 'secret-encryption-key' }
 ]
 
 var appEnv = concat(

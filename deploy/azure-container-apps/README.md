@@ -115,8 +115,8 @@ production one.
 
 The GitHub App has to exist before you can seed its secrets — its values are
 the input. Follow the [GitHub App guide](https://wranglerlabs.org/providers/github-app)
-end to end, then come back here with six values: App ID, private key, OAuth
-client ID/secret, webhook secret, plus a session secret you generate.
+end to end, then come back here with seven values: App ID, private key, OAuth
+client ID/secret, webhook secret, a session secret, and a secret-encryption key.
 
 ```bash
 az keyvault create -n <kv> -g rg-repo-wrangler -l eastus
@@ -127,9 +127,10 @@ az keyvault secret set --vault-name <kv> --name github-webhook-secret  --value <
 az keyvault secret set --vault-name <kv> --name github-client-id       --value <id>
 az keyvault secret set --vault-name <kv> --name github-client-secret   --value <secret>
 az keyvault secret set --vault-name <kv> --name session-secret         --value "$(openssl rand -hex 32)"
+az keyvault secret set --vault-name <kv> --name secret-encryption-key   --value "$(openssl rand -hex 32)"
 ```
 
-These six secret names are fixed — `main.bicep` references them by name. Use
+These seven secret names are fixed — `main.bicep` references them by name. Use
 `--file`, not `--value`, for `github-app-private-key`: `--value` truncates a
 multiline PEM at the first newline, and the app fails to start with a
 malformed-key error.

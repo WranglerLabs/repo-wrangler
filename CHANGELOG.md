@@ -6,6 +6,15 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-16
+
+### Fixed
+
+- The public Tier 2 Azure Container Apps recipe now includes the required
+  `SECRET_ENCRYPTION_KEY` Key Vault reference and an explicit scheduler switch
+  for safe staged revision cutovers. These settings had been proven in the HCS
+  downstream deployment but were missing from the public GA recipe.
+
 ## [1.0.0] - 2026-07-16
 
 RepoWrangler's first generally available release. The GitHub and GitLab estate
