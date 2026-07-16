@@ -224,6 +224,20 @@ certificate issues — a proxied record fails Azure's domain validation.
 Flags shift between `az` CLI versions; if a command errors, check
 `az containerapp hostname bind --help`.
 
+After Azure issues the certificate, record its managed-certificate name and
+pass both values on every later template deployment. This keeps a declarative
+redeploy from removing the hostname binding:
+
+```bash
+CUSTOM_DOMAIN_NAME=wrangler.example.com \
+CUSTOM_DOMAIN_CERTIFICATE_NAME=<managed-certificate-name> \
+  deploy/azure-container-apps/deploy.sh
+```
+
+PowerShell uses `-CustomDomainName` and
+`-CustomDomainCertificateName`. The Bicep parameters have the same camel-case
+names for a `.bicepparam` file.
+
 ## How identity works
 
 The template creates a **user-assigned** managed identity and grants it

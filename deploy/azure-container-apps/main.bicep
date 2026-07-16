@@ -53,6 +53,12 @@ param publicBaseUrl string = ''
 @description('Run the in-process scheduler. Disable on a staging revision before traffic cutover.')
 param enableScheduler bool = true
 
+@description('Optional custom hostname to preserve on repeat deployments. Pair with customDomainCertificateName.')
+param customDomainName string = ''
+
+@description('Optional managed certificate name in this Container Apps environment. Pair with customDomainName.')
+param customDomainCertificateName string = ''
+
 // --- Per-resource names (CAF-friendly) ----------------------------------------
 // Each defaults to the original derived value, so existing deployments are
 // unchanged. Cloud Adoption Framework callers pass explicit, prefix-correct
@@ -200,7 +206,7 @@ var baseEnv = [
   { name: 'ALLOWED_GITHUB_USERS', value: allowedGithubUsers }
   { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
   // One replica owns the scheduler (and the SQLite file in sqlite mode).
-  { name: 'ENABLE_SCHEDULER', value: string(enableScheduler) }
+  { name: 'ENABLE_SCHEDULER', value: enableScheduler ? 'true' : 'false' }
 ]
 
 var sqliteEnv = [
@@ -227,6 +233,22 @@ var appEnv = concat(
   realMode ? secretEnv : []
 )
 
+var customDomainConfigured = !empty(customDomainName) && !empty(customDomainCertificateName)
+var appIngress = union({
+  external: true
+  targetPort: 8080
+  transport: 'auto'
+  allowInsecure: false
+}, customDomainConfigured ? {
+  customDomains: [
+    {
+      name: customDomainName
+      bindingType: 'SniEnabled'
+      certificateId: resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, customDomainCertificateName)
+    }
+  ]
+} : {})
+
 var appSecrets = concat(
   realMode ? kvSecrets : [],
   postgres ? dbSecret : []
@@ -245,12 +267,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: env.id
     configuration: {
-      ingress: {
-        external: true
-        targetPort: 8080
-        transport: 'auto'
-        allowInsecure: false
-      }
+      ingress: appIngress
       registries: [
         {
           server: acrLoginServer

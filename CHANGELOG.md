@@ -6,6 +6,17 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-16
+
+### Fixed
+
+- Azure Container Apps now receives lowercase scheduler Boolean values, matching
+  the application configuration parser.
+- The ACA template accepts the custom hostname and managed-certificate name so
+  repeat deployments preserve the production domain binding.
+- Bash and PowerShell deployment scripts expose the scheduler and custom-domain
+  parameters consistently.
+
 ## [1.0.1] - 2026-07-16
 
 ### Fixed

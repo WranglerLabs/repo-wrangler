@@ -26,6 +26,9 @@ KEY_VAULT_NAME="${KEY_VAULT_NAME:-}"
 ALLOWED_GITHUB_USERS="${ALLOWED_GITHUB_USERS:-}"
 AUTH_PROVIDERS="${AUTH_PROVIDERS:-github}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}"
+ENABLE_SCHEDULER="${ENABLE_SCHEDULER:-true}"
+CUSTOM_DOMAIN_NAME="${CUSTOM_DOMAIN_NAME:-}"
+CUSTOM_DOMAIN_CERTIFICATE_NAME="${CUSTOM_DOMAIN_CERTIFICATE_NAME:-}"
 MANAGED_IDENTITY_NAME="${MANAGED_IDENTITY_NAME:-${NAME}-id}"
 # Per-resource (CAF) names — override any of these for naming-standard compliance
 # (e.g. CONTAINER_APP_NAME=ca-rw-prod-eus CONTAINERAPPS_ENV_NAME=cae-rw-prod-eus).
@@ -80,6 +83,9 @@ DEPLOY_OUT="$(az deployment group create \
      storageAccountName="$STORAGE_ACCOUNT_NAME" \
      authProviders="$AUTH_PROVIDERS" \
      allowedGithubUsers="$ALLOWED_GITHUB_USERS" publicBaseUrl="$PUBLIC_BASE_URL" \
+     enableScheduler="$ENABLE_SCHEDULER" \
+     customDomainName="$CUSTOM_DOMAIN_NAME" \
+     customDomainCertificateName="$CUSTOM_DOMAIN_CERTIFICATE_NAME" \
   --query properties.outputs -o json)"
 
 APP_URL="$(az deployment group show -g "$RESOURCE_GROUP" -n main \

@@ -37,6 +37,8 @@ param(
     [string] $AuthProviders = 'github',
     [string] $PublicBaseUrl = '',
     [bool]   $EnableScheduler = $true,
+    [string] $CustomDomainName = '',
+    [string] $CustomDomainCertificateName = '',
     [string] $ManagedIdentityName = '',
     # Per-resource (CAF) names — override for naming-standard compliance
     # (e.g. -ContainerAppName ca-rw-prod-eus -EnvironmentName cae-rw-prod-eus).
@@ -106,6 +108,8 @@ $outputs = az deployment group create `
        authProviders=$AuthProviders `
        allowedGithubUsers=$AllowedGithubUsers publicBaseUrl=$PublicBaseUrl `
        enableScheduler=$EnableScheduler `
+       customDomainName=$CustomDomainName `
+       customDomainCertificateName=$CustomDomainCertificateName `
     --query properties.outputs -o json | ConvertFrom-Json
 
 $appUrl = $outputs.appUrl.value
