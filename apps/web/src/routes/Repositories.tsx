@@ -12,11 +12,22 @@ import { timeAgo } from '../lib/format';
 import { exportCsv, exportJson, exportMarkdown } from '../lib/export';
 import { useVirtualWindow } from '../lib/useVirtualWindow';
 import { ROW_HEIGHT, VIEWPORT_HEIGHT, VIRTUALIZE_ABOVE } from '../lib/listViewport';
+import {
+  applyRepositoryView,
+  type RepositorySort,
+  type SortDirection,
+} from '../lib/repositoryView';
 
 interface ViewDefinition {
   search: string;
   level: (typeof LEVELS)[number];
   includeArchived: boolean;
+  provider: string;
+  workspace: string;
+  language: string;
+  status: string;
+  sort: RepositorySort;
+  direction: SortDirection;
 }
 
 const LEVELS = ['all', 'critical', 'high', 'medium', 'low', 'healthy', 'unknown'] as const;
@@ -25,6 +36,12 @@ export function Repositories() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [search, setSearch] = useState('');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('all');
+  const [provider, setProvider] = useState('all');
+  const [workspace, setWorkspace] = useState('all');
+  const [language, setLanguage] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState<RepositorySort>('name');
+  const [direction, setDirection] = useState<SortDirection>('asc');
   const repositories = useRepositories(includeArchived);
 
   const queryClient = useQueryClient();
@@ -40,6 +57,12 @@ export function Repositories() {
       if (typeof def.search === 'string') setSearch(def.search);
       if (def.level) setLevel(def.level);
       if (typeof def.includeArchived === 'boolean') setIncludeArchived(def.includeArchived);
+      if (typeof def.provider === 'string') setProvider(def.provider);
+      if (typeof def.workspace === 'string') setWorkspace(def.workspace);
+      if (typeof def.language === 'string') setLanguage(def.language);
+      if (typeof def.status === 'string') setStatus(def.status);
+      if (def.sort) setSort(def.sort);
+      if (def.direction) setDirection(def.direction);
     } catch {
       /* ignore a malformed saved definition */
     }
@@ -48,7 +71,9 @@ export function Repositories() {
   async function saveView() {
     const name = window.prompt('Name this view:')?.trim();
     if (!name) return;
-    const definition: ViewDefinition = { search, level, includeArchived };
+    const definition: ViewDefinition = {
+      search, level, includeArchived, provider, workspace, language, status, sort, direction,
+    };
     await createSavedView(name, definition);
     await queryClient.invalidateQueries({ queryKey: ['saved-views'] });
   }
@@ -61,13 +86,35 @@ export function Repositories() {
   }
 
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return (repositories.data ?? []).filter((repo) => {
-      if (level !== 'all' && repo.attentionLevel !== level) return false;
-      if (term && !repo.fullName.toLowerCase().includes(term)) return false;
-      return true;
+    return applyRepositoryView(repositories.data ?? [], {
+      search, level, provider, workspace, language, status, sort, direction,
     });
-  }, [repositories.data, search, level]);
+  }, [repositories.data, search, level, provider, workspace, language, status, sort, direction]);
+
+  const options = useMemo(() => {
+    const data = repositories.data ?? [];
+    const unique = (values: (string | undefined)[]) =>
+      [...new Set(values.filter((value): value is string => Boolean(value)))].sort();
+    return {
+      providers: unique(data.map((repo) => repo.provider)),
+      workspaces: unique(data.map((repo) => repo.workspaceSlug)),
+      languages: unique(data.map((repo) => repo.primaryLanguage)),
+      statuses: unique(data.map((repo) => repo.status)),
+    };
+  }, [repositories.data]);
+
+  function resetView() {
+    setSearch('');
+    setLevel('all');
+    setProvider('all');
+    setWorkspace('all');
+    setLanguage('all');
+    setStatus('all');
+    setSort('name');
+    setDirection('asc');
+    setIncludeArchived(false);
+    setViewId('');
+  }
 
   const virtualize = filtered.length > VIRTUALIZE_ABOVE;
   const win = useVirtualWindow(filtered.length, ROW_HEIGHT, VIEWPORT_HEIGHT);
@@ -84,6 +131,7 @@ export function Repositories() {
         <input
           type="search"
           placeholder="Filter by name…"
+          aria-label="Search repositories"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -94,6 +142,33 @@ export function Repositories() {
             </option>
           ))}
         </select>
+        <select aria-label="Filter by provider" value={provider} onChange={(e) => setProvider(e.target.value)}>
+          <option value="all">All providers</option>
+          {options.providers.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filter by workspace" value={workspace} onChange={(e) => setWorkspace(e.target.value)}>
+          <option value="all">All workspaces</option>
+          {options.workspaces.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filter by language" value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="all">All languages</option>
+          {options.languages.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Filter by status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="all">All statuses</option>
+          {options.statuses.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+        <select aria-label="Sort repositories" value={sort} onChange={(e) => setSort(e.target.value as RepositorySort)}>
+          <option value="name">Sort: name</option>
+          <option value="attention">Sort: attention</option>
+          <option value="activity">Sort: last activity</option>
+          <option value="synced">Sort: last synced</option>
+          <option value="changeRequests">Sort: open PRs</option>
+        </select>
+        <select aria-label="Sort direction" value={direction} onChange={(e) => setDirection(e.target.value as SortDirection)}>
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
         <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="checkbox"
@@ -102,6 +177,7 @@ export function Repositories() {
           />
           Include archived
         </label>
+        <button className="ghost" onClick={resetView}>Reset</button>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button className="ghost" onClick={() => exportJson(filtered)}>
             Export JSON
