@@ -148,6 +148,13 @@ pnpm test        # vitest — domain rules + webhook translation
 pnpm build       # SPA production build
 ```
 
+## Releases and support
+
+Production instances should use immutable semantic-version tags. See the
+[upgrade and rollback policy](UPGRADING.md), [support expectations](SUPPORT.md),
+[security policy](SECURITY.md), and [changelog](CHANGELOG.md). Support is
+best-effort; operators own their deployment, credentials, backups, and recovery.
+
 ## License and credits
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

@@ -10,7 +10,9 @@ Please use **GitHub private vulnerability reporting** on this repository
 (Security → Report a vulnerability). Do not open a public issue for a
 security problem.
 
-You can expect an acknowledgement within 7 days.
+Reports are handled on a best-effort basis by the project maintainer. The target
+is an acknowledgement within 7 days, but this is not a contractual response-time
+commitment or service-level agreement.
 
 ## Scope notes for operators
 

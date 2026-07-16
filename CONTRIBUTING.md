@@ -48,3 +48,8 @@ pnpm build
 
 Semantic versioning with tags `vMAJOR.MINOR.PATCH`. Database migrations are
 immutable once released; new schema changes get new migration files.
+
+Release tags are immutable. A published tag is never moved or replaced; a
+correction is a new patch release. See `UPGRADING.md` for the compatibility,
+backup, and rollback policy and `SUPPORT.md` for the project's best-effort
+support expectations.

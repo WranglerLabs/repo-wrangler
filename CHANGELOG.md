@@ -6,6 +6,13 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-16
+
+RepoWrangler's first generally available release. The GitHub and GitLab estate
+inventory, provider-neutral health model, secure first-boot flow, native sign-in,
+portable deployment recipes, SQLite/D1/PostgreSQL storage options, and production
+operations baseline have passed the GA release gate.
+
 ### Added
 
 - **Secure first boot:** a fresh real-mode instance enters a narrowly scoped
@@ -31,6 +38,13 @@ semantic versioning.
 
 ### Fixed
 
+- **GitLab enrichment queue starvation (B11):** provider authentication and
+  discovery succeeded, but repository enrichment was capped at three jobs every
+  15 minutes. Large estates accumulated hundreds of pending jobs, leaving branch,
+  pipeline, and merge-request data empty for hours. Periodic reconciliation now
+  runs every five minutes and consumes up to ten jobs per invocation while
+  retaining the subrequest-budget safety boundary.
+
 - Signed sessions now record their issuing provider. Disabling or removing an
   auth provider invalidates its sessions immediately; legacy provider-less
   cookies are rejected.
@@ -38,6 +52,15 @@ semantic versioning.
   pnpm 11. Known Vite and esbuild advisories are remediated with targeted
   overrides, lifecycle scripts use an explicit allowlist, and CI now enforces
   both a frozen lockfile and a clean audit.
+
+### Release verification
+
+- Dependency audit: no known vulnerabilities.
+- TypeScript: all 16 typed workspace projects passed.
+- Tests: 189 passed across 33 test files.
+- Production web build: passed.
+- Database migrations: unchanged from v0.6.10; all five existing migrations
+  remain immutable.
 
 ## [0.6.10] - 2026-07-14
 

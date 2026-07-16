@@ -2,8 +2,8 @@ apiVersion: v2
 name: repo-wrangler
 description: RepoWrangler — self-hosted (SPA + API + scheduler on SQLite, zero Cloudflare)
 type: application
-version: 0.1.0
-appVersion: "0.6.10"
+version: 1.0.0
+appVersion: "1.0.0"
 home: https://github.com/WranglerLabs/repo-wrangler
 sources:
   - https://github.com/WranglerLabs/repo-wrangler
