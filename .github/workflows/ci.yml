@@ -37,3 +37,28 @@ jobs:
 
       - name: Release contract tests
         run: pnpm test:release-contracts
+
+      - name: Build release inputs
+        run: |
+          pnpm --filter @repo-wrangler/web build
+          pnpm exec wrangler deploy --dry-run --outdir dist/release-staging/cloudflare-worker
+          mkdir -p dist/release-staging/aca
+          az bicep build --file deploy/azure-container-apps/main.bicep --outfile dist/release-staging/aca/main.json
+
+      - name: Assemble no-clone release bundles
+        run: |
+          node scripts/release/assemble-release-bundles.mjs \
+            --version v1.0.8 \
+            --image ghcr.io/wranglerlabs/repo-wrangler-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            --postgres-image docker.io/library/postgres:16@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            --output dist/release-staging/bundles \
+            --compose-template release/templates/compose.yaml \
+            --compose-env release/templates/compose.env.example \
+            --aca-template dist/release-staging/aca/main.json \
+            --cloudflare-worker dist/release-staging/cloudflare-worker/index.js \
+            --web-assets apps/web/dist \
+            --migrations migrations
+          test -f dist/release-staging/bundles/compose/compose.yaml
+          test -f dist/release-staging/bundles/azure-container-apps/main.json
+          test -f dist/release-staging/bundles/cloudflare/worker.js
+          ! grep -R '__REPO_WRANGLER_IMAGE__\|__POSTGRES_IMAGE__' dist/release-staging/bundles

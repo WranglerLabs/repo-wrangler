@@ -1,0 +1,39 @@
+# Generated RepoWrangler release bundle. Product and database images are pinned
+# by digest. No source checkout or local build is used.
+services:
+  server:
+    image: __REPO_WRANGLER_IMAGE__
+    pull_policy: always
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      DEMO_MODE: "${DEMO_MODE:-true}"
+      AUTH_PROVIDERS: "${AUTH_PROVIDERS:-github}"
+      ENABLE_SCHEDULER: "${ENABLE_SCHEDULER:-true}"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - rw-data:/app/data
+    restart: unless-stopped
+
+  postgres:
+    image: __POSTGRES_IMAGE__
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: repowrangler
+      POSTGRES_USER: repowrangler
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env for the postgres profile}
+    volumes:
+      - rw-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repowrangler -d repowrangler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  rw-data:
+  rw-pgdata:
