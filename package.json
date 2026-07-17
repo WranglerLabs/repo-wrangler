@@ -16,6 +16,8 @@
     "deploy": "pnpm build && wrangler deploy",
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
+    "test:release-contracts": "node --test scripts/release/*.test.mjs",
+    "release:manifest": "node scripts/release/generate-release-manifest.mjs",
     "start:server": "pnpm --filter @repo-wrangler/server start",
     "dev:server": "pnpm --filter @repo-wrangler/server dev",
     "db:migrate:local": "wrangler d1 migrations apply repo-wrangler --local",
@@ -23,6 +25,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260708.1",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
     "tsx": "^4.19.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.0",
