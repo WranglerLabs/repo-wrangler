@@ -2,8 +2,8 @@
   "schemaVersion": "1.0",
   "name": "My RepoWrangler",
   "release": {
-    "version": "v1.0.9",
-    "manifestUrl": "https://github.com/WranglerLabs/repo-wrangler/releases/download/v1.0.9/release-manifest.json"
+    "version": "v1.0.10",
+    "manifestUrl": "https://github.com/WranglerLabs/repo-wrangler/releases/download/v1.0.10/release-manifest.json"
   },
   "target": {
     "kind": "azure-container-apps"

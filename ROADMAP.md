@@ -22,7 +22,7 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 ## Now — stabilize v1.0 GA
 
-**Status: GA.** RepoWrangler v1.0.9 is the current supported patch release.
+**Status: GA.** RepoWrangler v1.0.10 is the current supported patch release.
 The immediate focus is operator feedback, reproducible deployment recipes,
 upgrade safety, and correction of release-blocking defects. Support is
 best-effort and targets the latest patch release only.
@@ -105,7 +105,7 @@ systems are designed once rather than as separate, competing projects.
 - **Deployment clarity and clean PostgreSQL boot** — ACA inputs and exact Key
   Vault secret names appear before deployment steps; PostgreSQL startup no
   longer initializes or mentions SQLite.
-- **v1.0 GA** — immutable v1.0.0 through v1.0.9 tags, explicit upgrade/rollback
+- **v1.0 GA** — immutable v1.0.0 through v1.0.10 tags, explicit upgrade/rollback
   policy, and best-effort latest-patch support.
 - **Onboarding and estate scoping** — connect GitHub or GitLab, store credentials
   server-side, and select monitored organizations, groups, and repositories.
