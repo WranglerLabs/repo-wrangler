@@ -14,7 +14,7 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 | Horizon | Focus | Intended outcome |
 |---|---|---|
-| **Now** | Stabilize the v1.0 GA line and respond to operator feedback | A dependable latest-patch release with verified upgrade and rollback guidance |
+| **Now** | Stabilize RepoWrangler v1.0 and advance Ranch Hand Public Preview toward GA | A dependable product release with a primary guided deployment path and explicit Preview boundaries |
 | **Next** | Make setup, access, and operations easier | A new operator can deploy confidently, add users, and understand sync health without editing configuration or querying the database |
 | **Later** | Scale administration, security, providers, and cost visibility | RepoWrangler grows from a strong estate dashboard into a broader operations platform |
 
@@ -23,8 +23,10 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 ## Now — stabilize v1.0 GA
 
 **Status: GA.** RepoWrangler v1.0.10 is the current supported patch release.
-The immediate focus is operator feedback, reproducible deployment recipes,
-upgrade safety, and correction of release-blocking defects. Support is
+Ranch Hand `v0.1.0-rc.1` is now the primary recommended Windows deployment path
+in **Public Preview**; the manual recipes remain a supported alternative. The
+immediate focus is operator feedback, deployment safety, and the Ranch Hand GA
+gates. Support is
 best-effort and targets the latest patch release only.
 
 ---
@@ -36,7 +38,7 @@ item entering this list should displace or move an existing item.
 
 | Priority | Initiative | Outcome | Key dependency |
 |---:|---|---|---|
-| 1 | **Ranch Hand stable release** | A Windows operator downloads a signed standalone lifecycle manager and deploys an exact verified RepoWrangler release without cloning source or installing deployment CLIs | Authenticode identity, production adapter lifecycles, operator UAT |
+| 1 | **Ranch Hand GA** | Promote the primary guided deployment path from Public Preview to a signed, production-capable lifecycle manager for the latest supported RepoWrangler patch | Signing, production configuration/lifecycle parity, uninstall, upgrades, security/accessibility/real-target UAT, task-tested docs |
 | 2 | **Invite and manage users** | Administrators add or remove allowed identities in the UI without editing environment variables or restarting | Provider identity model |
 | 3 | **Operations and sync history** | Administration shows discovery runs, queue state, failures, duration, and repositories found—no direct database queries required | Existing sync-job data |
 | 4 | **Faster enrichment after discovery** | Newly discovered repositories receive branch, PR/MR, pipeline, security, and billing data promptly instead of trickling in | Existing rate-limit and job-budget controls |
@@ -44,7 +46,7 @@ item entering this list should displace or move an existing item.
 | 6 | **GitLab URL normalization** | Pasting a group URL safely resolves to the GitLab origin and produces accurate authentication versus connectivity errors | None |
 | 7 | **Per-connection scope picker** | Operators explicitly select which visible organizations or groups a connection monitors | Existing grow-estate flow |
 
-### Ranch Hand stable release
+### Ranch Hand Public Preview → GA
 
 [Ranch Hand](https://github.com/WranglerLabs/ranch-hand) replaces the retired
 PowerShell/bash bootstrap-script concept. It is a separate Windows-first Go/React
@@ -52,13 +54,22 @@ lifecycle application, not a RepoWrangler feature screen and not a source-clone
 script. It consumes the exact release manifest, digest-pinned image, target
 bundle, SBOM, and provenance published by RepoWrangler.
 
-An unsigned `v0.1.0-rc.1` evaluation candidate verifies and installs all four
+The public `v0.1.0-rc.1` Preview verifies and installs all four
 initial target families; local Docker also has backup-first lifecycle and
-recovery operations. Remaining stable-release gates are Authenticode signing,
-integrated Azure authentication, complete production adapter lifecycles,
-clean-Windows/accessibility/real-target UAT, operator documentation validation,
-and explicit uninstall choices. Clone/fork/manual/custom-CI deployment remains
-supported independently of Ranch Hand.
+recovery operations. It is now the primary recommended Windows deployment path,
+while clone/fork/manual/custom-CI remains supported.
+
+GA requires: approved Authenticode signing and a stable channel; compatibility
+with the latest supported RepoWrangler patch; guided production credentials,
+authentication, database, storage, domain, and HTTPS configuration; integrated
+Azure sign-in; complete ownership-safe backup/update/restore/rollback/repair and
+uninstall/data-retention behavior for each GA target; Ranch Hand application and
+state upgrade compatibility; clean-Windows and disposable real-target UAT;
+keyboard/screen-reader/zoom/forced-colors/high-DPI testing; privileged-adapter,
+least-privilege, tamper, downgrade, redaction, and dependency security gates;
+and task-tested public documentation with the latest-version best-effort support
+matrix. A target remains Preview until its own complete production lifecycle and
+real-target tests pass.
 
 ---
 

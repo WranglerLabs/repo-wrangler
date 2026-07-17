@@ -8,6 +8,13 @@ semantic versioning.
 
 ### Documentation
 
+- Designated Ranch Hand `v0.1.0-rc.1` as the Public Preview and primary
+  recommended Windows deployment path, with manual clone/fork/artifact/CI
+  deployment retained as the supported alternative.
+- Documented the complete Ranch Hand GA promotion contract across signing,
+  RepoWrangler compatibility, production configuration and target lifecycle,
+  uninstall/data retention, application upgrades, real-target and accessibility
+  UAT, security, documentation, and best-effort support.
 - Replaced the retired bootstrap-script description with the separate Ranch Hand
   Windows lifecycle-manager path and preserved clone/fork/manual deployment as
   an equal supported option.
