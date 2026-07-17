@@ -23,7 +23,7 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 ## Now — stabilize v1.0 GA
 
 **Status: GA.** RepoWrangler v1.0.10 is the current supported patch release.
-Ranch Hand `v0.1.0-rc.2` is now the primary recommended Windows deployment path
+Ranch Hand `v0.1.0-rc.3` is now the primary recommended Windows deployment path
 in **Public Preview**; the manual recipes remain a supported alternative. The
 immediate focus is operator feedback, deployment safety, and the Ranch Hand GA
 gates. Support is
@@ -54,9 +54,10 @@ lifecycle application, not a RepoWrangler feature screen and not a source-clone
 script. It consumes the exact release manifest, digest-pinned image, target
 bundle, SBOM, and provenance published by RepoWrangler.
 
-The public `v0.1.0-rc.2` Preview discovers the latest compatible stable
-RepoWrangler release by default, verifies it, and installs all four
-initial target families; local Docker also has backup-first lifecycle and
+The public `v0.1.0-rc.3` Preview discovers the latest compatible stable
+RepoWrangler release by default, verifies it, and offers five distinct targets:
+local WSL Compose, local Docker Desktop, remote Linux Compose, Cloudflare, and
+Azure Container Apps. Docker Desktop also has backup-first lifecycle and
 recovery operations. It is now the primary recommended Windows deployment path,
 while clone/fork/manual/custom-CI remains supported.
 
