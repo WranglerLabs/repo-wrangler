@@ -133,16 +133,22 @@ jobs:
             --spec dist/assets/release-artifacts.json \
             --output dist/assets/release-manifest.json
           rm dist/assets/release-artifacts.json
-          (cd dist/assets && sha256sum repo-wrangler-* release-manifest.json > SHA256SUMS)
 
       - name: Attest downloadable release assets
+        id: attest-assets
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: |
             dist/assets/*.tar.gz
             dist/assets/*.spdx.json
             dist/assets/release-manifest.json
-            dist/assets/SHA256SUMS
+
+      - name: Publish provenance bundle and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "${{ steps.attest-assets.outputs.bundle-path }}" "dist/assets/repo-wrangler-${GITHUB_REF_NAME}.provenance.sigstore.json"
+          (cd dist/assets && sha256sum repo-wrangler-* release-manifest.json > SHA256SUMS)
 
       - name: Create or update GitHub release
         shell: bash

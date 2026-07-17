@@ -31,8 +31,10 @@ secret-free bundles:
 | `repo-wrangler-cloudflare-<version>.tar.gz` | Cloudflare | Prebuilt Worker module, static assets, D1 migrations, and bundle identity |
 
 The release workflow also publishes an SPDX JSON SBOM, SHA-256 checksum file,
-GitHub build-provenance attestations, and `release-manifest.json`. It never
-publishes `latest`, and it refuses a tag that does not match `package.json`.
+downloadable Sigstore build-provenance bundle, and `release-manifest.json`.
+Every artifact entry links to that provenance bundle so clients can verify it
+without a GitHub account or CLI. The workflow never publishes `latest`, and it
+refuses a tag that does not match `package.json`.
 
 Compose binds to `127.0.0.1` by default and contains no proxy. Public Compose
 deployments remain responsible for an explicitly selected trusted HTTPS ingress.
