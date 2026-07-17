@@ -10,12 +10,14 @@ export function createReleaseSpec({ version, releasedAt, assetBaseURL }) {
   if (!assetBaseURL?.startsWith("https://")) throw new Error("asset-base-url must use HTTPS");
   const file = (family) => `repo-wrangler-${family}-${version}.tar.gz`;
   const sbom = `repo-wrangler-${version}.spdx.json`;
+  const provenance = `repo-wrangler-${version}.provenance.sigstore.json`;
   const artifact = (target, family) => ({
     target,
     path: file(family),
     url: `${assetBaseURL}/${file(family)}`,
     mediaType: "application/gzip",
     sbomUrl: `${assetBaseURL}/${sbom}`,
+    attestationUrl: `${assetBaseURL}/${provenance}`,
   });
   return {
     version,

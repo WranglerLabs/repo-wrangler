@@ -12,6 +12,7 @@ test("maps four targets to three immutable release bundles", () => {
   assert.equal(new Set(spec.artifacts.map((artifact) => artifact.path)).size, 3);
   assert.ok(spec.artifacts.every((artifact) => artifact.url.startsWith("https://")));
   assert.ok(spec.artifacts.every((artifact) => artifact.sbomUrl.endsWith(".spdx.json")));
+  assert.ok(spec.artifacts.every((artifact) => artifact.attestationUrl.endsWith(".provenance.sigstore.json")));
 });
 
 test("rejects floating versions and non-HTTPS release locations", () => {
