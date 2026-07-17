@@ -1,7 +1,7 @@
 {
   "name": "repo-wrangler",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "RepoWrangler — wrangle every repository into one clear view.",
   "license": "Apache-2.0",
   "type": "module",

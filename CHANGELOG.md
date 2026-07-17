@@ -6,6 +6,24 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-07-17
+
+### Added
+
+- Immutable clone-free deployment artifacts for Docker Compose, Azure Container
+  Apps, and Cloudflare, each assembled from the exact release image and target
+  metadata.
+- A versioned release manifest containing exact byte counts, SHA-256 digests,
+  compatibility metadata, SBOM location, and Sigstore provenance location for
+  Ranch Hand and user-owned CI/CD consumers.
+- Published SPDX SBOM, checksums, SLSA provenance, and a digest-pinned GHCR
+  server image for the release.
+
+### Changed
+
+- The release workflow now rejects tag/package-version mismatches and refuses to
+  overwrite an existing immutable manifest.
+
 ## [1.0.8] - 2026-07-16
 
 ### Fixed
