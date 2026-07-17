@@ -49,6 +49,18 @@ test("assembles clone-free target directories with digest-pinned images", async 
   assert.equal(compose.includes("__"), false);
   assert.equal(metadata.version, "v1.2.3");
   assert.equal(metadata.publicHttps, "operator-provided");
+
+  const cloudflare = JSON.parse(await readFile(join(result.cloudflareDirectory, "bundle.json"), "utf8"));
+  assert.equal(cloudflare.compatibilityDate, "2026-07-01");
+  assert.equal(cloudflare.assetsBinding, "ASSETS");
+  assert.equal(cloudflare.d1Binding, "DB");
+  assert.equal(cloudflare.assetsNotFoundHandling, "single-page-application");
+  assert.deepEqual(cloudflare.assetsRunWorkerFirst, ["/api/*", "/auth/*", "/webhooks/*", "/health/*", "/setup/*"]);
+  assert.deepEqual(cloudflare.crons, ["*/5 * * * *", "17 3 * * *"]);
+  assert.deepEqual(cloudflare.vars, {
+    ALLOWED_GITHUB_USERS: "", APP_VERSION: "v1.2.3", AUTH_MODE: "github_app", DEMO_MODE: "true",
+  });
+  assert.equal(cloudflare.observabilityEnabled, true);
 });
 
 test("rejects floating product and database images", async () => {
