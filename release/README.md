@@ -4,7 +4,12 @@ This directory owns the machine-readable contracts used by deployment tools such
 
 ## Release manifest
 
-Every Ranch Hand-compatible RepoWrangler release must publish `release-manifest.json` as an immutable GitHub release asset. Each target artifact records its HTTPS URL, exact byte size, and lowercase SHA-256 digest. Production publication will also provide an SBOM and GitHub artifact attestation for each executable bundle.
+Every Ranch Hand-compatible RepoWrangler release must publish `release-manifest.json` as an immutable GitHub release asset. Each target artifact records its HTTPS URL, exact byte size, and lowercase SHA-256 digest. RepoWrangler v1.0.10 and later compatible releases also provide an SBOM and GitHub artifact attestation for each executable bundle.
+
+Operators can consume these payloads through the separate
+[Ranch Hand Windows application](https://github.com/WranglerLabs/ranch-hand/blob/main/docs/operator-guide.md)
+or through their own automation. Ranch Hand is not shipped inside a RepoWrangler
+release, so this repository's release assets do not contain its Windows executable.
 
 The manifest and every referenced artifact are immutable. `latest`, moving branches, unpinned container tags, and an asset whose size or digest differs from the manifest are invalid inputs.
 

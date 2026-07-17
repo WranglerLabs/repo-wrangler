@@ -36,7 +36,7 @@ item entering this list should displace or move an existing item.
 
 | Priority | Initiative | Outcome | Key dependency |
 |---:|---|---|---|
-| 1 | **Guided Bootstrap Installer** | One command opens a local wizard, asks only for required inputs, deploys to the selected target, and returns the final URL | Current release; existing tier picker |
+| 1 | **Ranch Hand stable release** | A Windows operator downloads a signed standalone lifecycle manager and deploys an exact verified RepoWrangler release without cloning source or installing deployment CLIs | Authenticode identity, production adapter lifecycles, operator UAT |
 | 2 | **Invite and manage users** | Administrators add or remove allowed identities in the UI without editing environment variables or restarting | Provider identity model |
 | 3 | **Operations and sync history** | Administration shows discovery runs, queue state, failures, duration, and repositories found—no direct database queries required | Existing sync-job data |
 | 4 | **Faster enrichment after discovery** | Newly discovered repositories receive branch, PR/MR, pipeline, security, and billing data promptly instead of trickling in | Existing rate-limit and job-budget controls |
@@ -44,17 +44,21 @@ item entering this list should displace or move an existing item.
 | 6 | **GitLab URL normalization** | Pasting a group URL safely resolves to the GitLab origin and produces accurate authentication versus connectivity errors | None |
 | 7 | **Per-connection scope picker** | Operators explicitly select which visible organizations or groups a connection monitors | Existing grow-estate flow |
 
-### Guided Bootstrap Installer
+### Ranch Hand stable release
 
-The installer is the headline next step. A PowerShell or bash bootstrap command
-will open a local React wizard where the operator selects a target—Cloudflare,
-Docker, Azure Container Apps, Kubernetes, or Azure SWA—plus demo/real mode,
-authentication, secret storage, region, scale, and optional CAF naming presets.
-The wizard will generate one reusable configuration document, stream deployment
-progress, and return the running URL.
+[Ranch Hand](https://github.com/WranglerLabs/ranch-hand) replaces the retired
+PowerShell/bash bootstrap-script concept. It is a separate Windows-first Go/React
+lifecycle application, not a RepoWrangler feature screen and not a source-clone
+script. It consumes the exact release manifest, digest-pinned image, target
+bundle, SBOM, and provenance published by RepoWrangler.
 
-The installer owns the configuration schema and deployment automation so those
-systems are designed once rather than as separate, competing projects.
+An unsigned `v0.1.0-rc.1` evaluation candidate verifies and installs all four
+initial target families; local Docker also has backup-first lifecycle and
+recovery operations. Remaining stable-release gates are Authenticode signing,
+integrated Azure authentication, complete production adapter lifecycles,
+clean-Windows/accessibility/real-target UAT, operator documentation validation,
+and explicit uninstall choices. Clone/fork/manual/custom-CI deployment remains
+supported independently of Ranch Hand.
 
 ---
 
@@ -67,7 +71,7 @@ systems are designed once rather than as separate, competing projects.
 | **Credentials & Access** | Inventory every configured credential without exposing its value; verify live reach and flag failing, unused, or over-scoped access |
 | Multiple connections per provider | Support separate Apps, tokens, organizations, groups, and health state for each connection |
 | Tier 3 architecture | Compose the existing platform-neutral foundations into a hardened enterprise topology with private networking, HA data, observability, SSO, and RBAC |
-| Deployment automation and pipelines | Ship opt-in GitHub Actions and Azure DevOps templates that consume the bootstrap installer's configuration schema |
+| Deployment automation and pipelines | Ship opt-in GitHub Actions and Azure DevOps templates that consume the same versioned deployment-plan contract as Ranch Hand |
 
 ### Ecosystem and observability
 
@@ -82,8 +86,8 @@ systems are designed once rather than as separate, competing projects.
 
 ### Important dependencies
 
-- The bootstrap installer owns the shared configuration schema used by future
-  deployment pipelines.
+- Ranch Hand and future deployment pipelines consume the same versioned,
+  secret-free deployment-plan contract.
 - User management establishes the identity model needed by role-based views.
 - Cost and budget work must surface provider capability honestly when a token
   cannot access billing APIs.

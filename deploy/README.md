@@ -1,5 +1,17 @@
 # Deployment recipes
 
+These are the source-controlled **manual deployment** recipes. Clone or fork
+RepoWrangler and run them directly, or adapt them to your own CI/CD system.
+
+Windows operators who do not want a source checkout may instead evaluate the
+separate [Ranch Hand deployment manager](https://github.com/WranglerLabs/ranch-hand).
+Ranch Hand consumes the immutable bundles published with RepoWrangler v1.0.10;
+its current Windows build is an unsigned evaluation candidate, not a signed
+public installer. The
+[operator guide](https://github.com/WranglerLabs/ranch-hand/blob/main/docs/operator-guide.md)
+documents acquisition, verification, target prerequisites, and current limits.
+Manual deployment remains supported whether or not Ranch Hand is used.
+
 Every recipe is described two ways: by **tier** (cost/scale — how the docs picker
 sorts them, see the [deployment guide](https://wranglerlabs.org/deployment)) and by **topology**
 (how the pieces are wired, per [ADR-011](https://wranglerlabs.org/adr/ADR-011-host-agnostic-frontend)).
