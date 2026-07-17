@@ -48,7 +48,7 @@ jobs:
       - name: Assemble no-clone release bundles
         run: |
           node scripts/release/assemble-release-bundles.mjs \
-            --version v1.0.9 \
+            --version v1.0.10 \
             --image ghcr.io/wranglerlabs/repo-wrangler-server@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
             --postgres-image docker.io/library/postgres:16@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
             --output dist/release-staging/bundles \

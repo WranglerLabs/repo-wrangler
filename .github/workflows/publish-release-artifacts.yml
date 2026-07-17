@@ -87,7 +87,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          digest="$(docker buildx imagetools inspect postgres:16 | awk '/^Digest:/ {print $2; exit}')"
+          inspect="$(docker buildx imagetools inspect postgres:16)"
+          digest="$(awk '/^Digest:/ {value=$2} END {print value}' <<<"$inspect")"
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "image=docker.io/library/postgres:16@$digest" >> "$GITHUB_OUTPUT"
 

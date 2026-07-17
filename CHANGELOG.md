@@ -6,7 +6,7 @@ semantic versioning.
 
 ## [Unreleased]
 
-## [1.0.9] - 2026-07-17
+## [1.0.10] - 2026-07-17
 
 ### Added
 
@@ -23,6 +23,18 @@ semantic versioning.
 
 - The release workflow now rejects tag/package-version mismatches and refuses to
   overwrite an existing immutable manifest.
+
+### Fixed
+
+- PostgreSQL image digest resolution now consumes the complete Buildx inspection
+  output, avoiding a `pipefail`/SIGPIPE failure before bundle assembly.
+
+## [1.0.9] - 2026-07-17 — withdrawn
+
+- The immutable tag and product image were created, but artifact publication
+  stopped during PostgreSQL digest resolution before any GitHub Release or
+  deployment manifest was published. The tag was intentionally not moved or
+  deleted. `v1.0.9` is not a supported or installable release; use `v1.0.10`.
 
 ## [1.0.8] - 2026-07-16
 
