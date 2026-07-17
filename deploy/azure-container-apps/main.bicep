@@ -11,11 +11,9 @@
 //                     SMB is unreliable under restarts/crashes; do NOT use
 //                     this mode for a production instance.
 //
-// Image pulls and Key Vault reads use a USER-ASSIGNED managed identity that
-// this template creates and grants AcrPull on the registry — so the first
-// revision can pull its image without any out-of-band role assignment (a
-// system-assigned identity cannot: it does not exist until the app is
-// created, but creation needs the image pull).
+// Key Vault reads use a USER-ASSIGNED managed identity. Private ACR image
+// pulls can use the same identity; a public digest-pinned image (including the
+// immutable GHCR release consumed by Ranch Hand) needs no registry credential.
 
 @description('Base name for all resources.')
 param name string = 'repo-wrangler'
@@ -23,14 +21,14 @@ param name string = 'repo-wrangler'
 @description('Location for all resources.')
 param location string = resourceGroup().location
 
-@description('Full image reference, e.g. <acr>.azurecr.io/repo-wrangler-server:latest')
+@description('Full image reference. Ranch Hand requires a sha256 digest; manual deployments may supply an explicit version tag.')
 param image string
 
-@description('Azure Container Registry login server (e.g. myacr.azurecr.io).')
-param acrLoginServer string
+@description('Optional Azure Container Registry login server (e.g. myacr.azurecr.io). Empty for a public digest-pinned image such as GHCR.')
+param acrLoginServer string = ''
 
-@description('ACR resource name. Must be in this resource group for the in-template AcrPull grant; default derives it from acrLoginServer.')
-param acrName string = split(acrLoginServer, '.')[0]
+@description('ACR resource name. Required only with acrLoginServer and must be in this resource group for the in-template AcrPull grant.')
+param acrName string = empty(acrLoginServer) ? 'unused' : split(acrLoginServer, '.')[0]
 
 @description('Key Vault name holding secrets (real mode and/or postgres). Empty = demo mode on SQLite only.')
 param keyVaultName string = ''
@@ -82,6 +80,7 @@ var effectiveStorageAccountName = empty(storageAccountName) ? toLower(take('${re
 var fileShareName = 'repo-wrangler-data'
 var storageMountName = 'rw-data'
 var sqliteMode = !postgres
+var privateRegistry = !empty(acrLoginServer)
 
 // --- Identity: created first so it can be granted AcrPull BEFORE the app pulls --
 resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -89,13 +88,13 @@ resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   location: location
 }
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = if (privateRegistry) {
   name: acrName
 }
 
 // AcrPull (7f951dda-4ed3-4680-a7ca-43fe172d538d). Without this grant the app
 // can never pull its image ("ACR token exchange endpoint returned error 401").
-resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (privateRegistry) {
   name: guid(acr.id, uami.id, 'acrpull')
   scope: acr
   properties: {
@@ -268,12 +267,12 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: env.id
     configuration: {
       ingress: appIngress
-      registries: [
+      registries: privateRegistry ? [
         {
           server: acrLoginServer
           identity: uami.id
         }
-      ]
+      ] : []
       // Secrets are Key Vault references resolved by the user-assigned identity
       // at runtime; they never appear in the template or logs. The deploy script
       // grants that identity "Key Vault Secrets User" on your vault BEFORE this

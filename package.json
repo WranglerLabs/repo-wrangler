@@ -17,6 +17,7 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "test:release-contracts": "node --test scripts/release/*.test.mjs",
+    "release:bundles": "node scripts/release/assemble-release-bundles.mjs",
     "release:manifest": "node scripts/release/generate-release-manifest.mjs",
     "start:server": "pnpm --filter @repo-wrangler/server start",
     "dev:server": "pnpm --filter @repo-wrangler/server dev",

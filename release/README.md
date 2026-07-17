@@ -18,6 +18,27 @@ node scripts/release/generate-release-manifest.mjs \
 
 The specification contains `version`, `releasedAt`, and one or more artifacts with `target`, local `path`, public `url`, and optional `mediaType`, `attestationUrl`, and `sbomUrl`. The generator derives size and SHA-256 from the files; callers must not supply those values.
 
+## Published payloads
+
+A compatible immutable release publishes one prebuilt OCI image and three
+secret-free bundles:
+
+| Payload | Consumers | Contents |
+|---|---|---|
+| `ghcr.io/wranglerlabs/repo-wrangler-server:<version>@sha256:…` | ACA and Compose | Prebuilt server, SPA, API, scheduler, and migrations |
+| `repo-wrangler-compose-<version>.tar.gz` | Local and remote Linux Compose | Digest-pinned Compose file, safe loopback default, environment example, bundle identity |
+| `repo-wrangler-aca-<version>.tar.gz` | Azure Container Apps | Compiled ARM template and public GHCR digest; no Bicep or ACR build required |
+| `repo-wrangler-cloudflare-<version>.tar.gz` | Cloudflare | Prebuilt Worker module, static assets, D1 migrations, and bundle identity |
+
+The release workflow also publishes an SPDX JSON SBOM, SHA-256 checksum file,
+GitHub build-provenance attestations, and `release-manifest.json`. It never
+publishes `latest`, and it refuses a tag that does not match `package.json`.
+
+Compose binds to `127.0.0.1` by default and contains no proxy. Public Compose
+deployments remain responsible for an explicitly selected trusted HTTPS ingress.
+The ACA bundle uses Azure-managed ingress, and the Cloudflare bundle uses
+Cloudflare-managed HTTPS.
+
 ## Deployment plan
 
 `deployment-plan.schema.json` describes a portable Ranch Hand plan. Plans select one explicit release and one supported target. They may contain non-sensitive configuration such as region and resource names, but never passwords, tokens, private keys, client secrets, or other credentials.
