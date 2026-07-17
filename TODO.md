@@ -3,18 +3,20 @@
 Owner-directed priorities. Larger design work referenced here lives in
 [the design pack](https://wranglerlabs.org/design/design-pack-index) and the [roadmap](ROADMAP.md).
 
-## 1. Ranch Hand stable Windows release
+## 1. Ranch Hand Public Preview → GA
 
 Ranch Hand is the separate, clone-free Windows deployment and lifecycle manager.
-The unsigned evaluation RC already consumes immutable RepoWrangler artifacts,
+The public `v0.1.0-rc.1` Preview is the primary recommended Windows deployment
+path. It consumes immutable RepoWrangler artifacts,
 creates secret-free plans, runs preflight/dry run, and supports bounded installs
 for Azure Container Apps, Cloudflare, local Docker, and remote Linux Compose.
 
-Remaining work: Authenticode signing, integrated Azure authentication, complete
-production adapter lifecycles, clean-Windows/accessibility/real-target UAT,
-validated operator/manual-equivalence guides, and uninstall with explicit
-retain-data/permanent-delete choices. Manual clone/fork/custom-CI deployment must
-remain supported and must not depend on Ranch Hand.
+Remaining work: Authenticode signing/stable channel; latest-patch compatibility;
+integrated Azure authentication; guided production configuration; complete
+target backup/update/restore/rollback/repair/uninstall and retention contracts;
+Ranch Hand state/application upgrades; clean-Windows, accessibility, security,
+and real-target UAT; task-tested documentation; and an explicit GA support
+matrix. Manual clone/fork/custom-CI remains supported.
 
 ## 2. Architecture tiers — classify every deployment option
 

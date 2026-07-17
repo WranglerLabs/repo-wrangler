@@ -19,4 +19,9 @@ from Codex. Support is community-style and best effort.
 Security vulnerabilities must use GitHub private vulnerability reporting as
 described in `SECURITY.md`, not a public issue.
 
+Ranch Hand Public Preview is the primary recommended guided deployment path on
+Windows, but it has a separate Preview support boundary and is not production
+supported. Manual recipes and user-owned automation remain supported under this
+same best-effort RepoWrangler policy.
+
 Clear fixes and documentation improvements are welcome through pull requests.

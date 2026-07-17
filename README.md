@@ -21,16 +21,17 @@ It is **read-only** toward your providers by design.
 
 ## Choose how to deploy
 
-RepoWrangler supports two equal deployment paths:
+RepoWrangler has one recommended guided path and one fully supported manual
+alternative:
 
-1. **Ranch Hand on Windows — no source clone.** The optional standalone
-   [Ranch Hand](https://github.com/WranglerLabs/ranch-hand) application downloads
+1. **Recommended: Ranch Hand Public Preview on Windows — no source clone.** The standalone
+   [Ranch Hand](https://wranglerlabs.org/ranch-hand) application downloads
    and verifies immutable RepoWrangler release artifacts, builds a secret-free
    deployment plan, runs preflight/dry run, and applies a supported target. The
-   current `v0.1.0-rc.1` build is an unsigned evaluation candidate, not a signed
-   public installer or GA release. See the
-   [Ranch Hand operator guide](https://github.com/WranglerLabs/ranch-hand/blob/main/docs/operator-guide.md).
-2. **Manual or user-owned automation — clone or fork the source.** Use the
+   current `v0.1.0-rc.1` build is a publicly downloadable, unsigned **Public
+   Preview**, not a production-supported or GA release. Its public guide includes
+   download, verification, prerequisites, workflow, limitations, and GA gates.
+2. **Supported alternative: manual or user-owned automation.** Clone or fork the source, or consume immutable release artifacts. Use the
    commands below and the [`deploy/`](deploy/) recipes with Docker, Cloudflare,
    Azure Container Apps, Kubernetes, GitHub Actions, Azure DevOps, or your own
    tooling. This path remains fully supported and is also the contributor path.
@@ -90,9 +91,9 @@ Full documentation is maintained at **[wranglerlabs.org](https://wranglerlabs.or
 
 ## Deploying your own instance
 
-This section is the manual Cloudflare path for operators who clone/fork the
-repository or run their own automation. Ranch Hand is optional and never
-replaces these documented commands.
+This section is the manual Cloudflare alternative for contributors, custom
+automation, production topologies outside Ranch Hand's preview boundary, or
+operators who prefer to own the commands.
 
 The committed `wrangler.jsonc` ships **placeholders only** — it never carries a
 real database id or your allowlist. Keep your instance-specific values out of the
