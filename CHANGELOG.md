@@ -8,6 +8,9 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.2`; it now discovers and
+  preselects the latest compatible stable RepoWrangler release, while
+  prerelease and exact-version selection remain intentional choices.
 - Designated Ranch Hand `v0.1.0-rc.1` as the Public Preview and primary
   recommended Windows deployment path, with manual clone/fork/artifact/CI
   deployment retained as the supported alternative.
