@@ -19,6 +19,26 @@ path), not a dependency — see the [platform-neutrality](https://wranglerlabs.o
 and [infrastructure deployment](https://wranglerlabs.org/design/infrastructure-deployment) documentation.
 It is **read-only** toward your providers by design.
 
+## Choose how to deploy
+
+RepoWrangler supports two equal deployment paths:
+
+1. **Ranch Hand on Windows — no source clone.** The optional standalone
+   [Ranch Hand](https://github.com/WranglerLabs/ranch-hand) application downloads
+   and verifies immutable RepoWrangler release artifacts, builds a secret-free
+   deployment plan, runs preflight/dry run, and applies a supported target. The
+   current `v0.1.0-rc.1` build is an unsigned evaluation candidate, not a signed
+   public installer or GA release. See the
+   [Ranch Hand operator guide](https://github.com/WranglerLabs/ranch-hand/blob/main/docs/operator-guide.md).
+2. **Manual or user-owned automation — clone or fork the source.** Use the
+   commands below and the [`deploy/`](deploy/) recipes with Docker, Cloudflare,
+   Azure Container Apps, Kubernetes, GitHub Actions, Azure DevOps, or your own
+   tooling. This path remains fully supported and is also the contributor path.
+
+The RepoWrangler `v1.0.10` release page contains server images and deployment
+bundles consumed by Ranch Hand or user-owned automation. It does **not** contain
+a Windows executable; Ranch Hand is released separately from its own repository.
+
 ## Highlights
 
 - **Automatic discovery** — install a read-only GitHub App with *All
@@ -37,7 +57,7 @@ It is **read-only** toward your providers by design.
 - **Demo mode out of the box** — deploy with zero secrets and explore a
   synthetic estate evaluated by the real health rules engine.
 
-## Quick start (demo mode, no secrets)
+## Manual quick start (demo mode, no secrets)
 
 On Cloudflare's local runtime:
 
@@ -69,6 +89,10 @@ Full documentation is maintained at **[wranglerlabs.org](https://wranglerlabs.or
 - [Operations](https://wranglerlabs.org/operations) · [Security](https://wranglerlabs.org/security) · [Developer guide](https://wranglerlabs.org/developer) · [Troubleshooting](https://wranglerlabs.org/troubleshooting)
 
 ## Deploying your own instance
+
+This section is the manual Cloudflare path for operators who clone/fork the
+repository or run their own automation. Ranch Hand is optional and never
+replaces these documented commands.
 
 The committed `wrangler.jsonc` ships **placeholders only** — it never carries a
 real database id or your allowlist. Keep your instance-specific values out of the

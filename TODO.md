@@ -3,14 +3,18 @@
 Owner-directed priorities. Larger design work referenced here lives in
 [the design pack](https://wranglerlabs.org/design/design-pack-index) and the [roadmap](ROADMAP.md).
 
-## 1. Guided bootstrap installer ("the bootloader")
+## 1. Ranch Hand stable Windows release
 
-A one-command bootstrap that copies a **small set of installer files** locally and
-opens a **local React wizard**: pick how the infrastructure will be deployed →
-answer **exactly the inputs that choice needs** (with naming presets, e.g. CAF) →
-the back end **kicks off the deployment while the same page streams live status**.
-Ships with **PowerShell and bash** launchers. See the platform PMO task for the
-full spec; pairs with item 3 below for the execution layer.
+Ranch Hand is the separate, clone-free Windows deployment and lifecycle manager.
+The unsigned evaluation RC already consumes immutable RepoWrangler artifacts,
+creates secret-free plans, runs preflight/dry run, and supports bounded installs
+for Azure Container Apps, Cloudflare, local Docker, and remote Linux Compose.
+
+Remaining work: Authenticode signing, integrated Azure authentication, complete
+production adapter lifecycles, clean-Windows/accessibility/real-target UAT,
+validated operator/manual-equivalence guides, and uninstall with explicit
+retain-data/permanent-delete choices. Manual clone/fork/custom-CI deployment must
+remain supported and must not depend on Ranch Hand.
 
 ## 2. Architecture tiers — classify every deployment option
 
@@ -32,8 +36,8 @@ first, then a recipe inside it:
 
 Work items: map every existing `deploy/*` recipe into a tier, restructure
 [deployment documentation](https://wranglerlabs.org/deployment) (picker, capability matrix, decision
-flowchart) around the tiers, and make the bootstrap installer's first question
-"which tier?".
+flowchart) around the tiers, and present the same tier/target language in Ranch
+Hand and the manual recipes.
 
 ## 3. Multiple connections per provider (multi-org, multi-credential)
 
@@ -61,8 +65,7 @@ feature (rotation targets in one view).
 
 Provide ready-to-use **pipeline/automation definitions** in the repo — inert
 until a deployer adopts them: GitHub Actions workflows, Azure DevOps pipelines,
-and plain scripts per tier/recipe. The **bootstrap installer (item 1) is the
-front door**: after the wizard collects choices + inputs it either
-(a) **kicks off the automation directly**, or (b) **emits a config JSON** the
-deployer feeds to their own tooling (the pipelines here consume the same JSON).
-One config schema shared by the wizard, the pipelines, and the docs.
+and plain scripts per tier/recipe. Ranch Hand already exports the canonical,
+secret-free deployment plan for review or user-owned automation. Future pipeline
+templates consume that same versioned contract; the RC does not trigger external
+CI directly or expose its authenticated loopback API as an unattended runner.

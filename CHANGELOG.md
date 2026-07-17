@@ -6,6 +6,14 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Documentation
+
+- Replaced the retired bootstrap-script description with the separate Ranch Hand
+  Windows lifecycle-manager path and preserved clone/fork/manual deployment as
+  an equal supported option.
+- Clarified that RepoWrangler releases contain server/deployment artifacts, while
+  Ranch Hand Windows executables are distributed from the Ranch Hand repository.
+
 ## [1.0.10] - 2026-07-17
 
 ### Added
