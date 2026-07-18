@@ -8,6 +8,8 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.4`, including WSL collision
+  safety and remote Linux Compose prepopulation.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.3`, separating local WSL
   Docker Compose from Docker Desktop and documenting the five deployment targets.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.2`; it now discovers and
