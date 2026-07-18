@@ -6,6 +6,12 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release publication now verifies the digest-pinned server image using an
+  anonymous GHCR token before creating deployment bundles or release assets, so
+  a private package cannot be advertised as a clone-free public deployment.
+
 ### Documentation
 
 - Updated the primary Ranch Hand path to `v0.1.0-rc.11`, adding ownership-safe
