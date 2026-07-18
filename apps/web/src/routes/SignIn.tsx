@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { signInOptions, useAuthConfig, useSessionUser } from '../api/client';
+import { initialSignInDestination } from './initialRouting';
 
 /**
  * Owner-approved addition — the wizard's front door. Reached by the API
@@ -12,11 +13,13 @@ export function SignIn() {
   const { data: user } = useSessionUser();
   const signIns = signInOptions(authConfig);
 
-  // Already signed in (e.g. reached /sign-in directly with a live session) —
-  // send them straight back in, no dead end either direction.
+  // A fresh real-mode install has no sign-in provider yet. Send it to the
+  // setup identity's wizard instead of rendering an impossible sign-in page.
+  // Already authenticated sessions still return to the application root.
   useEffect(() => {
-    if (user) window.location.assign('/');
-  }, [user]);
+    const destination = initialSignInDestination(authConfig, Boolean(user));
+    if (destination) window.location.assign(destination);
+  }, [authConfig, user]);
 
   return (
     <div style={{ maxWidth: 420, margin: '15vh auto', padding: '0 20px', textAlign: 'center' }}>
@@ -25,7 +28,11 @@ export function SignIn() {
 
       {isLoading && <p className="muted">Loading sign-in options…</p>}
 
-      {!isLoading && authConfig && authConfig.providers.length === 0 && (
+      {!isLoading && authConfig?.setupMode && (
+        <p className="muted">Opening secure initial setup…</p>
+      )}
+
+      {!isLoading && authConfig && !authConfig.setupMode && authConfig.providers.length === 0 && (
         <p className="muted">
           No sign-in method is configured yet — connect one via an admin. See{' '}
           <a

@@ -8,6 +8,7 @@ import {
   clearCustomPalette,
   loadCustomPalette,
 } from '../themes/custom';
+import { mayRenderInitialRoute } from '../routes/initialRouting';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Command Center' },
@@ -55,6 +56,7 @@ export function Layout() {
   const signIns = signInOptions(authConfig);
   const location = useLocation();
   const navigate = useNavigate();
+  const renderRoute = mayRenderInitialRoute(authConfig, location.pathname);
 
   // B1 — real mode, zero monitored workspaces: route to the wizard. Only
   // once signed in (`user` present); an unauthenticated visitor is handled
@@ -154,7 +156,7 @@ export function Layout() {
             Demo mode — synthetic data. Configure a GitHub App to monitor your real estate.
           </div>
         )}
-        <Outlet />
+        {renderRoute ? <Outlet /> : <p className="muted">Preparing initial setup…</p>}
       </main>
     </div>
   );
