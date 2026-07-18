@@ -8,6 +8,8 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.8`, including partial WSL
+  cleanup, correct plan identity, and managed-deployment visibility.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.7`, completing recovery of
   an exact empty WSL directory left before the ownership marker was written.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.6`, which recognizes and
