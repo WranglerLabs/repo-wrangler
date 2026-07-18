@@ -73,6 +73,17 @@ jobs:
           set -euo pipefail
           node scripts/release/verify-public-image.mjs "${IMAGE}@${{ steps.build.outputs.digest }}"
 
+      - name: Export offline Linux image archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/assets
+          runtime_image="repo-wrangler-ranch-hand:${GITHUB_REF_NAME}"
+          docker pull "${IMAGE}@${{ steps.build.outputs.digest }}"
+          docker tag "${IMAGE}@${{ steps.build.outputs.digest }}" "$runtime_image"
+          docker save "$runtime_image" | gzip -n -9 > "dist/assets/repo-wrangler-${GITHUB_REF_NAME}-linux-amd64-image.tar.gz"
+          test -s "dist/assets/repo-wrangler-${GITHUB_REF_NAME}-linux-amd64-image.tar.gz"
+
       - name: Attest product image
         uses: actions/attest-build-provenance@v2
         with:

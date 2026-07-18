@@ -6,7 +6,7 @@ verify it, and use its guided plan, preflight, dry-run, and supported target
 workflow without cloning this repository.
 
 These are the source-controlled **manual deployment alternatives**. Clone or
-fork RepoWrangler and run them directly, consume the immutable v1.0.10 release
+fork RepoWrangler and run them directly, consume the immutable v1.0.11 release
 artifacts, or adapt them to your own CI/CD system. Use this path for
 contribution, Kubernetes, custom automation, production topologies Ranch Hand
 does not yet support, or when you prefer to own every command. Ranch Hand is
