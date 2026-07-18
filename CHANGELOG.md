@@ -8,6 +8,8 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.10`, correcting Compose
+  environment interpolation and enabling safe cleanup of affected rc.9 installs.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.9`, correcting Compose file
   transfer, refresh sessions, legacy recovery, and prerequisite diagnostics.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.8`, including partial WSL
