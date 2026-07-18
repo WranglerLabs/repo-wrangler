@@ -6,8 +6,15 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-07-18
+
 ### Fixed
 
+- The web service worker no longer caches failed static-asset responses, which
+  could leave an otherwise healthy WSL or Compose deployment showing only a
+  blank dark page. The cache generation is advanced so affected browser caches
+  are evicted, and the initial HTML now shows a visible startup diagnostic if
+  the JavaScript application cannot mount.
 - Release publication now verifies the digest-pinned server image using an
   anonymous GHCR token before creating deployment bundles or release assets, so
   a private package cannot be advertised as a clone-free public deployment.
