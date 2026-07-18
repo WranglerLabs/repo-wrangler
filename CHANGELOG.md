@@ -6,6 +6,17 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-07-18
+
+### Fixed
+
+- The browser service worker no longer caches or falls back to the root
+  application shell. Reusing `127.0.0.1:8080` for a replacement deployment can
+  no longer resurrect an older Command Center UI before the current first-run
+  onboarding route loads.
+- Service-worker update checks bypass the browser HTTP cache so a newly deployed
+  shell policy activates promptly and evicts earlier RepoWrangler shell caches.
+
 ## [1.0.13] - 2026-07-18
 
 ### Fixed
