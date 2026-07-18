@@ -67,6 +67,12 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      - name: Verify anonymous product image pull
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-public-image.mjs "${IMAGE}@${{ steps.build.outputs.digest }}"
+
       - name: Attest product image
         uses: actions/attest-build-provenance@v2
         with:
