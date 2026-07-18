@@ -8,6 +8,8 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.9`, correcting Compose file
+  transfer, refresh sessions, legacy recovery, and prerequisite diagnostics.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.8`, including partial WSL
   cleanup, correct plan identity, and managed-deployment visibility.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.7`, completing recovery of
