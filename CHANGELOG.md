@@ -6,6 +6,19 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-07-18
+
+### Fixed
+
+- Fresh real-mode deployments now wait for public authentication state before
+  mounting protected dashboard routes, preventing their initial API calls from
+  racing setup discovery and redirecting to the normal sign-in page.
+- The sign-in route now sends an unconfigured real deployment directly to the
+  secure onboarding wizard instead of displaying an impossible “no sign-in
+  method” dead end.
+- Initial-routing regression tests cover setup redirection and prevent protected
+  pages from rendering before setup state is known.
+
 ## [1.0.12] - 2026-07-18
 
 ### Fixed
