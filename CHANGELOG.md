@@ -8,6 +8,9 @@ semantic versioning.
 
 ### Documentation
 
+- Updated the primary Ranch Hand path to `v0.1.0-rc.6`, which recognizes and
+  safely recovers its own interrupted WSL installation instead of reporting a
+  generic directory collision.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.5`, including visible WSL
   install confirmation, progress, errors, and credential-free recovery controls.
 - Updated the primary Ranch Hand path to `v0.1.0-rc.4`, including WSL collision

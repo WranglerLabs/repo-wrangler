@@ -28,12 +28,12 @@ alternative:
    [Ranch Hand](https://wranglerlabs.org/ranch-hand) application downloads
    and verifies immutable RepoWrangler release artifacts, builds a secret-free
    deployment plan, runs preflight/dry run, and applies a supported target. The
-   current `v0.1.0-rc.5` build is a publicly downloadable, unsigned **Public
+   current `v0.1.0-rc.6` build is a publicly downloadable, unsigned **Public
    Preview** with five distinct targets: local WSL Docker Compose, local Docker
    Desktop, remote Linux Docker Compose, Cloudflare, and Azure Container Apps.
-   rc.5 adds visible WSL install progress, errors, and interrupted-operation
-   recovery feedback alongside safe collision defaults and remote Linux field
-   prepopulation. It is not a production-supported or GA release. Its public guide includes
+   rc.6 recognizes Ranch Hand-owned interrupted WSL installs and offers
+   ownership-checked recovery beside the blocked preflight; unknown directories
+   remain untouched. It is not a production-supported or GA release. Its public guide includes
    download, verification, prerequisites, workflow, limitations, and GA gates.
 2. **Supported alternative: manual or user-owned automation.** Clone or fork the source, or consume immutable release artifacts. Use the
    commands below and the [`deploy/`](deploy/) recipes with Docker, Cloudflare,
