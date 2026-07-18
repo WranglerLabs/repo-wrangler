@@ -6,7 +6,7 @@ Owner-directed priorities. Larger design work referenced here lives in
 ## 1. Ranch Hand Public Preview → GA
 
 Ranch Hand is the separate, clone-free Windows deployment and lifecycle manager.
-The public `v0.1.0-rc.4` Preview is the primary recommended Windows deployment
+The public `v0.1.0-rc.5` Preview is the primary recommended Windows deployment
 path. It consumes immutable RepoWrangler artifacts,
 creates secret-free plans, runs preflight/dry run, and supports bounded installs
 for local WSL Compose, local Docker Desktop, remote Linux Compose, Cloudflare,
