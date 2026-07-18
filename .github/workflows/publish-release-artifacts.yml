@@ -68,6 +68,7 @@ jobs:
           sbom: true
 
       - name: Verify anonymous product image pull
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail

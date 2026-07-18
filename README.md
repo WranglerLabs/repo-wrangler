@@ -40,7 +40,7 @@ alternative:
    Azure Container Apps, Kubernetes, GitHub Actions, Azure DevOps, or your own
    tooling. This path remains fully supported and is also the contributor path.
 
-The RepoWrangler `v1.0.11` release page contains server images and deployment
+The RepoWrangler `v1.0.12` release page contains server images and deployment
 bundles consumed by Ranch Hand or user-owned automation. It does **not** contain
 a Windows executable; Ranch Hand is released separately from its own repository.
 
