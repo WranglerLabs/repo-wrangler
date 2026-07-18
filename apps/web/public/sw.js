@@ -1,15 +1,17 @@
 /* RepoWrangler service worker — PWA groundwork (goal 7 / FR-011).
-   App-shell + static-asset caching for installability and offline shell.
+   Static-asset caching for installability without caching the application
+   shell. The same localhost origin is reused across immutable deployments, so
+   retaining '/' can resurrect an obsolete UI during first boot.
    Provider data is never cached: /api, /auth, /webhooks, /health, /setup are
    always network. */
-const CACHE = 'repo-wrangler-shell-v2';
-const SHELL = ['/', '/lasso.svg', '/manifest.webmanifest'];
+const CACHE = 'repo-wrangler-static-v3';
+const STATIC = ['/lasso.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
+      .then((cache) => cache.addAll(STATIC))
       .then(() => self.skipWaiting()),
   );
 });
@@ -31,7 +33,10 @@ self.addEventListener('fetch', (event) => {
   if (/^\/(api|auth|webhooks|health|setup)\//.test(url.pathname)) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(() => caches.match('/')));
+    // Navigation must always use the currently deployed application shell.
+    // A failed boot remains a visible network failure instead of silently
+    // loading a stale Command Center from a previous deployment.
+    event.respondWith(fetch(request));
     return;
   }
 

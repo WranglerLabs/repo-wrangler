@@ -67,8 +67,11 @@ createRoot(document.getElementById('root')!).render(
 // PWA groundwork: register the service worker for installability + offline shell.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      /* SW registration is best-effort; the app works without it. */
-    });
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registration) => registration.update())
+      .catch(() => {
+        /* SW registration is best-effort; the app works without it. */
+      });
   });
 }
