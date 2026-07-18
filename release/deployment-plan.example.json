@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "name": "My RepoWrangler",
   "release": {
-    "version": "v1.0.11",
+  "version": "v1.0.12",
     "manifestUrl": "https://github.com/WranglerLabs/repo-wrangler/releases/download/v1.0.11/release-manifest.json"
   },
   "target": {

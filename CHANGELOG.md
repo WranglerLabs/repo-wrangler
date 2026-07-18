@@ -6,6 +6,15 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-07-18
+
+### Fixed
+
+- Release publication now continues to create the verified offline Linux image
+  archive when GHCR package visibility blocks the independent anonymous-pull
+  probe. Clone-free WSL and Remote Linux installers consume that immutable
+  release asset and do not require registry credentials.
+
 ## [1.0.11] - 2026-07-18
 
 ### Fixed
