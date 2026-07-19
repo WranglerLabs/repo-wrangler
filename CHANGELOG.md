@@ -6,6 +6,27 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-07-19
+
+### Fixed
+
+- Fresh real deployments now choose and configure their administrator identity
+  provider before connecting repositories. GitHub identity and Microsoft Entra
+  ID configuration are stored in the deployment database, with secrets
+  encrypted at rest.
+- GitHub App manifests for loopback, private-network, and non-public HTTP
+  deployments no longer request an unreachable webhook. These deployments use
+  scheduled and manual synchronization; public HTTPS deployments retain
+  webhook event subscriptions.
+- Initial setup remains available until the first allowlisted administrator
+  completes a verified sign-in, preventing half-configured deployments from
+  locking their operator out.
+- Entra web redirects reject unsupported private HTTP origins and explain the
+  HTTPS requirement during setup.
+- Release CI and publication now build and boot the actual Node server and
+  product container, exercising first-run identity configuration and both
+  private and public GitHub App manifest behavior before artifacts ship.
+
 ## [1.0.15] - 2026-07-18
 
 ### Fixed
