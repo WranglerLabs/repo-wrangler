@@ -1,7 +1,7 @@
 {
   "name": "repo-wrangler",
   "private": true,
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "RepoWrangler — wrangle every repository into one clear view.",
   "license": "Apache-2.0",
   "type": "module",
@@ -17,6 +17,7 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "test:release-contracts": "node --test scripts/release/*.test.mjs",
+    "test:server-smoke": "node scripts/release/smoke-server.mjs",
     "release:bundles": "node scripts/release/assemble-release-bundles.mjs",
     "release:manifest": "node scripts/release/generate-release-manifest.mjs",
     "start:server": "pnpm --filter @repo-wrangler/server start",

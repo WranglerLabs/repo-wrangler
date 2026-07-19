@@ -3,6 +3,7 @@ import { isDemoMode, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { resolveGitHubOAuthClient } from '../lib/connection-secrets';
 import { createStateToken, verifyStateToken } from '../lib/session';
+import { resolveGitHubAllowedUsers } from '../lib/identity-secrets';
 import {
   clearTransientCookie,
   completeSignIn,
@@ -81,7 +82,7 @@ authRoutes.get('/github/callback', async (c) => {
   return completeSignIn(c, {
     provider: 'github',
     identity: userData.login,
-    allowedUsers: c.env.ALLOWED_GITHUB_USERS,
+    allowedUsers: await resolveGitHubAllowedUsers(c.env),
   });
 });
 

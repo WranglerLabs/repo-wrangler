@@ -27,6 +27,12 @@ function env(overrides: Partial<Env> = {}): Env {
   return { DB: {}, ASSETS: {}, ...overrides } as unknown as Env;
 }
 
+function manifestFromHtml(html: string): Record<string, unknown> {
+  const encoded = html.match(/name="manifest" value="([^"]+)"/)?.[1];
+  expect(encoded).toBeTruthy();
+  return JSON.parse(encoded!.replace(/&quot;/g, '"').replace(/&amp;/g, '&')) as Record<string, unknown>;
+}
+
 describe('GET /setup/github-app', () => {
   it('suggests a unique, non-reserved App name', async () => {
     const res = await testApp().request('/setup/github-app', {}, env());
@@ -43,6 +49,28 @@ describe('GET /setup/github-app', () => {
     const second = await (await app.request('/setup/github-app', {}, env())).text();
     const nameOf = (html: string) => html.match(/&quot;name&quot;:&quot;([^&]+)&quot;/)?.[1];
     expect(nameOf(first)).not.toBe(nameOf(second));
+  });
+
+  it('omits GitHub webhooks for loopback deployments GitHub cannot call', async () => {
+    const html = await (await testApp().request('/setup/github-app', {}, env())).text();
+    const manifest = manifestFromHtml(html);
+    expect(manifest.redirect_url).toBe('http://localhost/setup/github-app/callback');
+    expect(manifest.callback_urls).toEqual(['http://localhost/auth/github/callback']);
+    expect(manifest).not.toHaveProperty('hook_attributes');
+    expect(manifest).not.toHaveProperty('default_events');
+    expect(html).toContain('local and private-network deployments use scheduled and manual synchronization');
+  });
+
+  it('includes GitHub webhooks only for a configured public HTTPS origin', async () => {
+    const html = await (
+      await testApp().request('/setup/github-app', {}, env({ PUBLIC_BASE_URL: 'https://repos.example.com' }))
+    ).text();
+    const manifest = manifestFromHtml(html);
+    expect(manifest.hook_attributes).toEqual({
+      url: 'https://repos.example.com/webhooks/github',
+      active: true,
+    });
+    expect(manifest.default_events).toBeInstanceOf(Array);
   });
 });
 

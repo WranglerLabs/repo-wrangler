@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { AppContext } from '../middleware/auth';
+import { createGitHubAppManifest } from '@repo-wrangler/contracts';
 
 /**
  * GitHub App Manifest flow (one-tap app creation).
@@ -41,47 +42,7 @@ function randomSuffix(): string {
 }
 
 function manifestJson(origin: string): string {
-  return JSON.stringify({
-    name: `repo-wrangler-${randomSuffix()}`,
-    url: 'https://github.com/WranglerLabs/repo-wrangler',
-    hook_attributes: { url: `${origin}/webhooks/github`, active: true },
-    redirect_url: `${origin}/setup/github-app/callback`,
-    callback_urls: [`${origin}/auth/github/callback`],
-    // Public so the app is installable on every estate org, not only the
-    // owning account — "public" only affects who may install, nothing else.
-    public: true,
-    default_permissions: {
-      metadata: 'read',
-      contents: 'read',
-      actions: 'read',
-      checks: 'read',
-      statuses: 'read',
-      pull_requests: 'read',
-      administration: 'read',
-      security_events: 'read',
-      vulnerability_alerts: 'read',
-      secret_scanning_alerts: 'read',
-      organization_administration: 'read',
-      members: 'read',
-    },
-    default_events: [
-      'repository',
-      'push',
-      'create',
-      'delete',
-      'pull_request',
-      'pull_request_review',
-      'workflow_run',
-      'workflow_job',
-      'check_run',
-      'check_suite',
-      'branch_protection_rule',
-      'repository_ruleset',
-      'code_scanning_alert',
-      'dependabot_alert',
-      'secret_scanning_alert',
-    ],
-  });
+  return JSON.stringify(createGitHubAppManifest(origin, randomSuffix()));
 }
 
 const PAGE_STYLE = `
@@ -101,9 +62,10 @@ setupRoutes.get('/github-app', (c) => {
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>RepoWrangler — create GitHub App</title><style>${PAGE_STYLE}</style></head>
 <body>
   <h1>Create the RepoWrangler GitHub App</h1>
-  <p>This creates a dedicated <strong>read-only</strong> GitHub App with the webhook,
-  permissions, and event subscriptions already configured. You must be signed in to
-  GitHub in this browser.</p>
+  <p>This creates a dedicated <strong>read-only</strong> GitHub App with its permissions
+  already configured. Public HTTPS deployments also receive webhook event subscriptions;
+  local and private-network deployments use scheduled and manual synchronization. You must
+  be signed in to GitHub in this browser.</p>
 
   <h2>Under your personal account</h2>
   <form action="https://github.com/settings/apps/new" method="post">

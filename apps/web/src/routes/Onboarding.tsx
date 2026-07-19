@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ConnectionDto } from '@repo-wrangler/contracts';
+import { createGitHubAppManifest, supportsEntraWebRedirect, supportsGitHubWebhooks, type ConnectionDto } from '@repo-wrangler/contracts';
 import type { AuthProviderOption } from '../api/client';
 import {
   ApiError,
   authorizeSetup,
   clearStoredSetupToken,
+  configureIdentity,
   connectGitLab,
   createGitLabWorkspaces,
   exchangeGitHubApp,
@@ -18,6 +19,7 @@ import {
   useAuthConfig,
   useConnections,
   useConnectionWorkspaces,
+  useIdentityConfiguration,
   type MonitoringState,
 } from '../api/client';
 import { EstateScopeTable, type ScopeWorkspace } from '../components/EstateScopeTable';
@@ -25,28 +27,6 @@ import { EstateScopeTable, type ScopeWorkspace } from '../components/EstateScope
 type Platform = 'github' | 'gitlab';
 
 const WORKSPACE_POLL_MS = 10_000;
-
-export function githubAppManifest(origin: string, suffix: string) {
-  return {
-    name: `repo-wrangler-${suffix}`,
-    url: 'https://github.com/WranglerLabs/repo-wrangler',
-    hook_attributes: { url: `${origin}/webhooks/github`, active: true },
-    redirect_url: `${origin}/setup/github-app/callback`,
-    callback_urls: [`${origin}/auth/github/callback`],
-    public: true,
-    default_permissions: {
-      metadata: 'read', contents: 'read', actions: 'read', checks: 'read',
-      statuses: 'read', pull_requests: 'read', administration: 'read',
-      security_events: 'read', vulnerability_alerts: 'read',
-      secret_scanning_alerts: 'read', organization_administration: 'read', members: 'read',
-    },
-    default_events: [
-      'repository', 'push', 'create', 'delete', 'pull_request', 'pull_request_review',
-      'workflow_run', 'workflow_job', 'check_run', 'check_suite', 'branch_protection_rule',
-      'repository_ruleset', 'code_scanning_alert', 'dependabot_alert', 'secret_scanning_alert',
-    ],
-  };
-}
 
 function randomAppSuffix(): string {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 6);
@@ -80,19 +60,28 @@ export function Onboarding() {
   const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(forceNewConnection);
   const [setupAuthorized, setSetupAuthorized] = useState(hasStoredSetupToken);
+  const [identitySelected, setIdentitySelected] = useState(forceNewConnection);
 
   const authConfig = useAuthConfig();
   const setupTokenRequired = authConfig.data?.setupTokenRequired === true;
   const connections = useConnections(
     Boolean(authConfig.data) && (!setupTokenRequired || setupAuthorized),
   );
+  const identityConfiguration = useIdentityConfiguration(
+    Boolean(authConfig.data) && (!setupTokenRequired || setupAuthorized) && !forceNewConnection,
+  );
 
   useEffect(() => {
-    if (setupTokenRequired && connections.error instanceof ApiError && connections.error.status === 401) {
+    if (identityConfiguration.data?.selectedProvider) setIdentitySelected(true);
+  }, [identityConfiguration.data?.selectedProvider]);
+
+  useEffect(() => {
+    const setupError = connections.error ?? identityConfiguration.error;
+    if (setupTokenRequired && setupError instanceof ApiError && setupError.status === 401) {
       clearStoredSetupToken();
       setSetupAuthorized(false);
     }
-  }, [setupTokenRequired, connections.error]);
+  }, [setupTokenRequired, connections.error, identityConfiguration.error]);
 
   useEffect(() => {
     if (authConfig.data && !authConfig.data.setupMode) clearStoredSetupToken();
@@ -173,8 +162,8 @@ export function Onboarding() {
     }
     await queryClient.invalidateQueries({ queryKey: ['onboarding-status'] });
     await queryClient.invalidateQueries({ queryKey: ['auth-config'] });
-    const currentAuth = queryClient.getQueryData<{ setupMode: boolean }>(['auth-config']);
-    if (currentAuth && !currentAuth.setupMode) {
+    const currentAuth = queryClient.getQueryData<{ providers: AuthProviderOption[] }>(['auth-config']);
+    if (currentAuth && currentAuth.providers.some((provider) => provider.id !== 'local')) {
       clearStoredSetupToken();
       window.location.assign('/sign-in');
       return;
@@ -182,8 +171,50 @@ export function Onboarding() {
     navigate('/');
   }
 
+  if (authConfig.isLoading || (!forceNewConnection && identityConfiguration.isLoading)) {
+    return <p className="muted">Loading secure setup…</p>;
+  }
+
+  if (authConfig.error) {
+    return <div className="error-box">Could not load the sign-in configuration. Is the API reachable?</div>;
+  }
+
   if (setupTokenRequired && !setupAuthorized) {
     return <SetupTokenGate onAuthorized={() => setSetupAuthorized(true)} />;
+  }
+
+  if (!identitySelected) {
+    return (
+      <IdentitySetup
+        busy={busy}
+        error={error}
+        onGitHub={async (allowedUsers) => {
+          setBusy(true);
+          setError(null);
+          try {
+            await configureIdentity({ provider: 'github', allowedUsers });
+            setPlatforms((current) => current.includes('github') ? current : ['github', ...current]);
+            setIdentitySelected(true);
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : 'Could not select GitHub identity.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onEntra={async (input) => {
+          setBusy(true);
+          setError(null);
+          try {
+            await configureIdentity(input);
+            setIdentitySelected(true);
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : 'Could not configure Microsoft Entra ID.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    );
   }
 
   return (
@@ -192,6 +223,12 @@ export function Onboarding() {
       <p className="page-subtitle">
         Step {step} of 4 — pick a platform, connect it, and choose what RepoWrangler watches.
       </p>
+
+      {!forceNewConnection && authConfig.data?.setupMode && (
+        <button className="ghost" onClick={() => { setError(null); setIdentitySelected(false); }}>
+          Change administrator identity
+        </button>
+      )}
 
       {error && <div className="error-box">{error}</div>}
 
@@ -283,6 +320,95 @@ export function Onboarding() {
   );
 }
 
+function IdentitySetup({
+  busy,
+  error,
+  onGitHub,
+  onEntra,
+}: {
+  busy: boolean;
+  error: string | null;
+  onGitHub: (allowedUsers: string) => Promise<void>;
+  onEntra: (input: {
+    provider: 'entra';
+    tenantId: string;
+    clientId: string;
+    clientSecret: string;
+    allowedUsers: string;
+  }) => Promise<void>;
+}) {
+  const [choice, setChoice] = useState<'github' | 'entra' | null>(null);
+  const [githubUsers, setGitHubUsers] = useState('');
+  const [tenantId, setTenantId] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [allowedUsers, setAllowedUsers] = useState('');
+  const entraAvailable = supportsEntraWebRedirect(window.location.origin);
+
+  async function saveEntra() {
+    await onEntra({ provider: 'entra', tenantId, clientId, clientSecret, allowedUsers });
+  }
+
+  return (
+    <>
+      <h1 className="page-title">Protect administrator access</h1>
+      <p className="page-subtitle">
+        Choose how administrators sign in before connecting repositories and selecting monitored resources.
+      </p>
+      {error && <div className="error-box">{error}</div>}
+      <div className="panel">
+        <h2>Administrator identity provider</h2>
+        <p className="muted">
+          This controls access to RepoWrangler. Estate connections are configured separately afterward.
+        </p>
+        <button className={choice === 'github' ? '' : 'ghost'} onClick={() => setChoice('github')}>
+          GitHub identity
+        </button>
+        <button className={choice === 'entra' ? '' : 'ghost'} disabled={!entraAvailable} onClick={() => setChoice('entra')}>
+          Microsoft Entra ID
+        </button>
+        {!entraAvailable && (
+          <p className="muted">
+            Microsoft Entra ID requires trusted HTTPS when RepoWrangler is not on loopback.
+            Configure HTTPS first, or use GitHub identity for this private HTTP deployment.
+          </p>
+        )}
+        {choice === 'github' && (
+          <div style={{ marginTop: 16 }}>
+            <p>
+              The GitHub App created in the next stage supplies administrator OAuth sign-in.
+              Its read-only estate access is configured separately in that stage.
+            </p>
+            <label className="field">
+              GitHub administrator usernames (comma-separated; first is owner)
+              <input value={githubUsers} onChange={(event) => setGitHubUsers(event.target.value)} />
+            </label>
+            <button disabled={busy || !githubUsers.trim()} onClick={() => void onGitHub(githubUsers)}>
+              {busy ? 'Saving…' : 'Continue with GitHub identity'}
+            </button>
+          </div>
+        )}
+        {choice === 'entra' && (
+          <div style={{ marginTop: 16 }}>
+            <p>
+              Create an Entra app registration with web redirect URI{' '}
+              <code>{window.location.origin}/auth/entra/callback</code>, then enter its values here.
+              The client secret is encrypted in RepoWrangler's database.
+            </p>
+            <label className="field">Tenant ID<input value={tenantId} onChange={(event) => setTenantId(event.target.value)} /></label>
+            <label className="field">Client ID<input value={clientId} onChange={(event) => setClientId(event.target.value)} /></label>
+            <label className="field">Client secret<input type="password" value={clientSecret} onChange={(event) => setClientSecret(event.target.value)} /></label>
+            <label className="field">Administrator emails (comma-separated; first is owner)<input value={allowedUsers} onChange={(event) => setAllowedUsers(event.target.value)} /></label>
+            <button disabled={busy || !tenantId.trim() || !clientId.trim() || !clientSecret.trim() || !allowedUsers.trim()} onClick={() => void saveEntra()}>
+              {busy ? 'Saving…' : 'Continue with Entra identity'}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function SetupTokenGate({ onAuthorized }: { onAuthorized: () => void }) {
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
@@ -343,9 +469,9 @@ function SignInReadiness({
   if (providers.length > 0) {
     return (
       <p>
-        ✓ Sign-in is ready — {providers.map((p) => p.label).join(', ')}. Setup access is now
-        closed; sign in with{' '}
-        {providers.map((p) => p.label).join(' or ')}.
+        ✓ Sign-in is configured — {providers.map((p) => p.label).join(', ')}. Finish here, then
+        successfully sign in with {providers.map((p) => p.label).join(' or ')}. Initial setup
+        access closes permanently only after that first verified administrator sign-in.
       </p>
     );
   }
@@ -378,7 +504,7 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected, existingConne
   const [clientSecret, setClientSecret] = useState('');
   const [organization, setOrganization] = useState('');
   const [manifest] = useState(() =>
-    JSON.stringify(githubAppManifest(window.location.origin, randomAppSuffix())),
+    JSON.stringify(createGitHubAppManifest(window.location.origin, randomAppSuffix())),
   );
 
   // Polls while no installation exists yet — the step advances itself the
@@ -500,6 +626,13 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected, existingConne
             intermediate local setup page. After GitHub creates the app, return here with the
             one-time setup code to finish connecting.
           </p>
+          {!supportsGitHubWebhooks(window.location.origin) && (
+            <p className="muted">
+              This deployment is not on public HTTPS, so the App is created without a webhook.
+              RepoWrangler will discover changes through scheduled and manual synchronization.
+              Webhooks can be enabled later after you configure a publicly reachable HTTPS URL.
+            </p>
+          )}
           <button className="ghost" onClick={() => setMode('create')}>
             I have a setup code
           </button>

@@ -28,10 +28,10 @@ alternative:
    [Ranch Hand](https://wranglerlabs.org/ranch-hand) application downloads
    and verifies immutable RepoWrangler release artifacts, builds a secret-free
    deployment plan, runs preflight/dry run, and applies a supported target. The
-   current `v0.1.0-rc.11` build is a publicly downloadable, unsigned **Public
-   Preview** with five distinct targets: local WSL Docker Compose, local Docker
+   current build is a publicly downloadable, unsigned **Public Preview** with
+   five distinct targets: local WSL Docker Compose, local Docker
    Desktop, remote Linux Docker Compose, Cloudflare, and Azure Container Apps.
-   rc.11 offers **Inspect and remove Ranch Hand remnants** when an orphaned WSL
+   Ranch Hand offers **Inspect and remove Ranch Hand remnants** when an orphaned WSL
    directory blocks preflight after its lifecycle record is gone; unknown directories and
    unowned Docker resources remain untouched. It is not a production-supported or GA release. Its public guide includes
    download, verification, prerequisites, workflow, limitations, and GA gates.
@@ -40,8 +40,8 @@ alternative:
    Azure Container Apps, Kubernetes, GitHub Actions, Azure DevOps, or your own
    tooling. This path remains fully supported and is also the contributor path.
 
-The RepoWrangler `v1.0.12` release page contains server images and deployment
-bundles consumed by Ranch Hand or user-owned automation. It does **not** contain
+RepoWrangler release pages contain immutable server images and deployment
+bundles consumed by Ranch Hand or user-owned automation. They do **not** contain
 a Windows executable; Ranch Hand is released separately from its own repository.
 
 ## Highlights
