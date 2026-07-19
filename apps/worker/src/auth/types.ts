@@ -4,6 +4,7 @@ import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
 import { corsAllowedOrigins, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { createSessionCookie } from '../lib/session';
+import { markSetupCompleted } from '../lib/setup-state';
 
 /**
  * `IAuthenticationProvider` — the sign-in seam (ADR-019, PN-5).
@@ -67,12 +68,6 @@ export async function completeSignIn(
     await recordAuditEvent(c.env.DB, opts.identity, 'login.denied', `provider=${opts.provider}`);
     return c.json({ error: 'This account is not authorized for this instance.' }, 403);
   }
-  await recordAuditEvent(
-    c.env.DB,
-    opts.identity,
-    'login.success',
-    `provider=${opts.provider} role=${role}`,
-  );
   const spaOrigin = corsAllowedOrigins(c.env)[0];
   const cookie = await createSessionCookie(
     secret,
@@ -80,6 +75,13 @@ export async function completeSignIn(
     true,
     spaOrigin ? 'None' : 'Lax',
   );
+  await recordAuditEvent(
+    c.env.DB,
+    opts.identity,
+    'login.success',
+    `provider=${opts.provider} role=${role}`,
+  );
+  await markSetupCompleted(c.env.DB);
   c.header('Set-Cookie', cookie, { append: true });
   return c.redirect(spaOrigin ?? '/');
 }

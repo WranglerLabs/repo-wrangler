@@ -3,7 +3,11 @@ import { initialSignInDestination, mayRenderInitialRoute } from '../src/routes/i
 
 describe('initial setup routing', () => {
   it('sends an unconfigured real deployment from sign-in to onboarding', () => {
-    expect(initialSignInDestination({ setupMode: true }, false)).toBe('/onboarding');
+    expect(initialSignInDestination({ setupMode: true, providers: [] }, false)).toBe('/onboarding');
+  });
+
+  it('keeps the sign-in page available while configured identity awaits its first successful login', () => {
+    expect(initialSignInDestination({ setupMode: true, providers: [{ id: 'entra' }] }, false)).toBeUndefined();
   });
 
   it('returns an authenticated non-setup session to the application', () => {

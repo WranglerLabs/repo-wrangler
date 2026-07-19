@@ -7,6 +7,7 @@ import type {
   GitLabGroupSearchResultDto,
   OnboardingStatusDto,
 } from '@repo-wrangler/contracts';
+import { supportsEntraWebRedirect } from '@repo-wrangler/contracts';
 import {
   countMonitoredWorkspaces,
   deleteAllConnectionSecrets,
@@ -20,8 +21,10 @@ import {
   listWorkspacesForConnection,
   markConnectionRemoved,
   recordAuditEvent,
+  getMeta,
   setConnectionAppSlug,
   setConnectionSecretReference,
+  setMeta,
   updateConnectionDisplayName,
   upsertWorkspace,
 } from '@repo-wrangler/persistence-d1';
@@ -40,6 +43,7 @@ import {
   resolveGitLabCredentials,
   writableConnectionSecretProvider,
 } from '../lib/connection-secrets';
+import { storeEntraIdentity, storeGitHubIdentity } from '../lib/identity-secrets';
 
 /**
  * Onboarding design B1/B3 — first-run detection, the connect wizard's API,
@@ -47,6 +51,62 @@ import {
  * alongside `apiRoutes`, behind the same `requireAuth` (index.ts).
  */
 export const connectionRoutes = new Hono<AppContext>();
+
+connectionRoutes.get('/identity/configuration', requireAdmin, async (c) => {
+  return c.json({ selectedProvider: await getMeta(c.env.DB, 'auth.enabled_providers') });
+});
+
+connectionRoutes.post('/identity/configure', requireAdmin, async (c) => {
+  if (isDemoMode(c.env)) return c.json({ error: 'not available in demo mode' }, 409);
+  if (!(await isSetupMode(c.env))) {
+    return c.json({ error: 'Initial identity setup is closed. Use a dedicated identity-rotation workflow.' }, 409);
+  }
+  type IdentityConfigureRequest = {
+    provider?: string;
+    tenantId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    allowedUsers?: string;
+  };
+  const body: IdentityConfigureRequest = await c.req.json<IdentityConfigureRequest>().catch(() => ({}));
+  if (body.provider === 'github') {
+    const allowedUsers = body.allowedUsers?.trim() ?? '';
+    if (!allowedUsers) return c.json({ error: 'At least one GitHub administrator username is required.' }, 400);
+    try {
+      await storeGitHubIdentity(c.env, allowedUsers);
+      await setMeta(c.env.DB, 'auth.enabled_providers', 'github');
+      await recordAuditEvent(c.env.DB, c.get('user').login, 'identity.configure', 'provider=github');
+      return c.json({ ok: true, provider: 'github' });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : 'Could not store identity configuration.' }, 500);
+    }
+  }
+  if (body.provider !== 'entra') return c.json({ error: 'Unsupported identity provider.' }, 400);
+  const deploymentOrigin = c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin;
+  if (!supportsEntraWebRedirect(deploymentOrigin)) {
+    return c.json({ error: 'Microsoft Entra ID requires trusted HTTPS for non-loopback deployments.' }, 400);
+  }
+  const tenantId = body.tenantId?.trim() ?? '';
+  const clientId = body.clientId?.trim() ?? '';
+  const clientSecret = body.clientSecret?.trim() ?? '';
+  const allowedUsers = body.allowedUsers?.trim() ?? '';
+  if (!tenantId || !clientId || !clientSecret || !allowedUsers) {
+    return c.json({ error: 'Tenant ID, client ID, client secret, and at least one administrator email are required.' }, 400);
+  }
+  try {
+    await storeEntraIdentity(c.env, {
+      tenantId,
+      clientId,
+      clientSecret,
+      allowedUsers,
+    });
+    await setMeta(c.env.DB, 'auth.enabled_providers', 'entra');
+    await recordAuditEvent(c.env.DB, c.get('user').login, 'identity.configure', 'provider=entra');
+    return c.json({ ok: true, provider: 'entra' });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Could not store identity configuration.' }, 500);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // B1 — first-run detection

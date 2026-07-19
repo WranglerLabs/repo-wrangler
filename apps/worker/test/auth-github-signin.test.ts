@@ -11,6 +11,7 @@ import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite
 import { ensureGitHubConnection } from '@repo-wrangler/persistence-d1';
 import { authRoutes } from '../src/auth/github';
 import { writableConnectionSecretProvider } from '../src/lib/connection-secrets';
+import { resolveGitHubAllowedUsers, storeGitHubIdentity } from '../src/lib/identity-secrets';
 import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
 
@@ -76,5 +77,15 @@ describe('GitHub sign-in — DB-first, env-fallback OAuth client creds', () => {
   it('500s when neither the db store nor env has GitHub OAuth client creds', async () => {
     const res = await testApp().request('/auth/github/login', {}, env(db));
     expect(res.status).toBe(500);
+  });
+
+  it('resolves the encrypted wizard administrator list before the env fallback', async () => {
+    const configuredEnv = env(db, {
+      SECRET_ENCRYPTION_KEY: 'test-key',
+      ALLOWED_GITHUB_USERS: 'env-owner',
+    });
+    await storeGitHubIdentity(configuredEnv, 'wizard-owner,wizard-admin');
+    expect(await resolveGitHubAllowedUsers(configuredEnv)).toBe('wizard-owner,wizard-admin');
+    expect(await resolveGitHubAllowedUsers(env(db, { ALLOWED_GITHUB_USERS: 'env-owner' }))).toBe('env-owner');
   });
 });

@@ -28,7 +28,7 @@ export function SignIn() {
 
       {isLoading && <p className="muted">Loading sign-in options…</p>}
 
-      {!isLoading && authConfig?.setupMode && (
+      {!isLoading && authConfig?.setupMode && authConfig.providers.length === 0 && (
         <p className="muted">Opening secure initial setup…</p>
       )}
 

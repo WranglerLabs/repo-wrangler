@@ -68,8 +68,26 @@ function setupTokenHeader(): Record<string, string> {
 
 function isSetupApiPath(path: string): boolean {
   return path === '/api/v1/onboarding/status' ||
+    path === '/api/v1/identity/configure' ||
+    path === '/api/v1/identity/configuration' ||
     path.startsWith('/api/v1/connections') ||
     path.startsWith('/api/v1/workspaces/');
+}
+
+export async function configureIdentity(input:
+  | { provider: 'github'; allowedUsers: string }
+  | { provider: 'entra'; tenantId: string; clientId: string; clientSecret: string; allowedUsers?: string }
+): Promise<{ ok: boolean; provider: 'github' | 'entra' }> {
+  return apiSend('/api/v1/identity/configure', 'POST', input);
+}
+
+export function useIdentityConfiguration(enabled = true) {
+  return useQuery<{ selectedProvider: string | null }>({
+    queryKey: ['identity-configuration'],
+    queryFn: () => apiGet('/api/v1/identity/configuration'),
+    enabled,
+    retry: false,
+  });
 }
 
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {

@@ -52,6 +52,8 @@ export async function requireAuth(c: Context<AppContext>, next: Next): Promise<R
 
 const SETUP_ROUTES: readonly [string, RegExp][] = [
   ['GET', /^\/api\/v1\/onboarding\/status$/],
+  ['POST', /^\/api\/v1\/identity\/configure$/],
+  ['GET', /^\/api\/v1\/identity\/configuration$/],
   ['GET', /^\/api\/v1\/connections$/],
   ['POST', /^\/api\/v1\/connections\/github\/(exchange|credentials)$/],
   ['POST', /^\/api\/v1\/connections\/gitlab$/],

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { isDemoMode, isEntraConfigured, type Env } from '../bindings';
+import { isDemoMode } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { createStateToken, verifyStateToken } from '../lib/session';
 import {
@@ -10,6 +10,7 @@ import {
   transientCookie,
   type AuthProvider,
 } from './types';
+import { resolveEntraIdentity } from '../lib/identity-secrets';
 
 /**
  * Dashboard sign-in via Microsoft Entra ID (Azure AD) using the OpenID Connect
@@ -40,11 +41,12 @@ function issuerTrusted(iss: unknown, tenant: string): boolean {
 
 entraRoutes.get('/entra/login', async (c) => {
   if (isDemoMode(c.env)) return c.redirect('/');
-  if (!isEntraConfigured(c.env) || !c.env.SESSION_SECRET) {
+  const identity = await resolveEntraIdentity(c.env);
+  if (!identity || !c.env.SESSION_SECRET) {
     return c.json({ error: 'Entra sign-in is not configured.' }, 500);
   }
-  const tenant = c.env.ENTRA_TENANT_ID as string;
-  const clientId = c.env.ENTRA_CLIENT_ID as string;
+  const tenant = identity.tenantId;
+  const clientId = identity.clientId;
   const secret = c.env.SESSION_SECRET;
   const baseUrl = c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin;
   const redirectUri = `${baseUrl}/auth/entra/callback`;
@@ -67,12 +69,13 @@ entraRoutes.get('/entra/login', async (c) => {
 });
 
 entraRoutes.get('/entra/callback', async (c) => {
-  if (!isEntraConfigured(c.env) || !c.env.SESSION_SECRET) {
+  const identityConfig = await resolveEntraIdentity(c.env);
+  if (!identityConfig || !c.env.SESSION_SECRET) {
     return c.json({ error: 'Entra sign-in is not configured.' }, 500);
   }
-  const tenant = c.env.ENTRA_TENANT_ID as string;
-  const clientId = c.env.ENTRA_CLIENT_ID as string;
-  const clientSecret = c.env.ENTRA_CLIENT_SECRET as string;
+  const tenant = identityConfig.tenantId;
+  const clientId = identityConfig.clientId;
+  const clientSecret = identityConfig.clientSecret;
   const secret = c.env.SESSION_SECRET;
 
   const state = c.req.query('state');
@@ -136,13 +139,13 @@ entraRoutes.get('/entra/callback', async (c) => {
   return completeSignIn(c, {
     provider: 'entra',
     identity,
-    allowedUsers: c.env.ENTRA_ALLOWED_USERS,
+    allowedUsers: identityConfig.allowedUsers,
   });
 });
 
 export const entraProvider: AuthProvider = {
   id: 'entra',
   label: 'Microsoft',
-  isConfigured: isEntraConfigured,
+  isConfigured: async (env) => Boolean(await resolveEntraIdentity(env)),
   routes: entraRoutes,
 };

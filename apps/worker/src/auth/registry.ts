@@ -1,5 +1,6 @@
 import { authMode, isDemoMode, type Env } from '../bindings';
-import { getMeta, setMeta } from '@repo-wrangler/persistence-d1';
+import { getMeta } from '@repo-wrangler/persistence-d1';
+import { setupWasCompleted } from '../lib/setup-state';
 import type { AuthProvider } from './types';
 import { githubProvider } from './github';
 import { gitlabProvider } from './gitlab';
@@ -28,18 +29,22 @@ export const ALL_PROVIDERS: readonly AuthProvider[] = [
 const BY_ID = new Map(ALL_PROVIDERS.map((p) => [p.id, p]));
 
 /** Ordered ids the operator enabled, before the configuration filter. */
-function enabledIds(env: Env): AuthProvider['id'][] {
+async function enabledIds(env: Env): Promise<AuthProvider['id'][]> {
+  const stored = await getMeta(env.DB, 'auth.enabled_providers');
+  if (stored) return parseEnabledIds(stored);
   const raw = (env.AUTH_PROVIDERS ?? '').trim();
-  if (raw) {
-    const ids: AuthProvider['id'][] = [];
-    for (const token of raw.split(',').map((t) => t.trim().toLowerCase())) {
-      const provider = BY_ID.get(token as AuthProvider['id']);
-      if (provider && !ids.includes(provider.id)) ids.push(provider.id);
-    }
-    return ids;
-  }
+  if (raw) return parseEnabledIds(raw);
   // Legacy single-provider fallback — never yields `local`.
   return authMode(env) === 'entra' ? ['entra'] : ['github'];
+}
+
+function parseEnabledIds(raw: string): AuthProvider['id'][] {
+  const ids: AuthProvider['id'][] = [];
+  for (const token of raw.split(',').map((value) => value.trim().toLowerCase())) {
+    const provider = BY_ID.get(token as AuthProvider['id']);
+    if (provider && !ids.includes(provider.id)) ids.push(provider.id);
+  }
+  return ids;
 }
 
 /**
@@ -48,32 +53,21 @@ function enabledIds(env: Env): AuthProvider['id'][] {
  * ADR-019 PN-5) rather than just reading `env` synchronously.
  */
 export async function enabledProviders(env: Env): Promise<AuthProvider[]> {
-  const candidates = enabledIds(env)
+  const candidates = (await enabledIds(env))
     .map((id) => BY_ID.get(id))
     .filter((p): p is AuthProvider => Boolean(p));
   const configured = await Promise.all(candidates.map((p) => p.isConfigured(env)));
   return candidates.filter((_, i) => configured[i]);
 }
 
-/** True when at least one operator-enabled, non-development provider can sign users in. */
-export async function isSignInConfigured(env: Env): Promise<boolean> {
-  return (await enabledProviders(env)).some((provider) => provider.id !== 'local');
-}
-
-const SETUP_COMPLETED_KEY = 'auth.setup_completed';
-
 /**
- * First boot may use the setup allowlist until real sign-in works once. The
+ * First boot may use the setup allowlist until a real sign-in succeeds once. The
  * durable latch prevents provider removal from ever reopening setup against a
  * populated instance.
  */
 export async function isSetupMode(env: Env): Promise<boolean> {
   if (isDemoMode(env)) return false;
-  if (await isSignInConfigured(env)) {
-    await setMeta(env.DB, SETUP_COMPLETED_KEY, 'true');
-    return false;
-  }
-  return (await getMeta(env.DB, SETUP_COMPLETED_KEY)) !== 'true';
+  return !(await setupWasCompleted(env.DB));
 }
 
 /** Session issuers must remain both enabled and configured for their cookies to stay valid. */

@@ -118,11 +118,6 @@ export function authMode(env: Env): 'github_app' | 'entra' {
   return env.AUTH_MODE === 'entra' ? 'entra' : 'github_app';
 }
 
-/** Whether the Entra ID sign-in provider has the settings it needs. */
-export function isEntraConfigured(env: Env): boolean {
-  return Boolean(env.ENTRA_TENANT_ID && env.ENTRA_CLIENT_ID && env.ENTRA_CLIENT_SECRET);
-}
-
 /** Resolved scheduler driver for a self-hosted host (PN-3). */
 export function schedulerMode(env: Env): 'in-process' | 'external' | 'off' {
   switch ((env.SCHEDULER_MODE ?? '').toLowerCase()) {

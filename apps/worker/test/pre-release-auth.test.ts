@@ -6,6 +6,7 @@ import { app } from '../src/index';
 import type { Env } from '../src/bindings';
 import { createSessionCookie, readSession } from '../src/lib/session';
 import { writableConnectionSecretProvider } from '../src/lib/connection-secrets';
+import { markSetupCompleted } from '../src/lib/setup-state';
 
 const migrationsDir = join(__dirname, '../../../migrations');
 
@@ -62,6 +63,173 @@ describe('pre-release authentication gate', () => {
     expect(JSON.stringify(await accepted.json())).not.toContain('correct horse');
   });
 
+  it('persists the selected GitHub identity provider without prematurely closing setup', async () => {
+    const identityEnv = env(db, { SECRET_ENCRYPTION_KEY: 'test-encryption-key' });
+    const initial = await app.request('/api/v1/identity/configuration', {}, identityEnv);
+    expect(initial.status).toBe(200);
+    expect(await initial.json()).toEqual({ selectedProvider: null });
+
+    const selected = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'github', allowedUsers: 'octocat,hubot' }),
+      },
+      identityEnv,
+    );
+    expect(selected.status).toBe(200);
+    expect(await selected.json()).toEqual({ ok: true, provider: 'github' });
+
+    const stored = await db.prepare(
+      `SELECT ciphertext FROM connection_secrets WHERE secret_reference = 'identity:github'`,
+    ).all<{ ciphertext: string }>();
+    expect(stored.results).toHaveLength(1);
+    expect(JSON.stringify(stored.results)).not.toContain('octocat');
+
+    const persisted = await app.request('/api/v1/identity/configuration', {}, identityEnv);
+    expect(await persisted.json()).toEqual({ selectedProvider: 'github' });
+    expect(await (await app.request('/auth/config', {}, identityEnv)).json()).toMatchObject({
+      setupMode: true,
+      providers: [],
+    });
+  });
+
+  it('stores Entra identity encrypted, closes setup, and uses it for the login redirect', async () => {
+    const configuredEnv = env(db, {
+      SECRET_ENCRYPTION_KEY: 'test-encryption-key',
+      PUBLIC_BASE_URL: 'https://repos.example.test',
+    });
+    const response = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'entra',
+          tenantId: 'contoso-tenant',
+          clientId: 'entra-client-id',
+          clientSecret: 'plaintext-client-secret',
+          allowedUsers: 'admin@example.test',
+        }),
+      },
+      configuredEnv,
+    );
+    expect(response.status).toBe(200);
+
+    const stored = await db.prepare(
+      `SELECT name, ciphertext FROM connection_secrets WHERE secret_reference = 'identity:entra'`,
+    ).all<{ name: string; ciphertext: string }>();
+    expect(stored.results).toHaveLength(4);
+    expect(JSON.stringify(stored.results)).not.toContain('plaintext-client-secret');
+    expect(JSON.stringify(stored.results)).not.toContain('contoso-tenant');
+
+    const config = await app.request('/auth/config', {}, configuredEnv);
+    expect(await config.json()).toMatchObject({
+      setupMode: true,
+      providers: [{ id: 'entra', label: 'Microsoft', loginUrl: '/auth/entra/login' }],
+    });
+    expect((await app.request('/api/v1/onboarding/status', {}, configuredEnv)).status).toBe(200);
+
+    const login = await app.request('/auth/entra/login', {}, configuredEnv);
+    expect(login.status).toBe(302);
+    const location = new URL(login.headers.get('location')!);
+    expect(location.origin + location.pathname).toBe(
+      'https://login.microsoftonline.com/contoso-tenant/oauth2/v2.0/authorize',
+    );
+    expect(location.searchParams.get('client_id')).toBe('entra-client-id');
+    expect(location.searchParams.get('redirect_uri')).toBe(
+      'https://repos.example.test/auth/entra/callback',
+    );
+  });
+
+  it('rejects incomplete or unencryptable Entra setup without selecting it', async () => {
+    const incomplete = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'entra', tenantId: 'tenant' }),
+      },
+      env(db),
+    );
+    expect(incomplete.status).toBe(400);
+
+    const noEncryption = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'entra', tenantId: 'tenant', clientId: 'client', clientSecret: 'secret',
+          allowedUsers: 'admin@example.test',
+        }),
+      },
+      env(db),
+    );
+    expect(noEncryption.status).toBe(500);
+    expect(await noEncryption.json()).toEqual({ error: 'SECRET_ENCRYPTION_KEY is not configured.' });
+    expect(await (await app.request('/api/v1/identity/configuration', {}, env(db))).json()).toEqual({
+      selectedProvider: null,
+    });
+  });
+
+  it('rejects Entra identity on private HTTP before storing any secret', async () => {
+    const response = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'entra',
+          tenantId: 'tenant',
+          clientId: 'client',
+          clientSecret: 'secret',
+          allowedUsers: 'admin@example.test',
+        }),
+      },
+      env(db, {
+        SECRET_ENCRYPTION_KEY: 'test-encryption-key',
+        PUBLIC_BASE_URL: 'http://192.168.1.165:8080',
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: 'Microsoft Entra ID requires trusted HTTPS for non-loopback deployments.',
+    });
+    const stored = await db.prepare(
+      `SELECT COUNT(*) AS count FROM connection_secrets WHERE secret_reference = 'identity:entra'`,
+    ).first<{ count: number }>();
+    expect(stored?.count).toBe(0);
+  });
+
+  it('refuses to select GitHub identity without an owner or encryption key', async () => {
+    const noOwner = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'github' }),
+      },
+      env(db, { SECRET_ENCRYPTION_KEY: 'test-encryption-key' }),
+    );
+    expect(noOwner.status).toBe(400);
+
+    const noEncryption = await app.request(
+      '/api/v1/identity/configure',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: 'github', allowedUsers: 'octocat' }),
+      },
+      env(db),
+    );
+    expect(noEncryption.status).toBe(500);
+    expect(await (await app.request('/api/v1/identity/configuration', {}, env(db))).json()).toEqual({
+      selectedProvider: null,
+    });
+  });
+
   it('blocks custom GitLab SSRF targets during tokenless setup', async () => {
     const response = await app.request(
       '/api/v1/connections/gitlab',
@@ -78,7 +246,7 @@ describe('pre-release authentication gate', () => {
     });
   });
 
-  it('closes setup endpoints immediately after GitHub sign-in becomes usable', async () => {
+  it('keeps setup recoverable until the first successful sign-in, then closes it durably', async () => {
     const configuredEnv = env(db, {
       AUTH_PROVIDERS: 'github',
       SECRET_ENCRYPTION_KEY: 'test-encryption-key',
@@ -89,9 +257,15 @@ describe('pre-release authentication gate', () => {
     await secrets.set('GITHUB_CLIENT_SECRET', 'client-secret');
 
     const status = await app.request('/api/v1/onboarding/status', {}, configuredEnv);
-    expect(status.status).toBe(401);
+    expect(status.status).toBe(200);
     const config = await app.request('/auth/config', {}, configuredEnv);
-    expect(await config.json()).toMatchObject({ setupMode: false, setupTokenRequired: false });
+    expect(await config.json()).toMatchObject({ setupMode: true, setupTokenRequired: false });
+
+    await markSetupCompleted(db);
+    expect((await app.request('/api/v1/onboarding/status', {}, configuredEnv)).status).toBe(401);
+    expect(await (await app.request('/auth/config', {}, configuredEnv)).json()).toMatchObject({
+      setupMode: false,
+    });
 
     // Disabling the last real provider later must revoke its sessions without
     // reopening unauthenticated setup access against the now-populated DB.
@@ -169,6 +343,7 @@ describe('pre-release authentication gate', () => {
     expect(completed.status).toBe(302);
     expect(completed.headers.get('location')).toBe('https://dashboard.example.com');
     expect(completed.headers.get('set-cookie')).toContain('SameSite=None');
+    expect((await app.request('/api/v1/onboarding/status', {}, decoupledEnv)).status).toBe(401);
   });
 
   it('rejects legacy signed cookies that do not identify a provider', async () => {

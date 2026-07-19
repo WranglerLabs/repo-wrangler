@@ -1,5 +1,6 @@
 interface InitialAuthConfig {
   setupMode: boolean;
+  providers?: readonly unknown[];
 }
 
 /** Resolve the only valid destinations from the unauthenticated sign-in page. */
@@ -7,7 +8,7 @@ export function initialSignInDestination(
   config: InitialAuthConfig | undefined,
   hasUser: boolean,
 ): '/' | '/onboarding' | undefined {
-  if (config?.setupMode) return '/onboarding';
+  if (config?.setupMode && (config.providers?.length ?? 0) === 0) return '/onboarding';
   if (hasUser) return '/';
   return undefined;
 }
