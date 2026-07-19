@@ -16,19 +16,12 @@ import { loadConfig, buildEnv, loadSecrets } from './env';
 import { openStore } from './store';
 import { createSpaAssets } from './static';
 import { startScheduler } from './scheduler';
+import { isWorkerPath } from './routing';
 
 function log(message: string, error?: unknown): void {
   const line = `[repo-wrangler-server] ${message}`;
   if (error !== undefined) console.error(line, error);
   else console.log(line);
-}
-
-// Paths the shared Worker app owns; everything else is served as SPA static
-// content. Mirrors wrangler.jsonc `assets.run_worker_first`.
-const WORKER_PREFIXES = ['/api/', '/auth/', '/webhooks/', '/health/', '/setup/', '/internal/'];
-
-function isWorkerPath(pathname: string): boolean {
-  return WORKER_PREFIXES.some((p) => pathname === p.slice(0, -1) || pathname.startsWith(p));
 }
 
 async function main(): Promise<void> {
