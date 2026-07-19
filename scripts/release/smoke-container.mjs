@@ -2,10 +2,22 @@ import assert from 'node:assert/strict';
 
 const origin = process.argv[2];
 const expectedVersion = process.argv[3];
-if (!origin || !expectedVersion) throw new Error('usage: smoke-container.mjs <origin> <expected-version>');
+const exposure = process.argv[4] ?? 'private';
+const setupToken = process.argv[5];
+if (!origin || !expectedVersion || !['private', 'public'].includes(exposure)) {
+  throw new Error('usage: smoke-container.mjs <origin> <expected-version> [private|public] [setup-token]');
+}
+if (exposure === 'public' && !setupToken) throw new Error('public container smoke requires a setup token');
 
 async function request(path, init) {
-  return fetch(`${origin}${path}`, { redirect: 'manual', ...init });
+  const setupHeaders = setupToken && path.startsWith('/api/v1/')
+    ? { 'x-setup-token': setupToken }
+    : {};
+  return fetch(`${origin}${path}`, {
+    redirect: 'manual',
+    ...init,
+    headers: { ...setupHeaders, ...init?.headers },
+  });
 }
 
 const deadline = Date.now() + 45_000;
@@ -35,8 +47,13 @@ const manifestHtml = await (await request('/setup/github-app')).text();
 const encoded = /name="manifest" value="([^"]+)"/.exec(manifestHtml)?.[1];
 assert.ok(encoded, 'GitHub manifest form is missing');
 const manifest = JSON.parse(encoded.replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
-assert.equal(manifest.hook_attributes, undefined);
-assert.equal(manifest.default_events, undefined);
+if (exposure === 'public') {
+  assert.deepEqual(manifest.hook_attributes, { url: `${origin}/webhooks/github`, active: true });
+  assert.ok(Array.isArray(manifest.default_events) && manifest.default_events.length > 0);
+} else {
+  assert.equal(manifest.hook_attributes, undefined);
+  assert.equal(manifest.default_events, undefined);
+}
 
 const identity = await request('/api/v1/identity/configure', {
   method: 'POST',
