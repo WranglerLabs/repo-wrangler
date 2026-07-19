@@ -6,6 +6,15 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.17] - 2026-07-19
+
+### Fixed
+
+- Administrator identity selection now recovers when the browser loses or
+  cannot decode the successful setup response. RepoWrangler verifies the
+  durable database state before retrying the idempotent write, while explicit
+  validation and server errors remain visible to the operator.
+
 ## [1.0.16] - 2026-07-19
 
 ### Fixed
