@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, ubuntu-22.04, hcs, repo-wrangler-validation]
     steps:
       - uses: actions/checkout@v4
 
@@ -42,8 +42,15 @@ jobs:
         run: |
           pnpm --filter @repo-wrangler/web build
           pnpm exec wrangler deploy --dry-run --outdir dist/release-staging/cloudflare-worker
-          mkdir -p dist/release-staging/aca
-          az bicep build --file deploy/azure-container-apps/main.bicep --outfile dist/release-staging/aca/main.json
+
+      - name: Build Azure deployment input
+        uses: azure/CLI@v2
+        with:
+          azcliversion: 2.87.0
+          inlineScript: |
+            set -euo pipefail
+            mkdir -p dist/release-staging/aca
+            az bicep build --file deploy/azure-container-apps/main.bicep --outfile dist/release-staging/aca/main.json
 
       - name: Smoke-test built Node first run
         run: pnpm test:server-smoke
