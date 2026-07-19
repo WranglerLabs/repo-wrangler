@@ -26,6 +26,32 @@ type Platform = 'github' | 'gitlab';
 
 const WORKSPACE_POLL_MS = 10_000;
 
+export function githubAppManifest(origin: string, suffix: string) {
+  return {
+    name: `repo-wrangler-${suffix}`,
+    url: 'https://github.com/WranglerLabs/repo-wrangler',
+    hook_attributes: { url: `${origin}/webhooks/github`, active: true },
+    redirect_url: `${origin}/setup/github-app/callback`,
+    callback_urls: [`${origin}/auth/github/callback`],
+    public: true,
+    default_permissions: {
+      metadata: 'read', contents: 'read', actions: 'read', checks: 'read',
+      statuses: 'read', pull_requests: 'read', administration: 'read',
+      security_events: 'read', vulnerability_alerts: 'read',
+      secret_scanning_alerts: 'read', organization_administration: 'read', members: 'read',
+    },
+    default_events: [
+      'repository', 'push', 'create', 'delete', 'pull_request', 'pull_request_review',
+      'workflow_run', 'workflow_job', 'check_run', 'check_suite', 'branch_protection_rule',
+      'repository_ruleset', 'code_scanning_alert', 'dependabot_alert', 'secret_scanning_alert',
+    ],
+  };
+}
+
+function randomAppSuffix(): string {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 6);
+}
+
 /**
  * Onboarding design B2 — the first-run wizard. "Connect" *is* "enter, or
  * one-tap-create, the credentials in the UI" (the design's Credential entry
@@ -350,6 +376,10 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected, existingConne
   const [webhookSecret, setWebhookSecret] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [manifest] = useState(() =>
+    JSON.stringify(githubAppManifest(window.location.origin, randomAppSuffix())),
+  );
 
   // Polls while no installation exists yet — the step advances itself the
   // moment one appears (auto-triggered discovery on the server means this
@@ -439,12 +469,36 @@ function GitHubConnectStep({ busy, setBusy, setError, onConnected, existingConne
             Create a dedicated, read-only GitHub App with everything RepoWrangler needs already
             configured — one tap, no manual permission setup.
           </p>
-          <a href="/setup/github-app" target="_blank" rel="noreferrer">
-            <button>Create the RepoWrangler GitHub App ↗</button>
-          </a>
+          <form action="https://github.com/settings/apps/new" method="post" target="_blank">
+            <input type="hidden" name="manifest" value={manifest} />
+            <button type="submit">Create under my GitHub account ↗</button>
+          </form>
+          <form
+            action={`https://github.com/organizations/${encodeURIComponent(organization.trim())}/settings/apps/new`}
+            method="post"
+            target="_blank"
+            onSubmit={(event) => {
+              if (!organization.trim()) event.preventDefault();
+            }}
+          >
+            <input type="hidden" name="manifest" value={manifest} />
+            <label className="field">
+              Or create under a GitHub organization
+              <input
+                type="text"
+                value={organization}
+                onChange={(event) => setOrganization(event.target.value)}
+                placeholder="organization login"
+              />
+            </label>
+            <button type="submit" disabled={!organization.trim()}>
+              Create under this organization ↗
+            </button>
+          </form>
           <p className="muted" style={{ marginTop: 12 }}>
-            After GitHub creates the app it shows you a one-time setup code. Paste it below to
-            finish connecting — no other secrets ever leave your browser.
+            RepoWrangler posts the public App manifest directly to GitHub. It does not open an
+            intermediate local setup page. After GitHub creates the app, return here with the
+            one-time setup code to finish connecting.
           </p>
           <button className="ghost" onClick={() => setMode('create')}>
             I have a setup code

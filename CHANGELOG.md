@@ -6,6 +6,21 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-07-18
+
+### Fixed
+
+- GitHub App creation no longer opens an intermediate local
+  `/setup/github-app` page. The onboarding wizard posts the public manifest
+  directly to GitHub for a personal account or selected organization, avoiding
+  an uncached navigation dead end if the deployment listener becomes
+  unavailable after the wizard has already loaded.
+- Node/Compose routing tests now prove that the GitHub App setup and callback
+  paths are dispatched to the shared application, alongside the existing
+  Cloudflare Worker route tests.
+- The GitHub manifest is generated from the active deployment origin and has
+  regression coverage for webhook, manifest callback, and OAuth callback URLs.
+
 ## [1.0.14] - 2026-07-18
 
 ### Fixed
