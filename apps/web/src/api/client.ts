@@ -78,7 +78,53 @@ export async function configureIdentity(input:
   | { provider: 'github'; allowedUsers: string }
   | { provider: 'entra'; tenantId: string; clientId: string; clientSecret: string; allowedUsers?: string }
 ): Promise<{ ok: boolean; provider: 'github' | 'entra' }> {
-  return apiSend('/api/v1/identity/configure', 'POST', input);
+  const persist = () => apiSend<{ ok: boolean; provider: 'github' | 'entra' }>(
+    '/api/v1/identity/configure',
+    'POST',
+    input,
+  );
+
+  try {
+    return await persist();
+  } catch (firstError) {
+    // A dropped connection or malformed success body does not tell us whether
+    // the server committed the setup write. Identity configuration is
+    // idempotent, so first verify the durable state and then retry once if the
+    // write did not land. Do not retry an explicit API rejection (validation,
+    // closed setup, missing encryption key, and so on).
+    if (firstError instanceof ApiError) throw firstError;
+    if (await identityProviderWasPersisted(input.provider)) {
+      return { ok: true, provider: input.provider };
+    }
+
+    try {
+      return await persist();
+    } catch (retryError) {
+      if (retryError instanceof ApiError) throw retryError;
+      if (await identityProviderWasPersisted(input.provider)) {
+        return { ok: true, provider: input.provider };
+      }
+      throw new Error(
+        `Could not verify that ${input.provider === 'github' ? 'GitHub' : 'Microsoft Entra ID'} identity was saved: ${errorMessage(retryError)}`,
+        { cause: retryError },
+      );
+    }
+  }
+}
+
+async function identityProviderWasPersisted(provider: 'github' | 'entra'): Promise<boolean> {
+  try {
+    const configuration = await apiGet<{ selectedProvider: string | null }>(
+      '/api/v1/identity/configuration',
+    );
+    return configuration.selectedProvider === provider;
+  } catch {
+    return false;
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : 'the browser request failed';
 }
 
 export function useIdentityConfiguration(enabled = true) {

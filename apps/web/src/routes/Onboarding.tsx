@@ -196,7 +196,7 @@ export function Onboarding() {
             setPlatforms((current) => current.includes('github') ? current : ['github', ...current]);
             setIdentitySelected(true);
           } catch (err) {
-            setError(err instanceof ApiError ? err.message : 'Could not select GitHub identity.');
+            setError(err instanceof Error ? err.message : 'Could not select GitHub identity.');
           } finally {
             setBusy(false);
           }
@@ -208,7 +208,7 @@ export function Onboarding() {
             await configureIdentity(input);
             setIdentitySelected(true);
           } catch (err) {
-            setError(err instanceof ApiError ? err.message : 'Could not configure Microsoft Entra ID.');
+            setError(err instanceof Error ? err.message : 'Could not configure Microsoft Entra ID.');
           } finally {
             setBusy(false);
           }
