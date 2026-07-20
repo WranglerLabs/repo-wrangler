@@ -6,6 +6,22 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-07-19
+
+### Added
+
+- The Azure Container Apps release template can provision a dedicated Azure
+  Database for PostgreSQL flexible server for production-data deployments.
+- Secure ARM parameters now supply the session-signing key, stored-credential
+  encryption key, PostgreSQL administrator password, and first-run setup token
+  without writing them to a Ranch Hand deployment plan.
+
+### Changed
+
+- Azure real mode no longer requires pre-populated GitHub App secrets in Key
+  Vault. Provider identity and estate connections are configured through the
+  protected RepoWrangler onboarding flow.
+
 ## [1.0.17] - 2026-07-19
 
 ### Fixed
