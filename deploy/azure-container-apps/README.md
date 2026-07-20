@@ -4,6 +4,26 @@ Run the whole product (SPA + API + scheduler) on **Azure Container Apps**. This
 deploys the same `apps/server` container that `docker compose up` runs
 locally — no Cloudflare required. The recipe supports two database modes:
 
+## Ranch Hand production deployment
+
+Ranch Hand is the recommended clone-free Windows path. Production data mode is
+the default; demo mode must be selected explicitly. With RepoWrangler v1.0.18
+or newer, Ranch Hand creates a new ownership-tagged resource group and deploys:
+
+- Azure Container Apps with Azure-managed HTTPS;
+- a dedicated Azure Database for PostgreSQL flexible server and database;
+- generated session-signing, credential-encryption, PostgreSQL, and one-time
+  setup secrets passed only as secure ARM parameters and stored as Container
+  App secrets; and
+- protected first-run onboarding for administrator identity and provider
+  connections.
+
+The secret-free Ranch Hand plan records only resource names and release
+identity. Ranch Hand verifies the digest-pinned image, the exact immutable
+release, HTTPS readiness, and `demoMode: false` before committing the lifecycle
+operation. The manual script workflow below remains available for operators who
+already own an ACR, Key Vault, and PostgreSQL service.
+
 ## Required inputs — decide these before deploying
 
 Do not start the deployment until every value in the applicable column is
@@ -27,19 +47,20 @@ your subscription scope, globally unique names, public URL, or credentials.
 | Public HTTPS base URL | Not required | Required for callbacks/webhooks | `PUBLIC_BASE_URL` / `-PublicBaseUrl` |
 | Custom domain and managed-certificate name | Not required | Required only when preserving a custom-domain binding | `CUSTOM_DOMAIN_NAME`, `CUSTOM_DOMAIN_CERTIFICATE_NAME` / PowerShell equivalents |
 
-Production's Key Vault must contain these exact secret names before the first
-deployment. The template references the names literally:
+For the manual Key Vault workflow, production's vault must contain these exact
+secret names before the first deployment. Ranch Hand generates and supplies
+the corresponding values through secure ARM parameters instead:
 
 | Secret name | Required for | Value |
 |---|---|---|
 | `database-url` | PostgreSQL | PostgreSQL connection string with TLS enabled |
-| `github-app-id` | GitHub | GitHub App numeric ID |
-| `github-app-private-key` | GitHub | Complete multiline private-key PEM |
-| `github-webhook-secret` | GitHub | GitHub App webhook shared secret |
-| `github-client-id` | GitHub sign-in | OAuth client ID |
-| `github-client-secret` | GitHub sign-in | OAuth client secret |
 | `session-secret` | All real-mode deployments | Random 32-byte-or-longer signing secret |
 | `secret-encryption-key` | All real-mode deployments | Random 32-byte encryption key |
+| `setup-token` | Public first-run onboarding | Random one-time setup token |
+
+Provider identity and estate connection credentials are configured during the
+protected RepoWrangler onboarding flow and encrypted in the deployment
+database; they are not required before infrastructure deployment.
 
 Naming inputs and examples are listed in [Values you decide up
 front](#values-you-decide-up-front). If your organization has a naming
