@@ -39,6 +39,35 @@ param demoMode bool = true
 @description('Use PostgreSQL via a database-url secret in Key Vault (production). Requires keyVaultName. False = SQLite on Azure Files (demo/evaluation only).')
 param postgres bool = false
 
+@description('Provision a dedicated Azure Database for PostgreSQL flexible server for this deployment.')
+param provisionPostgres bool = false
+
+@description('Globally unique PostgreSQL flexible-server name. Required when provisionPostgres is true.')
+param postgresServerName string = ''
+
+@description('PostgreSQL administrator login used only for the dedicated server.')
+param postgresAdminUser string = 'repowrangleradmin'
+
+@secure()
+@description('Generated PostgreSQL administrator password. Never emitted as an output.')
+param postgresAdminPassword string = ''
+
+@secure()
+@description('Optional external PostgreSQL URL. Ignored when provisionPostgres is true.')
+param databaseUrl string = ''
+
+@secure()
+@description('RepoWrangler session-signing secret for real mode.')
+param sessionSecret string = ''
+
+@secure()
+@description('RepoWrangler stored-credential encryption key for real mode.')
+param secretEncryptionKey string = ''
+
+@secure()
+@description('One-time first-run setup token for a public real-mode endpoint.')
+param setupToken string = ''
+
 @description('Comma-separated GitHub logins allowed to sign in (first = owner).')
 param allowedGithubUsers string = ''
 
@@ -81,6 +110,54 @@ var fileShareName = 'repo-wrangler-data'
 var storageMountName = 'rw-data'
 var sqliteMode = !postgres
 var privateRegistry = !empty(acrLoginServer)
+var provisionedDatabaseName = 'repo_wrangler'
+
+resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = if (provisionPostgres) {
+  name: postgresServerName
+  location: location
+  sku: {
+    name: 'Standard_B1ms'
+    tier: 'Burstable'
+  }
+  properties: {
+    administratorLogin: postgresAdminUser
+    administratorLoginPassword: postgresAdminPassword
+    version: '16'
+    storage: {
+      storageSizeGB: 32
+      autoGrow: 'Enabled'
+    }
+    backup: {
+      backupRetentionDays: 7
+      geoRedundantBackup: 'Disabled'
+    }
+    highAvailability: {
+      mode: 'Disabled'
+    }
+    network: {
+      publicNetworkAccess: 'Enabled'
+    }
+    authConfig: {
+      activeDirectoryAuth: 'Disabled'
+      passwordAuth: 'Enabled'
+    }
+  }
+}
+
+resource postgresDatabase 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = if (provisionPostgres) {
+  parent: postgresServer
+  name: provisionedDatabaseName
+  properties: {}
+}
+
+resource postgresAzureServices 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@2024-08-01' = if (provisionPostgres) {
+  parent: postgresServer
+  name: 'AllowAzureServices'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
+  }
+}
 
 // --- Identity: created first so it can be granted AcrPull BEFORE the app pulls --
 resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -170,17 +247,13 @@ resource envStorage 'Microsoft.App/managedEnvironments/storages@2024-03-01' = if
 
 // --- Secrets ---------------------------------------------------------------------
 var kvSecretNames = [
-  'github-app-id'
-  'github-app-private-key'
-  'github-webhook-secret'
-  'github-client-id'
-  'github-client-secret'
   'session-secret'
   'secret-encryption-key'
+  'setup-token'
 ]
 
-// Real mode = not demo AND a vault was supplied.
-var realMode = !demoMode && !empty(keyVaultName)
+var realMode = !demoMode
+var useKeyVault = realMode && !empty(keyVaultName)
 
 // Key Vault reference secrets, resolved by the user-assigned identity at runtime.
 var kvSecrets = [for s in kvSecretNames: {
@@ -189,12 +262,21 @@ var kvSecrets = [for s in kvSecretNames: {
   identity: uami.id
 }]
 
+var directRuntimeSecrets = [
+  { name: 'session-secret', value: sessionSecret }
+  { name: 'secret-encryption-key', value: secretEncryptionKey }
+  { name: 'setup-token', value: setupToken }
+]
+
 // PostgreSQL connection string, also a Key Vault reference (postgres mode).
 var dbSecret = [{
   name: 'database-url'
   keyVaultUrl: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/database-url'
   identity: uami.id
 }]
+
+var provisionedDatabaseUrl = provisionPostgres ? 'postgresql://${postgresAdminUser}:${uriComponent(postgresAdminPassword)}@${postgresServerName}.postgres.database.azure.com:5432/${provisionedDatabaseName}?sslmode=require' : databaseUrl
+var directDatabaseSecret = [{ name: 'database-url', value: provisionedDatabaseUrl }]
 
 var baseEnv = [
   { name: 'PORT', value: '8080' }
@@ -217,13 +299,9 @@ var postgresEnv = [
 ]
 
 var secretEnv = [
-  { name: 'GITHUB_APP_ID', secretRef: 'github-app-id' }
-  { name: 'GITHUB_APP_PRIVATE_KEY', secretRef: 'github-app-private-key' }
-  { name: 'GITHUB_WEBHOOK_SECRET', secretRef: 'github-webhook-secret' }
-  { name: 'GITHUB_CLIENT_ID', secretRef: 'github-client-id' }
-  { name: 'GITHUB_CLIENT_SECRET', secretRef: 'github-client-secret' }
   { name: 'SESSION_SECRET', secretRef: 'session-secret' }
   { name: 'SECRET_ENCRYPTION_KEY', secretRef: 'secret-encryption-key' }
+  { name: 'SETUP_TOKEN', secretRef: 'setup-token' }
 ]
 
 var appEnv = concat(
@@ -249,8 +327,8 @@ var appIngress = union({
 } : {})
 
 var appSecrets = concat(
-  realMode ? kvSecrets : [],
-  postgres ? dbSecret : []
+  realMode ? (useKeyVault ? kvSecrets : directRuntimeSecrets) : [],
+  postgres ? (useKeyVault && !provisionPostgres && empty(databaseUrl) ? dbSecret : directDatabaseSecret) : []
 )
 
 // --- The Container App ----------------------------------------------------------
@@ -324,7 +402,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       ] : []
     }
   }
-  dependsOn: [ envStorage, acrPull ]
+  dependsOn: [ envStorage, acrPull, postgresDatabase, postgresAzureServices ]
 }
 
 @description('User-assigned identity principal id. The deploy script grants it "Key Vault Secrets User" on your vault.')
