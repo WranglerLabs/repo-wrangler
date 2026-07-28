@@ -280,7 +280,10 @@ var directDatabaseSecret = [{ name: 'database-url', value: provisionedDatabaseUr
 
 var baseEnv = [
   { name: 'PORT', value: '8080' }
-  { name: 'DEMO_MODE', value: string(demoMode) }
+  // Bicep's string(bool) produces `True` / `False`; the runtime deliberately
+  // accepts only lowercase boolean values. Emit the canonical environment
+  // representation so `demoMode=false` is never silently treated as demo.
+  { name: 'DEMO_MODE', value: demoMode ? 'true' : 'false' }
   // Sign-in providers (PN-5). AUTH_MODE stays as the legacy fallback.
   { name: 'AUTH_PROVIDERS', value: authProviders }
   { name: 'AUTH_MODE', value: 'github_app' }
@@ -402,7 +405,14 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       ] : []
     }
   }
-  dependsOn: [ envStorage, acrPull, postgresDatabase, postgresAzureServices ]
+  // `postgresDatabase` and `postgresAzureServices` are conditional resources.
+  // Listing them unconditionally makes ARM reject the supported existing-
+  // PostgreSQL path (`provisionPostgres=false`) because those resources are not
+  // present in that deployment. The app already waits for its environment and
+  // registry grant; on the provisioned-PostgreSQL path the server may finish
+  // starting while the database becomes ready and its normal restart policy
+  // handles that short interval.
+  dependsOn: [ envStorage, acrPull ]
 }
 
 @description('User-assigned identity principal id. The deploy script grants it "Key Vault Secrets User" on your vault.')
