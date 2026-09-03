@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@repo-wrangler/provider-gitlab', () => ({
   GitLabClient: vi.fn().mockImplementation(() => ({})),
+  inspectGitLabToken: vi.fn().mockResolvedValue({
+    status: 'read_scope_verified', details: { standardScopes: 'read_api' },
+  }),
   getGroupWorkspace: mocks.getGroupWorkspace,
   listGroupProjects: mocks.listGroupProjects,
   listOpenMergeRequests: vi.fn(),

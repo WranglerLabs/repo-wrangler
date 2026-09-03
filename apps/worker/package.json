@@ -16,12 +16,12 @@
     "@repo-wrangler/provider-gitlab": "workspace:*",
     "@repo-wrangler/provider-mock": "workspace:*",
     "@repo-wrangler/secrets-core": "workspace:*",
-    "hono": "^4.7.0"
+    "hono": "^4.13.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260708.1",
+    "@cloudflare/workers-types": "^5.20260902.1",
     "@repo-wrangler/persistence-sqlite": "workspace:*",
     "@repo-wrangler/test-support": "workspace:*",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }

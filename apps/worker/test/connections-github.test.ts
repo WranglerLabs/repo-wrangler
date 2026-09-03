@@ -336,6 +336,7 @@ describe('GET /api/v1/connections/:id/workspaces — GitHub branch', () => {
         displayName: 'acme-labs',
         kind: 'organization',
         monitoringState: 'monitored',
+        status: 'active',
         repoCount: 42,
       },
     ]);

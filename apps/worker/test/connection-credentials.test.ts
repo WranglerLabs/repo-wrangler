@@ -2,7 +2,9 @@
  * Onboarding design "Credential entry" — replace/rotate and disconnect
  * (B5 Credentials panel). `GET .../credentials` returns hints only; `PUT`
  * rotates without losing the connection id or its monitoring state; `DELETE`
- * tombstones the connection and wipes its secret namespace.
+ * tombstones database-managed connections and wipes their secret namespace.
+ * Environment-managed connections are disabled because their external secret
+ * cannot be deleted by RepoWrangler.
  */
 import { join } from 'node:path';
 import { Hono } from 'hono';
@@ -129,6 +131,17 @@ describe('PUT /api/v1/connections/:id/credentials — rotation', () => {
     expect(rotations).toHaveLength(1);
     expect(rotations[0]!.detail).not.toContain('new-pem');
   });
+
+  it('rejects credential names that do not belong to the provider', async () => {
+    const connectionId = await connectedConnection(db);
+    const res = await testApp(admin).request(
+      `/api/v1/connections/${connectionId}/credentials`,
+      { method: 'PUT', body: JSON.stringify({ name: 'GITLAB_TOKEN', value: 'wrong-provider' }) },
+      realEnv(db),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain('not valid for this provider');
+  });
 });
 
 describe('DELETE /api/v1/connections/:id — disconnect (B5)', () => {
@@ -152,6 +165,14 @@ describe('DELETE /api/v1/connections/:id — disconnect (B5)', () => {
     const connection = await getConnectionById(db, connectionId);
     expect(connection?.status).toBe('removed');
 
+    expect(await (await testApp(admin).request('/api/v1/connections', {}, realEnv(db))).json())
+      .toEqual([]);
+    expect(await (await testApp(admin).request(
+      '/api/v1/connections?includeRemoved=true', {}, realEnv(db),
+    )).json()).toEqual([
+      expect.objectContaining({ id: connectionId, status: 'removed' }),
+    ]);
+
     const hints = await testApp(admin).request(
       `/api/v1/connections/${connectionId}/credentials`,
       {},
@@ -169,5 +190,29 @@ describe('DELETE /api/v1/connections/:id — disconnect (B5)', () => {
     // The old row is untouched (never-hard-delete) but no longer "the" connection.
     expect((await getConnectionById(db, firstId))?.status).toBe('removed');
     expect((await getConnectionByType(db, 'github'))?.id).toBe(secondId);
+  });
+
+  it('disables an environment-managed connection without recreating it', async () => {
+    const connectionId = await ensureGitHubConnection(db);
+    const res = await testApp(admin).request(
+      `/api/v1/connections/${connectionId}`,
+      { method: 'DELETE' },
+      realEnv(db),
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      status: 'disabled',
+      credentialDeleted: false,
+    });
+    expect((await getConnectionById(db, connectionId))?.status).toBe('disabled');
+
+    const ensuredId = await ensureGitHubConnection(db);
+    expect(ensuredId).toBe(connectionId);
+    const rows = await db.prepare(
+      `SELECT id, status FROM provider_connections WHERE provider_type = 'github'`,
+    ).all<{ id: string; status: string }>();
+    expect(rows.results).toEqual([{ id: connectionId, status: 'disabled' }]);
   });
 });

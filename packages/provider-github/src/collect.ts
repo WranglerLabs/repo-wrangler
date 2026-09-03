@@ -7,6 +7,7 @@ import type {
   PipelineRunSnapshot,
   RepositorySnapshot,
   SecurityFindingSnapshot,
+  UsageSnapshot,
 } from '@repo-wrangler/domain';
 import {
   capabilityAvailable,
@@ -15,7 +16,12 @@ import {
   classifyComparison,
   isExcludedBranchName,
 } from '@repo-wrangler/domain';
-import { GitHubClient, hasNextPage, isSecondaryRateLimited } from './client';
+import {
+  GITHUB_BILLING_API_VERSION,
+  GitHubClient,
+  hasNextPage,
+  isSecondaryRateLimited,
+} from './client';
 import { mapPullRequest, mapRepository, mapWorkflowRun } from './mappers';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -286,34 +292,255 @@ export async function listSecurityFindings(
   return capabilityAvailable(findings);
 }
 
-/** Organization custom budgets (Phase 3). Requires org Administration read. */
+export interface BillingCollection<T> {
+  items: T[];
+  subrequestsUsed: number;
+}
+
+interface GitHubBudget {
+  id: string;
+  budget_type: string;
+  budget_product_skus: string[];
+  budget_scope: string;
+  budget_entity_name?: string;
+  user?: string;
+  budget_amount: number;
+  prevent_further_usage: boolean;
+  budget_alerting: { will_alert: boolean; alert_recipients: string[] };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function optionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+    ? value
+    : undefined;
+}
+
+function parseBudget(value: unknown): GitHubBudget | null {
+  if (!isRecord(value) || (typeof value.id !== 'string' && typeof value.id !== 'number')) return null;
+  const budgetType = optionalString(value.budget_type);
+  const budgetScope = optionalString(value.budget_scope);
+  const budgetAmount = optionalNumber(value.budget_amount);
+  const productSkus = stringArray(value.budget_product_skus)
+    ?? (typeof value.budget_product_sku === 'string' ? [value.budget_product_sku] : undefined);
+  if (!budgetType || !budgetScope || budgetAmount === undefined || !productSkus || productSkus.length === 0
+    || typeof value.prevent_further_usage !== 'boolean') return null;
+  const alerting = isRecord(value.budget_alerting) ? value.budget_alerting : undefined;
+  const recipients = alerting ? stringArray(alerting.alert_recipients) : undefined;
+  if (!alerting || typeof alerting.will_alert !== 'boolean' || !recipients) return null;
+  return {
+    id: String(value.id),
+    budget_type: budgetType,
+    budget_product_skus: productSkus,
+    budget_scope: budgetScope,
+    budget_entity_name: optionalString(value.budget_entity_name),
+    user: optionalString(value.user),
+    budget_amount: budgetAmount,
+    prevent_further_usage: value.prevent_further_usage,
+    budget_alerting: {
+      will_alert: alerting.will_alert,
+      alert_recipients: recipients,
+    },
+  };
+}
+
+function productFromSkus(skus: string[]): string | undefined {
+  const first = skus[0]?.toLowerCase();
+  if (!first) return undefined;
+  if (first.includes('action')) return 'Actions';
+  if (first.includes('package')) return 'Packages';
+  if (first.includes('codespace')) return 'Codespaces';
+  if (first.includes('copilot') || first.includes('premium_request') || first.includes('ai_credit')) return 'Copilot';
+  return skus[0];
+}
+
+function budgetUnitFromSkus(skus: string[]): string | undefined {
+  const normalized = skus.map((sku) => sku.toLowerCase());
+  return normalized.some((sku) =>
+    sku.includes('action') || sku.includes('package') || sku.includes('codespace')
+      || sku.includes('ai_credit') || sku.includes('premium_request'))
+    ? 'USD'
+    : undefined;
+}
+
+/** Organization custom budgets. Requires organization Administration read. */
 export async function listOrganizationBudgets(
   token: string,
   orgSlug: string,
-): Promise<CapabilityResult<BudgetSnapshot[]>> {
+  maxSubrequests = 100,
+): Promise<CapabilityResult<BillingCollection<BudgetSnapshot>>> {
   const client = new GitHubClient(token);
-  const response = await client.request<{ budgets?: any[] } | any[]>(
-    `/orgs/${orgSlug}/settings/billing/budgets`,
-  );
-  if (!response.ok) {
-    if (response.status === 404) return capabilityUnavailable('unsupported_by_plan');
-    return capabilityUnavailable(
-      capabilityStateFromHttpStatus(response.status, {
-        rateLimited: isSecondaryRateLimited(response),
-      }),
+  const collected: BudgetSnapshot[] = [];
+  for (let page = 1; page <= maxSubrequests; page += 1) {
+    const response = await client.request<unknown>(
+      `/organizations/${encodeURIComponent(orgSlug)}/settings/billing/budgets?page=${page}&per_page=100`,
+      { headers: { 'x-github-api-version': GITHUB_BILLING_API_VERSION } },
     );
+    if (!response.ok) {
+      const unavailable = response.status === 404
+        ? capabilityUnavailable<BillingCollection<BudgetSnapshot>>('unsupported_by_plan')
+        : capabilityUnavailable<BillingCollection<BudgetSnapshot>>(
+            capabilityStateFromHttpStatus(response.status, {
+              rateLimited: isSecondaryRateLimited(response),
+            }),
+          );
+      return { ...unavailable, detail: unavailable.detail, data: { items: [], subrequestsUsed: page } };
+    }
+    if (!isRecord(response.data) || !Array.isArray(response.data.budgets)) {
+      return { ...capabilityUnavailable('error', 'GitHub returned an invalid budgets response.'),
+        data: { items: [], subrequestsUsed: page } };
+    }
+    const parsed = response.data.budgets.map(parseBudget);
+    if (parsed.some((budget) => budget === null)) {
+      return { ...capabilityUnavailable('error', 'GitHub returned an invalid budget record.'),
+        data: { items: [], subrequestsUsed: page } };
+    }
+    for (const budget of parsed) {
+      if (!budget) continue;
+      const entity = budget.budget_entity_name;
+      const scope = budget.budget_scope?.toLowerCase();
+      const user = scope === 'user' ? budget.user ?? entity : undefined;
+      collected.push({
+        externalId: budget.id,
+        budgetType: budget.budget_type,
+        product: productFromSkus(budget.budget_product_skus),
+        productSkus: budget.budget_product_skus,
+        scopeType: budget.budget_scope,
+        scopeTarget: entity,
+        scopeEntityName: user ?? entity,
+        repositoryFullName: scope === 'repository' || scope === 'repo' ? entity : undefined,
+        organizationName: scope === 'organization' ? (entity || orgSlug) : orgSlug,
+        userLogin: user,
+        amount: budget.budget_amount,
+        unit: budgetUnitFromSkus(budget.budget_product_skus),
+        preventFurtherUsage: budget.prevent_further_usage,
+        alertEnabled: budget.budget_alerting.will_alert,
+        alertRecipients: budget.budget_alerting.alert_recipients,
+        alertStatus: budget.budget_alerting.will_alert ? 'enabled' : 'disabled',
+      });
+    }
+    if (response.data.has_next_page !== true) {
+      return capabilityAvailable({ items: collected, subrequestsUsed: page });
+    }
   }
-  const raw = Array.isArray(response.data) ? response.data : (response.data?.budgets ?? []);
-  return capabilityAvailable(
-    raw.map((budget: any, index: number) => ({
-      externalId: String(budget.id ?? budget.budget_id ?? index),
-      product: budget.product ?? budget.sku ?? undefined,
-      scopeType: budget.target_type ?? budget.scope ?? undefined,
-      scopeTarget: budget.target_name ?? undefined,
-      amount: typeof budget.budget_amount === 'number' ? budget.budget_amount : budget.amount,
-      unit: budget.unit ?? 'USD',
-      preventFurtherUsage: Boolean(budget.prevent_further_usage ?? budget.stop_usage),
-      alertStatus: budget.alert_status ?? undefined,
-    })),
-  );
+  return { ...capabilityUnavailable('temporarily_unavailable', 'Budget pagination exceeded the request allowance.'),
+    data: { items: [], subrequestsUsed: maxSubrequests } };
+}
+
+function parseUsageItem(
+  value: unknown,
+  fallbackDate: string,
+  observedAt: string,
+): UsageSnapshot | null {
+  if (!isRecord(value)) return null;
+  const product = optionalString(value.product);
+  const sku = optionalString(value.sku);
+  const unitType = optionalString(value.unitType);
+  const numericFields = [
+    'quantity', 'pricePerUnit', 'grossQuantity', 'discountQuantity', 'netQuantity',
+    'grossAmount', 'discountAmount', 'netAmount',
+  ] as const;
+  if (!product || !sku || !unitType
+    || numericFields.some((field) => value[field] !== undefined && optionalNumber(value[field]) === undefined)
+    || (value.quantity === undefined && value.grossQuantity === undefined && value.netQuantity === undefined)) {
+    return null;
+  }
+  const stringFields = [
+    'date', 'repositoryName', 'organizationName', 'userName', 'model', 'currency',
+  ] as const;
+  if (stringFields.some((field) => value[field] !== undefined && optionalString(value[field]) === undefined)) {
+    return null;
+  }
+  return {
+    usageDate: optionalString(value.date) ?? fallbackDate,
+    periodGranularity: typeof value.date === 'string' ? 'day' : 'month',
+    product,
+    sku,
+    repositoryFullName: optionalString(value.repositoryName),
+    organizationName: optionalString(value.organizationName),
+    userLogin: optionalString(value.userName),
+    model: optionalString(value.model),
+    quantity: optionalNumber(value.quantity),
+    unitType,
+    pricePerUnit: optionalNumber(value.pricePerUnit),
+    grossQuantity: optionalNumber(value.grossQuantity),
+    discountQuantity: optionalNumber(value.discountQuantity),
+    netQuantity: optionalNumber(value.netQuantity),
+    grossAmount: optionalNumber(value.grossAmount),
+    discountAmount: optionalNumber(value.discountAmount),
+    netAmount: optionalNumber(value.netAmount),
+    currency: optionalString(value.currency) ?? 'USD',
+    observedAt,
+  };
+}
+
+/** Current-period organization usage, including dedicated Copilot billing reports. */
+export async function listOrganizationUsage(
+  token: string,
+  orgSlug: string,
+  period: { year: number; month: number },
+  maxSubrequests = 100,
+): Promise<CapabilityResult<BillingCollection<UsageSnapshot>>> {
+  const client = new GitHubClient(token);
+  const query = `year=${period.year}&month=${period.month}`;
+  const base = `/organizations/${encodeURIComponent(orgSlug)}/settings/billing`;
+  const paths = [`${base}/usage?${query}`, `${base}/ai_credit/usage?${query}`,
+    `${base}/premium_request/usage?${query}`];
+  const items: UsageSnapshot[] = [];
+  const observedAt = new Date().toISOString();
+  const fallbackDate = `${period.year}-${String(period.month).padStart(2, '0')}-01`;
+  let unavailableState: Exclude<CapabilityResult<never>['state'], 'available'> | undefined;
+  let subrequestsUsed = 0;
+  for (const path of paths) {
+    const reportItems: UsageSnapshot[] = [];
+    for (let page = 1; ; page += 1) {
+      if (subrequestsUsed >= maxSubrequests) {
+        return {
+          ...capabilityUnavailable('temporarily_unavailable', 'Usage pagination exceeded the request allowance.'),
+          data: { items: [], subrequestsUsed },
+        };
+      }
+      const requestPath = page === 1 ? path : `${path}&page=${page}&per_page=100`;
+      const response = await client.request<unknown>(requestPath,
+        { headers: { 'x-github-api-version': GITHUB_BILLING_API_VERSION } });
+      subrequestsUsed += 1;
+      if (!response.ok) {
+        const state = response.status === 404 ? 'unsupported_by_plan'
+          : capabilityStateFromHttpStatus(response.status, { rateLimited: isSecondaryRateLimited(response) });
+        if (path.includes('/usage?')) return { ...capabilityUnavailable(state),
+          data: { items: [], subrequestsUsed } };
+        unavailableState = state;
+        break;
+      }
+      if (!isRecord(response.data) || !Array.isArray(response.data.usageItems)) {
+        return { ...capabilityUnavailable('error', 'GitHub returned an invalid usage response.'),
+          data: { items: [], subrequestsUsed } };
+      }
+      const parsed = response.data.usageItems.map((item) => parseUsageItem(item, fallbackDate, observedAt));
+      if (parsed.some((item) => item === null)) {
+        return { ...capabilityUnavailable('error', 'GitHub returned an invalid usage record.'),
+          data: { items: [], subrequestsUsed } };
+      }
+      reportItems.push(...parsed.filter((item): item is UsageSnapshot => item !== null));
+      if (response.data.has_next_page !== true && !hasNextPage(response.link)) break;
+    }
+    const category = path.includes('/ai_credit/') ? 'ai credit'
+      : path.includes('/premium_request/') ? 'premium request' : undefined;
+    const alreadyInGeneral = category !== undefined && items.some((item) =>
+      `${item.product} ${item.sku}`.toLowerCase().includes(category));
+    if (!alreadyInGeneral) items.push(...reportItems);
+  }
+  const result = capabilityAvailable({ items, subrequestsUsed });
+  return unavailableState ? { ...result, detail: `A supplemental usage report was ${unavailableState}.` } : result;
 }

@@ -1,19 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ConnectionDto } from '@repo-wrangler/contracts';
 import {
   ApiError,
-  createGitLabWorkspaces,
-  disconnectConnection,
-  discoverConnectionWorkspaces,
   markEstateReviewed,
-  rotateConnectionCredential,
-  searchGitLabGroups,
   setRepositoryMonitoringState,
   setWorkspaceMonitoringState,
-  triggerManualSync,
-  useConnectionCredentials,
   useConnections,
   useEstateRepositories,
   useNewSinceReview,
@@ -145,8 +137,11 @@ export function EstateScope() {
                   pending={pending}
                 />
               )}
-              <GrowEstatePanel connection={connection} />
-              <CredentialsPanel connectionId={connection.id} />
+              <p style={{ marginTop: 12 }}>
+                <Link to={`/admin/connections/${connection.id}`}>
+                  Manage connection, credentials, and discovered resources
+                </Link>
+              </p>
             </div>
           </details>
         );
@@ -209,249 +204,5 @@ function NewSinceReviewBanner() {
         {busy ? 'Marking reviewed…' : 'Mark all reviewed'}
       </button>
     </div>
-  );
-}
-
-/**
- * Onboarding design "grow the estate" — for an existing connection, re-list
- * what its credentials can now see and let the operator add anything newly
- * visible. GitHub already discovers every installation on every call to
- * `GET /connections/:id/workspaces` (upserting new ones as monitored), so
- * "check" is enough; GitLab requires the same explicit group search + add
- * flow as the wizard's connect step, since it has no installation concept.
- */
-function GrowEstatePanel({ connection }: { connection: ConnectionDto }) {
-  const queryClient = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function afterGrowth() {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] }),
-      queryClient.invalidateQueries({ queryKey: ['estate-repositories'] }),
-      queryClient.invalidateQueries({ queryKey: ['overview'] }),
-    ]);
-    try {
-      await triggerManualSync();
-    } catch {
-      // Growth still succeeded — the scheduled pass will pick up the rest.
-    }
-  }
-
-  async function checkForNewGitHubOrgs() {
-    setBusy(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const found = await discoverConnectionWorkspaces(connection.id);
-      await afterGrowth();
-      setStatus(
-        found.length > 0
-          ? `${found.length} organization(s) visible to this App — a sync is starting now.`
-          : 'No organizations found. Install the app on an organization first.',
-      );
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not check for new organizations.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <details style={{ marginTop: 12 }}>
-      <summary>Add more organizations / groups</summary>
-      {error && <div className="error-box">{error}</div>}
-      {status && <p className="muted">{status}</p>}
-
-      {connection.provider === 'github' && (
-        <div style={{ marginTop: 8 }}>
-          {connection.installUrl ? (
-            <a href={connection.installUrl} target="_blank" rel="noreferrer">
-              <button className="ghost">Install on another organization ↗</button>
-            </a>
-          ) : (
-            <p className="muted">
-              Open this GitHub App under the target account or organization's settings and
-              install it there.
-            </p>
-          )}
-          <button onClick={checkForNewGitHubOrgs} disabled={busy} style={{ marginLeft: 8 }}>
-            {busy ? 'Checking…' : 'Check for new organizations'}
-          </button>
-        </div>
-      )}
-
-      {connection.provider === 'gitlab' && <GrowGitLabGroups connectionId={connection.id} onGrown={afterGrowth} />}
-    </details>
-  );
-}
-
-function GrowGitLabGroups({
-  connectionId,
-  onGrown,
-}: {
-  connectionId: string;
-  onGrown: () => Promise<void>;
-}) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ externalId: string; fullPath: string; name: string; projectCount?: number }[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [searching, setSearching] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-
-  async function search() {
-    if (!query.trim()) return;
-    setSearching(true);
-    setError(null);
-    try {
-      setResults(await searchGitLabGroups(connectionId, query.trim()));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'GitLab group search failed.');
-    } finally {
-      setSearching(false);
-    }
-  }
-
-  function toggle(fullPath: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(fullPath)) next.delete(fullPath);
-      else next.add(fullPath);
-      return next;
-    });
-  }
-
-  async function addSelected() {
-    if (selected.size === 0) return;
-    setBusy(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const created = await createGitLabWorkspaces(connectionId, [...selected]);
-      await onGrown();
-      setStatus(`Added ${created.length} group(s) — a sync is starting now.`);
-      setSelected(new Set());
-      setResults([]);
-      setQuery('');
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not add the selected groups.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      {error && <div className="error-box">{error}</div>}
-      {status && <p className="muted">{status}</p>}
-      <div className="toolbar">
-        <input
-          type="search"
-          placeholder="Search groups…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && search()}
-        />
-        <button onClick={search} disabled={searching || !query.trim()}>
-          {searching ? 'Searching…' : 'Search'}
-        </button>
-      </div>
-      {results.map((g) => (
-        <label key={g.externalId} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
-          <input type="checkbox" checked={selected.has(g.fullPath)} onChange={() => toggle(g.fullPath)} />
-          {g.name} <span className="muted">({g.fullPath}{g.projectCount !== undefined ? ` · ${g.projectCount} projects` : ''})</span>
-        </label>
-      ))}
-      {results.length > 0 && (
-        <button onClick={addSelected} disabled={busy || selected.size === 0} style={{ marginTop: 8 }}>
-          {busy ? 'Adding…' : `Add ${selected.size || ''} group${selected.size === 1 ? '' : 's'}`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function CredentialsPanel({ connectionId }: { connectionId: string }) {
-  const credentials = useConnectionCredentials(connectionId);
-  const queryClient = useQueryClient();
-  const [rotateName, setRotateName] = useState<string | null>(null);
-  const [value, setValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function rotate() {
-    if (!rotateName || !value.trim()) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await rotateConnectionCredential(connectionId, rotateName, value.trim());
-      setRotateName(null);
-      setValue('');
-      await queryClient.invalidateQueries({ queryKey: ['connection-credentials', connectionId] });
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not rotate the credential.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function disconnect() {
-    if (!window.confirm('Disconnect this connection and delete its stored credentials? This cannot be undone.')) {
-      return;
-    }
-    setBusy(true);
-    try {
-      await disconnectConnection(connectionId);
-      await queryClient.invalidateQueries({ queryKey: ['connections'] });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!credentials.data || credentials.data.length === 0) return null;
-
-  return (
-    <details style={{ marginTop: 12 }}>
-      <summary>Credentials</summary>
-      <table className="data" style={{ marginTop: 8 }}>
-        <tbody>
-          {credentials.data.map((cred) => (
-            <tr key={cred.name}>
-              <td className="mono">{cred.name}</td>
-              <td className="mono">{cred.hint ?? '••••'}</td>
-              <td className="muted">{cred.updatedAt ? `updated ${cred.updatedAt}` : ''}</td>
-              <td>
-                <button className="ghost" onClick={() => setRotateName(cred.name)}>
-                  Replace
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {rotateName && (
-        <div style={{ marginTop: 8 }}>
-          <label className="field mono-field">
-            New value for {rotateName}
-            <input type="password" value={value} onChange={(e) => setValue(e.target.value)} />
-          </label>
-          <div className="form-actions">
-            <button onClick={rotate} disabled={busy || !value.trim()}>
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-            <button className="ghost" onClick={() => setRotateName(null)} disabled={busy}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-      {error && <div className="error-box">{error}</div>}
-      <button className="ghost" onClick={disconnect} disabled={busy} style={{ marginTop: 8 }}>
-        {busy ? 'Disconnecting…' : 'Disconnect'}
-      </button>
-    </details>
   );
 }

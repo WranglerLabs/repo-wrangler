@@ -3,6 +3,7 @@ import type {
   ActivityEventDto,
   AttentionItemDto,
   ConnectionDto,
+  ConnectionRepositoryDto,
   ConnectionSecretHintDto,
   ConnectionWorkspaceDto,
   ConnectResultDto,
@@ -12,8 +13,10 @@ import type {
   EstateChangeRequestDto,
   EstatePipelineDto,
   EstateSecurityFindingDto,
+  EstateUsageDto,
   GitLabGroupSearchResultDto,
   OnboardingStatusDto,
+  OperationJobDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -252,6 +255,14 @@ export function useEstateBudgets() {
   });
 }
 
+export function useEstateUsage() {
+  return useQuery<EstateUsageDto>({
+    queryKey: ['estate-usage'],
+    queryFn: () => apiGet('/api/v1/usage'),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
 export function useActivity() {
   return useQuery<ActivityEventDto[]>({
     queryKey: ['activity'],
@@ -392,10 +403,10 @@ export function useOnboardingStatus(enabled = true) {
   });
 }
 
-export function useConnections(enabled = true) {
+export function useConnections(enabled = true, includeRemoved = false) {
   return useQuery<ConnectionDto[]>({
-    queryKey: ['connections'],
-    queryFn: () => apiGet('/api/v1/connections'),
+    queryKey: ['connections', includeRemoved],
+    queryFn: () => apiGet(`/api/v1/connections${includeRemoved ? '?includeRemoved=true' : ''}`),
     enabled,
   });
 }
@@ -422,11 +433,13 @@ export async function authorizeSetup(token: string): Promise<void> {
 
 export function useConnectionWorkspaces(
   connectionId: string | undefined,
-  options?: { refetchInterval?: number },
+  options?: { refetchInterval?: number; refreshProvider?: boolean },
 ) {
   return useQuery<ConnectionWorkspaceDto[]>({
-    queryKey: ['connection-workspaces', connectionId],
-    queryFn: () => apiGet(`/api/v1/connections/${connectionId}/workspaces`),
+    queryKey: ['connection-workspaces', connectionId, options?.refreshProvider],
+    queryFn: () => apiGet(
+      `/api/v1/connections/${connectionId}/workspaces${options?.refreshProvider === false ? '?refresh=false' : ''}`,
+    ),
     enabled: !!connectionId,
     refetchInterval: options?.refetchInterval,
   });
@@ -492,6 +505,13 @@ export async function createGitLabWorkspaces(
   return apiSend(`/api/v1/connections/${connectionId}/workspaces`, 'POST', { externalIds });
 }
 
+export async function detachGitLabWorkspace(
+  connectionId: string,
+  workspaceId: string,
+): Promise<void> {
+  await apiSend(`/api/v1/connections/${connectionId}/workspaces/${workspaceId}`, 'DELETE');
+}
+
 export async function setWorkspaceMonitoringState(id: string, state: MonitoringState): Promise<void> {
   await apiSend(`/api/v1/workspaces/${id}`, 'PATCH', { monitoring_state: state });
 }
@@ -518,4 +538,30 @@ export async function rotateConnectionCredential(
 
 export async function disconnectConnection(connectionId: string): Promise<void> {
   await apiSend(`/api/v1/connections/${connectionId}`, 'DELETE');
+}
+
+export async function reconcileConnection(connectionId: string): Promise<void> {
+  await apiSend(`/api/v1/connections/${connectionId}/reconcile`, 'POST');
+}
+
+export async function changeConnectionStatus(connectionId: string, status: 'active' | 'disabled'): Promise<void> {
+  await apiSend(`/api/v1/connections/${connectionId}/status`, 'PATCH', { status });
+}
+
+export function useOperations() {
+  return useQuery<OperationJobDto[]>({
+    queryKey: ['operations'], queryFn: () => apiGet('/api/v1/admin/operations'), refetchInterval: 5_000,
+  });
+}
+
+export function useConnectionRepositories(connectionId: string | undefined) {
+  return useQuery<ConnectionRepositoryDto[]>({
+    queryKey: ['connection-repositories', connectionId],
+    queryFn: () => apiGet(`/api/v1/connections/${connectionId}/repositories`),
+    enabled: !!connectionId,
+  });
+}
+
+export async function retryOperation(id: string): Promise<void> {
+  await apiSend(`/api/v1/admin/operations/${id}/retry`, 'POST');
 }

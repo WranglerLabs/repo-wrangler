@@ -18,6 +18,7 @@ import type {
   PipelineRunSnapshot,
   RepositorySnapshot,
   SecurityFindingSnapshot,
+  UsageSnapshot,
   WorkspaceSnapshot,
 } from '@repo-wrangler/domain';
 
@@ -61,6 +62,10 @@ export interface BudgetStore {
   replaceForWorkspace(workspaceId: string, snapshots: BudgetSnapshot[]): Promise<void>;
 }
 
+export interface UsageStore {
+  upsertForWorkspace(workspaceId: string, snapshots: UsageSnapshot[]): Promise<void>;
+}
+
 /**
  * A durable checkpoint so an interrupted sync resumes without re-scanning the
  * whole estate (ADR-006). Cursors are opaque, backend-defined strings.
@@ -85,5 +90,6 @@ export interface StoragePort {
   readonly pipelineRuns: PipelineRunStore;
   readonly security: SecurityFindingStore;
   readonly budgets: BudgetStore;
+  readonly usage: UsageStore;
   readonly checkpoints: SyncCheckpointStore;
 }

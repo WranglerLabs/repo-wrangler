@@ -1,7 +1,7 @@
 {
   "name": "repo-wrangler",
   "private": true,
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "RepoWrangler — wrangle every repository into one clear view.",
   "license": "Apache-2.0",
   "type": "module",
@@ -26,12 +26,12 @@
     "db:migrate:remote": "wrangler d1 migrations apply repo-wrangler --remote"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260708.1",
+    "@cloudflare/workers-types": "^5.20260902.1",
     "ajv": "8.18.0",
     "ajv-formats": "3.0.1",
-    "tsx": "^4.19.0",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.0",
-    "wrangler": "^4.20.0"
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7",
+    "wrangler": "^4.128.0"
   }
 }

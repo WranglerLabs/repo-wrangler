@@ -22,7 +22,7 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 ## Now — stabilize v1.0 GA
 
-**Status: GA.** RepoWrangler v1.0.10 is the current supported patch release.
+**Status: GA.** RepoWrangler v1.0.19 is the current supported patch release.
 Ranch Hand `v0.1.0-rc.9` is now the primary recommended Windows deployment path
 in **Public Preview**; the manual recipes remain a supported alternative. The
 immediate focus is operator feedback, deployment safety, and the Ranch Hand GA
@@ -40,11 +40,8 @@ item entering this list should displace or move an existing item.
 |---:|---|---|---|
 | 1 | **Ranch Hand GA** | Promote the primary guided deployment path from Public Preview to a signed, production-capable lifecycle manager for the latest supported RepoWrangler patch | Signing, production configuration/lifecycle parity, uninstall, upgrades, security/accessibility/real-target UAT, task-tested docs |
 | 2 | **Invite and manage users** | Administrators add or remove allowed identities in the UI without editing environment variables or restarting | Provider identity model |
-| 3 | **Operations and sync history** | Administration shows discovery runs, queue state, failures, duration, and repositories found—no direct database queries required | Existing sync-job data |
-| 4 | **Faster enrichment after discovery** | Newly discovered repositories receive branch, PR/MR, pipeline, security, and billing data promptly instead of trickling in | Existing rate-limit and job-budget controls |
-| 5 | **Budget settings audit** | Operators see organization and repository budget settings, plus a clear capability message when provider credentials cannot read them | GitHub billing API capability probe |
-| 6 | **GitLab URL normalization** | Pasting a group URL safely resolves to the GitLab origin and produces accurate authentication versus connectivity errors | None |
-| 7 | **Per-connection scope picker** | Operators explicitly select which visible organizations or groups a connection monitors | Existing grow-estate flow |
+| 3 | **Faster enrichment after discovery** | Newly discovered repositories receive branch, PR/MR, pipeline, and security data promptly instead of trickling in | Existing rate-limit and job-budget controls |
+| 4 | **GitLab URL normalization** | Pasting a group URL safely resolves to the GitLab origin and produces accurate authentication versus connectivity errors | None |
 
 ### Ranch Hand Public Preview → GA
 
@@ -81,8 +78,6 @@ real-target tests pass.
 
 | Initiative | Intended outcome |
 |---|---|
-| **Credentials & Access** | Inventory every configured credential without exposing its value; verify live reach and flag failing, unused, or over-scoped access |
-| Multiple connections per provider | Support separate Apps, tokens, organizations, groups, and health state for each connection |
 | Tier 3 architecture | Compose the existing platform-neutral foundations into a hardened enterprise topology with private networking, HA data, observability, SSO, and RBAC |
 | Deployment automation and pipelines | Ship opt-in GitHub Actions and Azure DevOps templates that consume the same versioned deployment-plan contract as Ranch Hand |
 
@@ -113,6 +108,11 @@ real-target tests pass.
 
 ### Recent product work
 
+- **Estate administration and billing visibility** — multiple independent
+  provider connections, credential/capability inspection, scoped monitoring,
+  discovery and billing operations, complete GitHub budget settings, actual
+  repository usage, trends, and budget comparisons are available in
+  Administration, Budget Settings, and Actual Usage.
 - **Large-estate navigation** — repository and workspace search, filter, sort,
   and pagination controls keep hundreds of repositories and roughly 100
   workspaces manageable.

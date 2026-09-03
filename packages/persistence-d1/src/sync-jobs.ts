@@ -11,6 +11,45 @@ export interface SyncJobRow {
   last_error: string | null;
 }
 
+export interface OperationJobRow extends SyncJobRow {
+  subrequests_used: number;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  next_eligible_at: string;
+  correlation_id: string | null;
+  connection_id: string | null;
+  workspace_id: string | null;
+  result_summary: string | null;
+  error_code: string | null;
+}
+
+export async function listOperationJobs(db: D1Database, limit = 200): Promise<OperationJobRow[]> {
+  const result = await db.prepare(
+    `SELECT j.*, o.correlation_id, o.connection_id, o.workspace_id,
+            o.result_summary, o.error_code
+     FROM sync_jobs j LEFT JOIN operation_runs o ON o.job_id = j.id
+     ORDER BY j.created_at DESC LIMIT ?1`,
+  ).bind(limit).all<OperationJobRow>();
+  return result.results;
+}
+
+export async function retrySyncJob(db: D1Database, id: string): Promise<boolean> {
+  const failed = await db.prepare(
+    `SELECT job_type, scope, priority FROM sync_jobs WHERE id = ?1 AND state = 'failed'`,
+  ).bind(id).first<{ job_type: string; scope: string | null; priority: number }>();
+  if (!failed) return false;
+  const pending = await db.prepare(
+    `SELECT id FROM sync_jobs WHERE job_type = ?1 AND scope = ?2 AND state = 'pending' LIMIT 1`,
+  ).bind(failed.job_type, failed.scope).first<{ id: string }>();
+  if (pending) return true;
+  await db.prepare(
+    `INSERT INTO sync_jobs (id, job_type, priority, scope)
+     VALUES (?1, ?2, ?3, ?4)`,
+  ).bind(crypto.randomUUID(), failed.job_type, failed.priority, failed.scope).run();
+  return true;
+}
+
 export async function enqueueSyncJob(
   db: D1Database,
   jobType: string,
@@ -93,6 +132,20 @@ export async function completeSyncJob(
     )
     .bind(id, subrequestsUsed)
     .run();
+}
+
+/** A pass finished, but one or more independent scopes failed and need an operator retry. */
+export async function failCompletedSyncJob(
+  db: D1Database,
+  id: string,
+  subrequestsUsed: number,
+  error: string,
+): Promise<void> {
+  await db.prepare(
+    `UPDATE sync_jobs SET state = 'failed', finished_at = datetime('now'),
+       subrequests_used = subrequests_used + ?2, last_error = ?3
+     WHERE id = ?1`,
+  ).bind(id, subrequestsUsed, error.slice(0, 500)).run();
 }
 
 export async function failSyncJob(db: D1Database, id: string, error: string): Promise<void> {

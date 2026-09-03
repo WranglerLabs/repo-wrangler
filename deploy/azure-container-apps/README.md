@@ -7,7 +7,7 @@ locally — no Cloudflare required. The recipe supports two database modes:
 ## Ranch Hand production deployment
 
 Ranch Hand is the recommended clone-free Windows path. Production data mode is
-the default; demo mode must be selected explicitly. With RepoWrangler v1.0.18
+the default; demo mode must be selected explicitly. With RepoWrangler v1.0.19
 or newer, Ranch Hand creates a new ownership-tagged resource group and deploys:
 
 - Azure Container Apps with Azure-managed HTTPS;

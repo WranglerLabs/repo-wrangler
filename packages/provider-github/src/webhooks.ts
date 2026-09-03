@@ -8,6 +8,7 @@ import { mapPullRequest, mapRepository, mapWorkflowRun } from './mappers';
 export const HANDLED_EVENTS = new Set([
   'installation',
   'installation_repositories',
+  'organization',
   'repository',
   'push',
   'create',
@@ -86,6 +87,15 @@ export function translateGitHubEvent(event: string, payload: any): DomainEvent[]
         scope: 'all',
         priority: 3,
       });
+      break;
+    }
+    case 'organization': {
+      if (payload.action === 'deleted' && payload.organization?.id !== undefined) {
+        events.push({
+          type: 'workspace.removed',
+          workspaceExternalId: String(payload.organization.id),
+        });
+      }
       break;
     }
     case 'installation_repositories': {

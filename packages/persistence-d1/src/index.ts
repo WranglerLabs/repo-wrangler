@@ -11,5 +11,7 @@ export * from './health';
 export * from './audit';
 export * from './meta';
 export * from './budgets';
+export * from './usage';
+export * from './operations';
 export * from './saved-views';
 export * from './secrets';

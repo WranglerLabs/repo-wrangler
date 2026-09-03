@@ -109,12 +109,15 @@ export function makeSecurityFindingSnapshot(
 export function makeBudgetSnapshot(overrides: Partial<BudgetSnapshot> = {}): BudgetSnapshot {
   return {
     externalId: 'budget-1',
+    budgetType: 'ProductPricing',
     product: 'actions',
+    productSkus: ['actions'],
     scopeType: 'organization',
     scopeTarget: 'acme',
     amount: 100,
     unit: 'USD',
     preventFurtherUsage: false,
+    alertRecipients: [],
     ...overrides,
   };
 }

@@ -13,6 +13,7 @@ export interface GitHubInstallation {
   } | null;
   repository_selection?: string;
   suspended_at?: string | null;
+  permissions?: Record<string, string>;
 }
 
 export interface InstallationToken {
@@ -24,10 +25,23 @@ export async function listInstallations(
   appId: string,
   privateKeyPem: string,
 ): Promise<GitHubInstallation[]> {
+  return (await listInstallationsDetailed(appId, privateKeyPem)).installations;
+}
+
+export interface InstallationCollection {
+  installations: GitHubInstallation[];
+  subrequestsUsed: number;
+}
+
+export async function listInstallationsDetailed(
+  appId: string,
+  privateKeyPem: string,
+  maxPages = 100,
+): Promise<InstallationCollection> {
   const jwt = await createAppJwt(appId, privateKeyPem);
   const client = new GitHubClient(jwt);
   const installations: GitHubInstallation[] = [];
-  for (let page = 1; page <= 10; page++) {
+  for (let page = 1; page <= maxPages; page++) {
     const response = await client.request<GitHubInstallation[]>(
       `/app/installations?per_page=100&page=${page}`,
     );
@@ -35,9 +49,9 @@ export async function listInstallations(
       throw new Error(`Failed to list installations (HTTP ${response.status}).`);
     }
     installations.push(...response.data);
-    if (response.data.length < 100) break;
+    if (response.data.length < 100) return { installations, subrequestsUsed: page };
   }
-  return installations;
+  throw new Error('Installation pagination exceeded the configured request allowance.');
 }
 
 const tokenCache = new Map<string, { token: string; expiresAtMs: number }>();

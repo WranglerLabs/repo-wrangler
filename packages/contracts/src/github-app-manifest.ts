@@ -73,6 +73,7 @@ export function createGitHubAppManifest(origin: string, suffix: string): GitHubA
       'repository', 'push', 'create', 'delete', 'pull_request', 'pull_request_review',
       'workflow_run', 'workflow_job', 'check_run', 'check_suite', 'branch_protection_rule',
       'repository_ruleset', 'code_scanning_alert', 'dependabot_alert', 'secret_scanning_alert',
+      'organization',
     ];
   }
   return manifest;
