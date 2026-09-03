@@ -166,16 +166,32 @@ export const repositoryDetailSchema = z.object({
     .optional(),
   budgets: z.object({
     state: capabilityStateSchema,
+    capabilityState: capabilityStateSchema.optional(),
+    capabilityErrorCode: z.string().optional(),
+    capabilityDetail: z.string().optional(),
+    capabilityCheckedAt: z.string().optional(),
+    capabilityLastSuccessAt: z.string().optional(),
     items: z
       .array(
         z.object({
+          externalId: z.string(),
+          budgetType: z.string().optional(),
           product: z.string().optional(),
+          productSkus: z.array(z.string()),
           scopeType: z.string().optional(),
           scopeTarget: z.string().optional(),
+          scopeEntityName: z.string().optional(),
+          repositoryId: z.string().optional(),
+          organizationName: z.string().optional(),
+          userLogin: z.string().optional(),
           amount: z.number().optional(),
           unit: z.string().optional(),
           preventFurtherUsage: z.boolean(),
+          alertEnabled: z.boolean().optional(),
+          alertRecipients: z.array(z.string()),
           alertStatus: z.string().optional(),
+          observedAt: z.string(),
+          lastSuccessfulSyncAt: z.string().optional(),
         }),
       )
       .optional(),
@@ -291,13 +307,24 @@ export const governanceDtoSchema = z.object({
 export type GovernanceDto = z.infer<typeof governanceDtoSchema>;
 
 export const budgetDtoSchema = z.object({
+  externalId: z.string(),
+  budgetType: z.string().optional(),
   product: z.string().optional(),
+  productSkus: z.array(z.string()),
   scopeType: z.string().optional(),
   scopeTarget: z.string().optional(),
+  scopeEntityName: z.string().optional(),
+  repositoryId: z.string().optional(),
+  organizationName: z.string().optional(),
+  userLogin: z.string().optional(),
   amount: z.number().optional(),
   unit: z.string().optional(),
   preventFurtherUsage: z.boolean(),
+  alertEnabled: z.boolean().optional(),
+  alertRecipients: z.array(z.string()),
   alertStatus: z.string().optional(),
+  observedAt: z.string(),
+  lastSuccessfulSyncAt: z.string().optional(),
 });
 export type BudgetDto = z.infer<typeof budgetDtoSchema>;
 
@@ -335,18 +362,40 @@ export const estateBudgetsSchema = z.object({
       z.object({
         workspaceSlug: z.string(),
         provider: z.string(),
-        product: z.string().optional(),
-        scopeType: z.string().optional(),
-        scopeTarget: z.string().optional(),
-        amount: z.number().optional(),
-        unit: z.string().optional(),
-        preventFurtherUsage: z.boolean(),
-        alertStatus: z.string().optional(),
+        ...budgetDtoSchema.shape,
       }),
     )
     .optional(),
+  capabilities: z.array(z.object({
+    workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
+    errorCode: z.string().optional(), detail: z.string().optional(),
+    checkedAt: z.string(), lastSuccessAt: z.string().optional(),
+  })).optional(),
 });
 export type EstateBudgetsDto = z.infer<typeof estateBudgetsSchema>;
+
+export const usageItemSchema = z.object({
+  workspaceSlug: z.string(), provider: z.string(), repositoryId: z.string().optional(),
+  repositoryFullName: z.string().optional(),
+  organizationName: z.string().optional(), userLogin: z.string().optional(),
+  usageDate: z.string(), periodGranularity: z.enum(['day', 'month']),
+  product: z.string(), sku: z.string(), model: z.string().optional(),
+  quantity: z.number().optional(), unitType: z.string().optional(), pricePerUnit: z.number().optional(),
+  grossQuantity: z.number().optional(), discountQuantity: z.number().optional(), netQuantity: z.number().optional(),
+  grossAmount: z.number().optional(), discountAmount: z.number().optional(), netAmount: z.number().optional(),
+  currency: z.string().optional(), observedAt: z.string(),
+});
+export type UsageItemDto = z.infer<typeof usageItemSchema>;
+
+export const estateUsageSchema = z.object({
+  items: z.array(usageItemSchema),
+  capabilities: z.array(z.object({
+    workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
+    errorCode: z.string().optional(), detail: z.string().optional(),
+    checkedAt: z.string(), lastSuccessAt: z.string().optional(),
+  })),
+});
+export type EstateUsageDto = z.infer<typeof estateUsageSchema>;
 
 export const activityEventSchema = z.object({
   at: z.string(),
@@ -398,8 +447,28 @@ export const connectionWorkspaceSchema = z.object({
   kind: z.string(),
   monitoringState: z.enum(['monitored', 'ignored']),
   repoCount: z.number().optional(),
+  status: z.string(),
+  statusReason: z.string().optional(),
+  lastReconciledAt: z.string().optional(),
+  stateChangedAt: z.string().optional(),
+  removedAt: z.string().optional(),
 });
 export type ConnectionWorkspaceDto = z.infer<typeof connectionWorkspaceSchema>;
+
+export const connectionRepositorySchema = z.object({
+  id: z.string(),
+  fullName: z.string(),
+  workspaceSlug: z.string(),
+  monitoringState: z.enum(['monitored', 'ignored']),
+  status: z.string(),
+  statusReason: z.string().optional(),
+  firstSeenAt: z.string(),
+  lastSeenAt: z.string(),
+  stateChangedAt: z.string().optional(),
+  removedAt: z.string().optional(),
+  lastReconciledAt: z.string().optional(),
+});
+export type ConnectionRepositoryDto = z.infer<typeof connectionRepositorySchema>;
 
 export const gitlabGroupSearchResultSchema = z.object({
   externalId: z.string(),
@@ -437,5 +506,25 @@ export const connectionDtoSchema = z.object({
   appSlug: z.string().optional(),
   /** Derived from `appSlug`; omitted when the slug isn't known (e.g. pasted credentials). */
   installUrl: z.string().optional(),
+  providerAccount: z.string().optional(),
+  credentialSource: z.enum(['database', 'environment', 'unknown']),
+  authenticationType: z.string(),
+  capabilityStatus: z.string().optional(),
+  permissionDetails: z.record(z.string(), z.string()).optional(),
+  workspaceCount: z.number(),
+  repositoryCount: z.number(),
+  lastDiscoveryAt: z.string().optional(),
+  lastBillingAt: z.string().optional(),
+  pendingWork: z.number(),
 });
 export type ConnectionDto = z.infer<typeof connectionDtoSchema>;
+
+export const operationJobSchema = z.object({
+  id: z.string(), type: z.string(), scope: z.string().optional(),
+  state: z.string(), attempts: z.number(), subrequestsUsed: z.number(),
+  createdAt: z.string(), startedAt: z.string().optional(), finishedAt: z.string().optional(),
+  checkpoint: z.string().optional(), lastError: z.string().optional(), retryEligible: z.boolean(),
+  correlationId: z.string(), connectionId: z.string().optional(), workspaceId: z.string().optional(),
+  resultSummary: z.record(z.string(), z.unknown()).optional(), errorCode: z.string().optional(),
+});
+export type OperationJobDto = z.infer<typeof operationJobSchema>;

@@ -5,6 +5,7 @@ coverage/
 
 # Cloudflare local state
 .wrangler/
+.wrangler-*/
 .dev.vars
 
 # Self-hosted Node host runtime data (SQLite database, env file)

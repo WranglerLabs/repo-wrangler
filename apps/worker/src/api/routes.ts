@@ -7,7 +7,9 @@ import type {
   EstateChangeRequestDto,
   EstatePipelineDto,
   EstateSecurityFindingDto,
+  EstateUsageDto,
   OverviewDto,
+  OperationJobDto,
   PlatformHealthDto,
   RepositoryDetailDto,
   RepositoryListItemDto,
@@ -23,6 +25,8 @@ import {
   getSyncStats,
   getWebhookStats,
   listAllBudgets,
+  listActiveConnectionsByType,
+  listApplicableRepositoryBudgets,
   listAttentionRows,
   listAuditEvents,
   listBranches,
@@ -31,17 +35,23 @@ import {
   listEstateChangeRequests,
   listEstatePipelines,
   listEstateSecurityFindings,
+  listEstateUsage,
   listOpenChangeRequests,
   listOpenSecurityFindings,
+  listOperationJobs,
+  listUsageImports,
   getMeta,
+  getUsageImport,
   listNewSinceReview,
   listRecentRuns,
   listRecentSyncJobEvents,
   listRepositoryItems,
-  listWorkspaceBudgets,
+  getProviderCapability,
+  listProviderCapabilities,
   listWorkspaceRowsWithProvider,
   enqueueSyncJob,
   recordAuditEvent,
+  retrySyncJob,
   listSavedViews,
   createSavedView,
   deleteSavedView,
@@ -262,7 +272,7 @@ apiRoutes.get('/repositories/:id', async (c) => {
           }
         : { state: 'not_configured' },
     governance: await loadGovernanceDto(c.env.DB, id),
-    budgets: await loadBudgetsDto(c.env.DB, repo.workspace_id),
+    budgets: await loadBudgetsDto(c.env.DB, repo.workspace_id, repo.id),
   };
   return c.json(body);
 });
@@ -294,19 +304,43 @@ async function loadGovernanceDto(
 async function loadBudgetsDto(
   db: D1Database,
   workspaceId: string,
+  repositoryId: string,
 ): Promise<RepositoryDetailDto['budgets']> {
-  const rows = await listWorkspaceBudgets(db, workspaceId);
-  if (rows.length === 0) return { state: 'not_configured' };
+  const rows = await listApplicableRepositoryBudgets(db, workspaceId, repositoryId);
+  const capability = await getProviderCapability(db, workspaceId, 'budgets');
+  const capabilityFields = capability ? {
+    capabilityState: capability.state,
+    capabilityErrorCode: capability.error_code ?? undefined,
+    capabilityDetail: capability.error_detail ?? undefined,
+    capabilityCheckedAt: capability.checked_at,
+    capabilityLastSuccessAt: capability.last_success_at ?? undefined,
+  } : {};
+  if (rows.length === 0) return {
+    state: capability?.state ?? 'not_configured',
+    ...capabilityFields,
+  };
   return {
     state: 'available',
+    ...capabilityFields,
     items: rows.map((row) => ({
+      externalId: row.external_id,
+      budgetType: row.budget_type ?? undefined,
       product: row.product ?? undefined,
+      productSkus: JSON.parse(row.product_skus) as string[],
       scopeType: row.scope_type ?? undefined,
       scopeTarget: row.scope_target ?? undefined,
+      scopeEntityName: row.scope_entity_name ?? undefined,
+      repositoryId: row.repository_id ?? undefined,
+      organizationName: row.organization_name ?? undefined,
+      userLogin: row.user_login ?? undefined,
       amount: row.amount ?? undefined,
       unit: row.unit ?? undefined,
       preventFurtherUsage: row.prevent_further_usage === 1,
+      alertEnabled: row.alert_enabled === null ? undefined : row.alert_enabled === 1,
+      alertRecipients: JSON.parse(row.alert_recipients) as string[],
       alertStatus: row.alert_status ?? undefined,
+      observedAt: row.observed_at,
+      lastSuccessfulSyncAt: row.last_successful_sync_at ?? undefined,
     })),
   };
 }
@@ -405,24 +439,85 @@ apiRoutes.get('/security', async (c) => {
 
 apiRoutes.get('/budgets', async (c) => {
   if (isDemoMode(c.env)) return c.json(demoEstateBudgets());
-  const rows = await listAllBudgets(c.env.DB);
+  const [rows, capabilities] = await Promise.all([
+    listAllBudgets(c.env.DB), listProviderCapabilities(c.env.DB, 'budgets'),
+  ]);
   const body: EstateBudgetsDto =
     rows.length === 0
-      ? { state: 'not_configured' }
+      ? {
+          state: capabilities[0]?.state ?? 'not_configured',
+          capabilities: capabilities.map((capability) => ({
+            workspaceSlug: capability.workspace_slug, provider: capability.provider,
+            state: capability.state, errorCode: capability.error_code ?? undefined,
+            detail: capability.error_detail ?? undefined,
+            checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
+          })),
+        }
       : {
           state: 'available',
           items: rows.map((row) => ({
             workspaceSlug: row.workspace_slug,
             provider: row.provider,
+            externalId: row.external_id,
+            budgetType: row.budget_type ?? undefined,
             product: row.product ?? undefined,
+            productSkus: JSON.parse(row.product_skus) as string[],
             scopeType: row.scope_type ?? undefined,
             scopeTarget: row.scope_target ?? undefined,
+            scopeEntityName: row.scope_entity_name ?? undefined,
+            repositoryId: row.repository_id ?? undefined,
+            organizationName: row.organization_name ?? undefined,
+            userLogin: row.user_login ?? undefined,
             amount: row.amount ?? undefined,
             unit: row.unit ?? undefined,
             preventFurtherUsage: row.prevent_further_usage === 1,
+            alertEnabled: row.alert_enabled === null ? undefined : row.alert_enabled === 1,
+            alertRecipients: JSON.parse(row.alert_recipients) as string[],
             alertStatus: row.alert_status ?? undefined,
+            observedAt: row.observed_at,
+            lastSuccessfulSyncAt: row.last_successful_sync_at ?? undefined,
+          })),
+          capabilities: capabilities.map((capability) => ({
+            workspaceSlug: capability.workspace_slug, provider: capability.provider,
+            state: capability.state, errorCode: capability.error_code ?? undefined,
+            detail: capability.error_detail ?? undefined,
+            checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
           })),
         };
+  return c.json(body);
+});
+
+apiRoutes.get('/usage', async (c) => {
+  if (isDemoMode(c.env)) return c.json({ items: [], capabilities: [] } satisfies EstateUsageDto);
+  const [rows, capabilities] = await Promise.all([
+    listEstateUsage(c.env.DB, { from: c.req.query('from'), to: c.req.query('to') }),
+    listProviderCapabilities(c.env.DB, 'usage'),
+  ]);
+  const body: EstateUsageDto = {
+    items: rows.map((row) => ({
+      workspaceSlug: row.workspace_slug, provider: row.provider,
+      repositoryId: row.repository_id ?? undefined,
+      repositoryFullName: row.repository_full_name ?? undefined,
+      organizationName: row.organization_name ?? undefined,
+      userLogin: row.user_login ?? undefined,
+      usageDate: row.usage_date,
+      periodGranularity: row.period_granularity === 'month' ? 'month' : 'day',
+      product: row.product, sku: row.sku,
+      model: row.model ?? undefined, quantity: row.quantity ?? undefined,
+      unitType: row.unit_type ?? undefined, pricePerUnit: row.price_per_unit ?? undefined,
+      grossQuantity: row.gross_quantity ?? undefined,
+      discountQuantity: row.discount_quantity ?? undefined, netQuantity: row.net_quantity ?? undefined,
+      grossAmount: row.gross_amount ?? undefined, discountAmount: row.discount_amount ?? undefined,
+      netAmount: row.net_amount ?? undefined, currency: row.currency ?? undefined,
+      observedAt: row.observed_at,
+    })),
+    capabilities: capabilities.map((capability) => ({
+      workspaceSlug: capability.workspace_slug, provider: capability.provider,
+      state: capability.state, errorCode: capability.error_code ?? undefined,
+      detail: capability.error_detail ?? undefined,
+      checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
+    })),
+  };
   return c.json(body);
 });
 
@@ -447,6 +542,50 @@ apiRoutes.get('/activity', async (c) => {
     .sort((a, b) => (a.at < b.at ? 1 : -1))
     .slice(0, 100);
   return c.json(events);
+});
+
+apiRoutes.get('/admin/operations', requireAdmin, async (c) => {
+  const [rows, usageImports] = await Promise.all([
+    listOperationJobs(c.env.DB), listUsageImports(c.env.DB),
+  ]);
+  const body: OperationJobDto[] = rows.map((row) => ({
+    id: row.id, type: row.job_type, scope: row.scope ?? undefined,
+    state: row.state === 'done' ? 'completed' : row.state,
+    attempts: row.attempts, subrequestsUsed: row.subrequests_used,
+    createdAt: row.created_at, startedAt: row.started_at ?? undefined,
+    finishedAt: row.finished_at ?? undefined, checkpoint: row.cursor ?? undefined,
+    lastError: row.last_error ?? undefined, retryEligible: row.state === 'failed',
+    correlationId: row.correlation_id ?? row.id,
+    connectionId: row.connection_id ?? undefined, workspaceId: row.workspace_id ?? undefined,
+    resultSummary: row.result_summary
+      ? JSON.parse(row.result_summary) as Record<string, unknown> : undefined,
+    errorCode: row.error_code ?? undefined,
+  }));
+  body.push(...usageImports.map((row) => ({
+    id: row.id, type: 'usage_import', scope: row.workspace_id ?? undefined,
+    state: row.status, attempts: 1, subrequestsUsed: row.subrequests_used,
+    createdAt: row.created_at, startedAt: row.started_at ?? undefined,
+    finishedAt: row.completed_at ?? undefined, checkpoint: row.checkpoint ?? undefined,
+    lastError: row.error_detail ?? undefined, retryEligible: row.retry_eligible === 1,
+    correlationId: row.correlation_id, connectionId: row.connection_id,
+    workspaceId: row.workspace_id ?? undefined,
+    resultSummary: { rowsImported: row.rows_imported }, errorCode: row.error_code ?? undefined,
+  })));
+  body.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return c.json(body);
+});
+
+apiRoutes.post('/admin/operations/:id/retry', requireAdmin, async (c) => {
+  const id = c.req.param('id');
+  if (!await retrySyncJob(c.env.DB, id)) {
+    const usageImport = await getUsageImport(c.env.DB, id);
+    if (!usageImport || usageImport.retry_eligible !== 1) {
+      return c.json({ error: 'failed job not found' }, 404);
+    }
+    await enqueueSyncJob(c.env.DB, 'billing', usageImport.connection_id, 8);
+  }
+  await recordAuditEvent(c.env.DB, c.get('user').login, 'operation.retry', `job=${id}`);
+  return c.json({ ok: true, state: 'pending' });
 });
 
 apiRoutes.get('/workspaces', async (c) => {
@@ -562,7 +701,8 @@ apiRoutes.post('/admin/sync', requireAdmin, async (c) => {
   await enqueueSyncJob(c.env.DB, 'billing', 'all', 8);
   // B11: same gap for GitLab — an operator forcing a sync must also force
   // the GitLab scan whenever a GitLab connection (env or wizard) exists.
-  if (await resolveGitLabCredentials(c.env, c.env.DB)) {
+  if ((await listActiveConnectionsByType(c.env.DB, 'gitlab')).length > 0
+    || await resolveGitLabCredentials(c.env, c.env.DB)) {
     await enqueueSyncJob(c.env.DB, 'gitlab_discovery', 'all', 2);
   }
   await recordAuditEvent(c.env.DB, user.login, 'sync.manual', 'discovery + billing enqueued');

@@ -32,6 +32,10 @@ vi.mock('@repo-wrangler/provider-github', async () => {
   return {
     ...actual,
     listInstallations: mocks.listInstallations,
+    listInstallationsDetailed: async (appId: string, privateKey: string) => ({
+      installations: await mocks.listInstallations(appId, privateKey),
+      subrequestsUsed: 1,
+    }),
     getInstallationToken: mocks.getInstallationToken,
     listInstallationRepositories: mocks.listInstallationRepositories,
   };
@@ -74,5 +78,9 @@ describe('GitHub discovery — DB-only credentials (no restart)', () => {
   it('no-ops discovery when neither env nor DB has GitHub credentials', async () => {
     await runScheduled(envNoGitHubVars(db), '*/5 * * * *');
     expect(mocks.listInstallations).not.toHaveBeenCalled();
+    const count = await db.prepare(
+      `SELECT COUNT(*) AS count FROM provider_connections WHERE provider_type = 'github'`,
+    ).first<{ count: number }>();
+    expect(count?.count).toBe(0);
   });
 });

@@ -5,6 +5,8 @@
 
 export const GITHUB_API_BASE = 'https://api.github.com';
 export const GITHUB_API_VERSION = '2022-11-28';
+/** GitHub enhanced-billing endpoints were introduced on this API version. */
+export const GITHUB_BILLING_API_VERSION = '2026-03-10';
 
 export interface RateLimitInfo {
   remaining?: number;

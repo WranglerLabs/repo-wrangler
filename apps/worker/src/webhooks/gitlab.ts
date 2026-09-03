@@ -6,10 +6,12 @@ import {
   verifyGitLabToken,
 } from '@repo-wrangler/provider-gitlab';
 import {
+  listActiveConnectionsByType,
   markDeliveryProcessed,
   recordDeliveryIfNew,
 } from '@repo-wrangler/persistence-d1';
 import type { AppContext } from '../middleware/auth';
+import { resolveGitLabWebhookSecret } from '../lib/connection-secrets';
 import { applyDomainEvents } from './apply';
 
 const MAX_PAYLOAD_BYTES = 1_000_000;
@@ -22,17 +24,12 @@ const MAX_PAYLOAD_BYTES = 1_000_000;
 export const gitlabWebhookRoutes = new Hono<AppContext>();
 
 gitlabWebhookRoutes.post('/gitlab', async (c) => {
-  const secret = c.env.GITLAB_WEBHOOK_SECRET;
-  if (!secret) return c.json({ error: 'GitLab webhooks are not configured.' }, 503);
-
   const event = c.req.header('x-gitlab-event');
   const token = c.req.header('x-gitlab-token') ?? null;
   if (!event) return c.json({ error: 'Missing webhook headers.' }, 400);
-  if (!verifyGitLabToken(secret, token)) return c.json({ error: 'Invalid token.' }, 401);
 
   const rawBody = await c.req.text();
   if (rawBody.length > MAX_PAYLOAD_BYTES) return c.json({ error: 'Payload too large.' }, 413);
-  if (!HANDLED_GITLAB_EVENTS.has(event)) return c.json({ ok: true, handled: false });
 
   let payload: unknown;
   try {
@@ -41,7 +38,45 @@ gitlabWebhookRoutes.post('/gitlab', async (c) => {
     return c.json({ error: 'Invalid JSON.' }, 400);
   }
 
-  const fingerprint = gitlabDeliveryFingerprint(event, payload);
+  const connections = await listActiveConnectionsByType(c.env.DB, 'gitlab');
+  const matchingConnectionIds: string[] = [];
+  for (const connection of connections) {
+    const secret = await resolveGitLabWebhookSecret(c.env, c.env.DB, connection.id);
+    if (secret && verifyGitLabToken(secret, token)) matchingConnectionIds.push(connection.id);
+  }
+  let connectionId: string | undefined;
+  if (matchingConnectionIds.length === 1) {
+    connectionId = matchingConnectionIds[0];
+  } else if (matchingConnectionIds.length > 1) {
+    const projectId = (payload as { project?: { id?: number } }).project?.id;
+    if (projectId !== undefined) {
+      const scopedMatches: string[] = [];
+      for (const candidateId of matchingConnectionIds) {
+        const identity = await c.env.DB.prepare(
+          `SELECT repository_id FROM repository_provider_identities
+           WHERE connection_id = ?1 AND external_id = ?2`,
+        ).bind(candidateId, String(projectId)).first<{ repository_id: string }>();
+        if (identity) scopedMatches.push(candidateId);
+      }
+      if (scopedMatches.length === 1) connectionId = scopedMatches[0];
+    }
+    if (!connectionId) {
+      return c.json({ error: 'Webhook matched multiple connections and its project scope is ambiguous.' }, 409);
+    }
+  } else if (connections.length === 0) {
+    const environmentSecret = await resolveGitLabWebhookSecret(c.env, c.env.DB);
+    if (!environmentSecret) return c.json({ error: 'GitLab webhooks are not configured.' }, 503);
+    if (!verifyGitLabToken(environmentSecret, token)) return c.json({ error: 'Invalid token.' }, 401);
+  } else {
+    return c.json({ error: 'Invalid token.' }, 401);
+  }
+
+  if (!HANDLED_GITLAB_EVENTS.has(event)) return c.json({ ok: true, handled: false });
+
+  // GitLab has no delivery ID. Scope the synthetic fingerprint to the owning
+  // connection because separate instances can reuse project IDs and produce
+  // byte-identical payloads.
+  const fingerprint = `${connectionId ?? 'environment'}:${gitlabDeliveryFingerprint(event, payload)}`;
   const repoExternalId = (payload as { project?: { id?: number } }).project?.id;
   const isNew = await recordDeliveryIfNew(
     c.env.DB,
@@ -55,7 +90,7 @@ gitlabWebhookRoutes.post('/gitlab', async (c) => {
 
   try {
     const events = translateGitLabEvent(event, payload);
-    await applyDomainEvents(c.env.DB, events);
+    await applyDomainEvents(c.env.DB, events, { connectionId });
     await markDeliveryProcessed(c.env.DB, fingerprint);
     return c.json({ ok: true, applied: events.length });
   } catch (error) {

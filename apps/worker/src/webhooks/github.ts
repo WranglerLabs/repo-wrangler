@@ -5,6 +5,9 @@ import {
   verifyGitHubSignature,
 } from '@repo-wrangler/provider-github';
 import {
+  getWorkspaceByConnectionAndExternalId,
+  listActiveConnectionsByType,
+  markWorkspaceState,
   markDeliveryProcessed,
   recordDeliveryIfNew,
 } from '@repo-wrangler/persistence-d1';
@@ -21,12 +24,6 @@ const MAX_PAYLOAD_BYTES = 1_000_000;
 export const githubWebhookRoutes = new Hono<AppContext>();
 
 githubWebhookRoutes.post('/github', async (c) => {
-  // ADR-021: a webhook secret entered through the wizard's manifest exchange
-  // resolves here too — the `db` store first, env as the GitOps fallback.
-  const credentials = await resolveGitHubAppCredentials(c.env, c.env.DB);
-  const secret = credentials?.webhookSecret;
-  if (!secret) return c.json({ error: 'Webhooks are not configured.' }, 503);
-
   const event = c.req.header('x-github-event');
   const deliveryId = c.req.header('x-github-delivery');
   const signature = c.req.header('x-hub-signature-256') ?? null;
@@ -39,7 +36,27 @@ githubWebhookRoutes.post('/github', async (c) => {
   const rawBody = await c.req.text();
   if (rawBody.length > MAX_PAYLOAD_BYTES) return c.json({ error: 'Payload too large.' }, 413);
 
-  if (!(await verifyGitHubSignature(secret, rawBody, signature))) {
+  // Verify against each active GitHub App independently. This both supports
+  // multiple Apps and identifies the connection that owns the delivery.
+  const connections = await listActiveConnectionsByType(c.env.DB, 'github');
+  let connectionId: string | undefined;
+  let signatureValid = false;
+  const matchingConnectionIds: string[] = [];
+  for (const connection of connections) {
+    const credentials = await resolveGitHubAppCredentials(c.env, c.env.DB, connection.id);
+    if (credentials?.webhookSecret
+      && await verifyGitHubSignature(credentials.webhookSecret, rawBody, signature)) {
+      connectionId = connection.id;
+      signatureValid = true;
+      matchingConnectionIds.push(connection.id);
+    }
+  }
+  if (connections.length === 0) {
+    const credentials = await resolveGitHubAppCredentials(c.env, c.env.DB);
+    signatureValid = Boolean(credentials?.webhookSecret
+      && await verifyGitHubSignature(credentials.webhookSecret, rawBody, signature));
+  }
+  if (!signatureValid) {
     return c.json({ error: 'Invalid signature.' }, 401);
   }
 
@@ -51,6 +68,29 @@ githubWebhookRoutes.post('/github', async (c) => {
     payload = JSON.parse(rawBody);
   } catch {
     return c.json({ error: 'Invalid JSON.' }, 400);
+  }
+
+  if (matchingConnectionIds.length === 1) {
+    connectionId = matchingConnectionIds[0];
+  } else if (matchingConnectionIds.length > 1) {
+    const installation = (payload as {
+      installation?: { id?: number; account?: { id?: number } };
+    }).installation;
+    const installationId = installation?.id === undefined ? null : String(installation.id);
+    const accountId = installation?.account?.id === undefined ? null : String(installation.account.id);
+    const matches: string[] = [];
+    for (const candidateId of matchingConnectionIds) {
+      const workspace = await c.env.DB.prepare(
+        `SELECT id FROM workspaces WHERE connection_id = ?1
+           AND ((?2 IS NOT NULL AND installation_id = ?2)
+             OR (?3 IS NOT NULL AND external_id = ?3))`,
+      ).bind(candidateId, installationId, accountId).first<{ id: string }>();
+      if (workspace) matches.push(candidateId);
+    }
+    if (matches.length !== 1) {
+      return c.json({ error: 'Webhook matched multiple connections and its installation scope is ambiguous.' }, 409);
+    }
+    connectionId = matches[0];
   }
 
   const action = (payload as { action?: string }).action;
@@ -67,8 +107,21 @@ githubWebhookRoutes.post('/github', async (c) => {
   if (!isNew) return c.json({ ok: true, duplicate: true });
 
   try {
+    if (connectionId && event === 'installation' && (action === 'deleted' || action === 'suspend')) {
+      const accountId = (payload as { installation?: { account?: { id?: number } } })
+        .installation?.account?.id;
+      if (accountId !== undefined) {
+        const workspace = await getWorkspaceByConnectionAndExternalId(
+          c.env.DB, connectionId, String(accountId),
+        );
+        if (workspace) {
+          await markWorkspaceState(c.env.DB, workspace.id, 'inaccessible',
+            action === 'deleted' ? 'app_uninstalled' : 'permission_lost');
+        }
+      }
+    }
     const events = translateGitHubEvent(event, payload);
-    await applyDomainEvents(c.env.DB, events);
+    await applyDomainEvents(c.env.DB, events, { connectionId });
     await markDeliveryProcessed(c.env.DB, deliveryId);
     return c.json({ ok: true, applied: events.length });
   } catch (error) {

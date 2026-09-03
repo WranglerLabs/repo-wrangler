@@ -1,18 +1,37 @@
-import type { BudgetSnapshot } from '@repo-wrangler/domain';
+import type { BudgetSnapshot, CapabilityState } from '@repo-wrangler/domain';
 
 export interface BudgetRow {
   id: string;
   workspace_id: string;
   external_id: string;
+  budget_type: string | null;
   product: string | null;
+  product_skus: string;
   scope_type: string | null;
   scope_target: string | null;
+  scope_entity_name: string | null;
+  repository_id: string | null;
+  organization_name: string | null;
+  user_login: string | null;
   amount: number | null;
   unit: string | null;
   prevent_further_usage: number;
+  alert_enabled: number | null;
+  alert_recipients: string;
   alert_status: string | null;
   capability_state: string;
   observed_at: string;
+  last_successful_sync_at: string | null;
+}
+
+export interface ProviderCapabilityRow {
+  workspace_id: string;
+  capability: string;
+  state: CapabilityState;
+  error_code: string | null;
+  error_detail: string | null;
+  checked_at: string;
+  last_success_at: string | null;
 }
 
 export async function upsertBudget(
@@ -23,33 +42,157 @@ export async function upsertBudget(
   await db
     .prepare(
       `INSERT INTO budgets (
-         id, workspace_id, external_id, product, scope_type, scope_target,
-         amount, unit, prevent_further_usage, alert_status, capability_state
-       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'available')
+         id, workspace_id, external_id, budget_type, product, product_skus,
+         scope_type, scope_target, scope_entity_name, repository_id,
+         organization_name, user_login, amount, unit, prevent_further_usage,
+         alert_enabled, alert_recipients, alert_status, capability_state,
+         last_successful_sync_at
+       ) VALUES (
+         ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+         (SELECT id FROM repositories
+          WHERE workspace_id = ?2
+            AND (lower(full_name) = lower(?10) OR lower(name) = lower(?10))
+          ORDER BY CASE WHEN lower(full_name) = lower(?10) THEN 0 ELSE 1 END, id
+          LIMIT 1),
+         ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, 'available', datetime('now')
+       )
        ON CONFLICT (workspace_id, external_id) DO UPDATE SET
+         budget_type = excluded.budget_type,
          product = excluded.product,
+         product_skus = excluded.product_skus,
          scope_type = excluded.scope_type,
          scope_target = excluded.scope_target,
+         scope_entity_name = excluded.scope_entity_name,
+         repository_id = excluded.repository_id,
+         organization_name = excluded.organization_name,
+         user_login = excluded.user_login,
          amount = excluded.amount,
          unit = excluded.unit,
          prevent_further_usage = excluded.prevent_further_usage,
+         alert_enabled = excluded.alert_enabled,
+         alert_recipients = excluded.alert_recipients,
          alert_status = excluded.alert_status,
          capability_state = 'available',
-         observed_at = datetime('now')`,
+         observed_at = datetime('now'),
+         last_successful_sync_at = datetime('now')`,
     )
     .bind(
-      crypto.randomUUID(),
-      workspaceId,
-      budget.externalId,
-      budget.product ?? null,
-      budget.scopeType ?? null,
-      budget.scopeTarget ?? null,
-      budget.amount ?? null,
-      budget.unit ?? null,
-      budget.preventFurtherUsage ? 1 : 0,
-      budget.alertStatus ?? null,
+      crypto.randomUUID(), workspaceId, budget.externalId, budget.budgetType ?? null,
+      budget.product ?? null, JSON.stringify(budget.productSkus), budget.scopeType ?? null,
+      budget.scopeTarget ?? null, budget.scopeEntityName ?? null, budget.repositoryFullName ?? '',
+      budget.organizationName ?? null, budget.userLogin ?? null, budget.amount ?? null,
+      budget.unit ?? null, budget.preventFurtherUsage ? 1 : 0,
+      budget.alertEnabled === undefined ? null : budget.alertEnabled ? 1 : 0,
+      JSON.stringify(budget.alertRecipients), budget.alertStatus ?? null,
     )
     .run();
+
+  const stored = await db.prepare(
+    `SELECT id, repository_id, lower(COALESCE(scope_type, '')) AS scope_type
+     FROM budgets WHERE workspace_id = ?1 AND external_id = ?2`,
+  ).bind(workspaceId, budget.externalId)
+    .first<{ id: string; repository_id: string | null; scope_type: string }>();
+  if (!stored) return;
+
+  await db.prepare('DELETE FROM budget_repository_attributions WHERE budget_id = ?1')
+    .bind(stored.id).run();
+  if (stored.repository_id) {
+    await db.prepare(
+      `INSERT INTO budget_repository_attributions (budget_id, repository_id, attribution_type)
+       VALUES (?1, ?2, 'direct') ON CONFLICT (budget_id, repository_id) DO UPDATE SET
+         attribution_type = excluded.attribution_type`,
+    ).bind(stored.id, stored.repository_id).run();
+  } else if (['organization', 'org', 'enterprise', 'cost_center'].includes(stored.scope_type)) {
+    await db.prepare(
+      `INSERT INTO budget_repository_attributions (budget_id, repository_id, attribution_type)
+       SELECT ?1, id, 'inherited' FROM repositories
+       WHERE workspace_id = ?2 AND status = 'active'
+       ON CONFLICT (budget_id, repository_id) DO UPDATE SET
+         attribution_type = excluded.attribution_type`,
+    ).bind(stored.id, workspaceId).run();
+  }
+}
+
+/** Replace only after a complete successful provider response. */
+export async function replaceWorkspaceBudgets(
+  db: D1Database,
+  workspaceId: string,
+  budgets: BudgetSnapshot[],
+): Promise<void> {
+  for (const budget of budgets) await upsertBudget(db, workspaceId, budget);
+  if (budgets.length === 0) {
+    await db.prepare(
+      `DELETE FROM budget_repository_attributions WHERE budget_id IN
+       (SELECT id FROM budgets WHERE workspace_id = ?1)`,
+    ).bind(workspaceId).run();
+    await db.prepare('DELETE FROM budgets WHERE workspace_id = ?1').bind(workspaceId).run();
+    return;
+  }
+  const placeholders = budgets.map((_, index) => `?${index + 2}`).join(', ');
+  await db
+    .prepare(`DELETE FROM budget_repository_attributions WHERE budget_id IN
+      (SELECT id FROM budgets WHERE workspace_id = ?1 AND external_id NOT IN (${placeholders}))`)
+    .bind(workspaceId, ...budgets.map((budget) => budget.externalId))
+    .run();
+  await db
+    .prepare(`DELETE FROM budgets WHERE workspace_id = ?1 AND external_id NOT IN (${placeholders})`)
+    .bind(workspaceId, ...budgets.map((budget) => budget.externalId))
+    .run();
+}
+
+export async function setProviderCapability(
+  db: D1Database,
+  workspaceId: string,
+  capability: string,
+  state: CapabilityState,
+  errorCode?: string,
+  errorDetail?: string,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO provider_capabilities (
+         workspace_id, capability, state, error_code, error_detail, checked_at, last_success_at
+       ) VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), CASE WHEN ?3 = 'available' THEN datetime('now') ELSE NULL END)
+       ON CONFLICT (workspace_id, capability) DO UPDATE SET
+         state = excluded.state,
+         error_code = excluded.error_code,
+         error_detail = excluded.error_detail,
+         checked_at = datetime('now'),
+         last_success_at = CASE
+           WHEN excluded.state = 'available' THEN datetime('now')
+           ELSE provider_capabilities.last_success_at
+         END`,
+    )
+    .bind(workspaceId, capability, state, errorCode ?? null, errorDetail ?? null)
+    .run();
+}
+
+export async function getProviderCapability(
+  db: D1Database,
+  workspaceId: string,
+  capability: string,
+): Promise<ProviderCapabilityRow | null> {
+  return db.prepare('SELECT * FROM provider_capabilities WHERE workspace_id = ?1 AND capability = ?2')
+    .bind(workspaceId, capability).first<ProviderCapabilityRow>();
+}
+
+export interface EstateCapabilityRow extends ProviderCapabilityRow {
+  workspace_slug: string;
+  provider: string;
+}
+
+export async function listProviderCapabilities(
+  db: D1Database,
+  capability: string,
+): Promise<EstateCapabilityRow[]> {
+  const result = await db.prepare(
+    `SELECT pc.*, w.slug AS workspace_slug, c.provider_type AS provider
+     FROM provider_capabilities pc
+     JOIN workspaces w ON w.id = pc.workspace_id
+     JOIN provider_connections c ON c.id = w.connection_id
+     WHERE pc.capability = ?1 ORDER BY w.slug`,
+  ).bind(capability).all<EstateCapabilityRow>();
+  return result.results;
 }
 
 export interface EstateBudgetRow extends BudgetRow {
@@ -57,7 +200,6 @@ export interface EstateBudgetRow extends BudgetRow {
   provider: string;
 }
 
-/** All budgets estate-wide (Budgets & Usage page). */
 export async function listAllBudgets(db: D1Database): Promise<EstateBudgetRow[]> {
   const result = await db
     .prepare(
@@ -65,19 +207,29 @@ export async function listAllBudgets(db: D1Database): Promise<EstateBudgetRow[]>
        FROM budgets b
        JOIN workspaces w ON w.id = b.workspace_id
        JOIN provider_connections c ON c.id = w.connection_id
-       ORDER BY w.slug, b.product`,
-    )
-    .all<EstateBudgetRow>();
+       ORDER BY w.slug, b.product, b.external_id`,
+    ).all<EstateBudgetRow>();
   return result.results;
 }
 
-export async function listWorkspaceBudgets(
+export async function listWorkspaceBudgets(db: D1Database, workspaceId: string): Promise<BudgetRow[]> {
+  const result = await db.prepare('SELECT * FROM budgets WHERE workspace_id = ?1 ORDER BY product, external_id')
+    .bind(workspaceId).all<BudgetRow>();
+  return result.results;
+}
+
+export async function listApplicableRepositoryBudgets(
   db: D1Database,
   workspaceId: string,
+  repositoryId: string,
 ): Promise<BudgetRow[]> {
   const result = await db
-    .prepare(`SELECT * FROM budgets WHERE workspace_id = ?1 ORDER BY product`)
-    .bind(workspaceId)
-    .all<BudgetRow>();
+    .prepare(
+      `SELECT b.* FROM budgets b
+       JOIN budget_repository_attributions a ON a.budget_id = b.id
+       WHERE b.workspace_id = ?1 AND a.repository_id = ?2
+       ORDER BY CASE a.attribution_type WHEN 'direct' THEN 0 ELSE 1 END,
+                b.product, b.external_id`,
+    ).bind(workspaceId, repositoryId).all<BudgetRow>();
   return result.results;
 }

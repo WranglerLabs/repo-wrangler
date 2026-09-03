@@ -61,6 +61,12 @@ describe('translateGitHubEvent', () => {
     expect(events[0]?.type).toBe('repository.removed');
   });
 
+  it('translates an organization deletion into an exact workspace removal', () => {
+    expect(translateGitHubEvent('organization', {
+      action: 'deleted', organization: { id: 7, login: 'acme' },
+    })).toEqual([{ type: 'workspace.removed', workspaceExternalId: '7' }]);
+  });
+
   it('translates a branch push into branch.pushed plus a follow-up sync request', () => {
     const events = translateGitHubEvent('push', {
       ...repoPayload,

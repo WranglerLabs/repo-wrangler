@@ -11,10 +11,14 @@ import { Pipelines } from './routes/Pipelines';
 import { ChangeRequests } from './routes/ChangeRequests';
 import { Security } from './routes/Security';
 import { Budgets } from './routes/Budgets';
+import { Usage } from './routes/Usage';
 import { Activity } from './routes/Activity';
 import { Workspaces } from './routes/Workspaces';
 import { PlatformHealth } from './routes/PlatformHealth';
 import { Administration } from './routes/Administration';
+import { Connections } from './routes/Connections';
+import { ConnectionDetail } from './routes/ConnectionDetail';
+import { Operations } from './routes/Operations';
 import { Credits } from './routes/Credits';
 import { ThemeStudio } from './routes/ThemeStudio';
 import { Onboarding } from './routes/Onboarding';
@@ -42,10 +46,14 @@ const router = createBrowserRouter([
       { path: 'change-requests', element: <ChangeRequests /> },
       { path: 'security', element: <Security /> },
       { path: 'budgets', element: <Budgets /> },
+      { path: 'usage', element: <Usage /> },
       { path: 'activity', element: <Activity /> },
       { path: 'workspaces', element: <Workspaces /> },
       { path: 'platform', element: <PlatformHealth /> },
       { path: 'admin', element: <Administration /> },
+      { path: 'admin/connections', element: <Connections /> },
+      { path: 'admin/connections/:id', element: <ConnectionDetail /> },
+      { path: 'admin/operations', element: <Operations /> },
       { path: 'admin/estate-scope', element: <EstateScope /> },
       { path: 'onboarding', element: <Onboarding /> },
       { path: 'theme', element: <ThemeStudio /> },

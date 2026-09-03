@@ -82,10 +82,11 @@ export function Administration() {
         ) : (
           <>
             <p>
-              {health.data?.connections.length ?? 0} connection(s) configured — status and last
-              errors are on <Link to="/platform">Platform Health</Link>. Manage what's monitored on{' '}
-              <Link to="/admin/estate-scope">Estate scope</Link>.
+              {health.data?.connections.length ?? 0} connection(s) configured. Manage credentials,
+              health, provider access, and reconciliation in <Link to="/admin/connections">Connections</Link>.
+              Choose monitored resources separately in <Link to="/admin/estate-scope">Estate scope</Link>.
             </p>
+            <Link className="button-link" to="/admin/connections">Manage connections</Link>{' '}
             <Link className="button-link" to="/onboarding?add=1">Connect another platform</Link>
           </>
         )}
@@ -114,6 +115,7 @@ export function Administration() {
               : 'Requires an admin or owner session.'}
           </p>
         )}
+        <p><Link to="/admin/operations">View Operations history and retry failed jobs</Link></p>
       </div>
 
       <div className="panel">

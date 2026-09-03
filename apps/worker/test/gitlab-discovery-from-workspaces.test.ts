@@ -13,6 +13,8 @@ import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite
 import {
   D1ConnectionSecretStore,
   ensureGitLabConnection,
+  upsertRepository,
+  upsertWorkspace,
   setConnectionSecretReference,
 } from '@repo-wrangler/persistence-d1';
 import { DbSecretProvider, deriveEncryptionKey } from '@repo-wrangler/secrets-core';
@@ -20,6 +22,8 @@ import { connectionRoutes } from '../src/api/connections';
 import type { Env } from '../src/bindings';
 import type { AppContext } from '../src/middleware/auth';
 import { runScheduled } from '../src/scheduled/index';
+import { runGitLabDiscovery } from '../src/scheduled/index';
+import { makeRepositorySnapshot, makeWorkspaceSnapshot } from '@repo-wrangler/test-support';
 
 const migrationsDir = join(__dirname, '../../../migrations');
 
@@ -35,6 +39,9 @@ vi.mock('@repo-wrangler/provider-gitlab', async () => {
   return {
     ...actual,
     GitLabClient: vi.fn().mockImplementation(() => ({})),
+    inspectGitLabToken: vi.fn().mockResolvedValue({
+      status: 'read_scope_verified', details: { standardScopes: 'read_api' },
+    }),
     getGroupWorkspace: mocks.getGroupWorkspace,
     listGroupProjects: mocks.listGroupProjects,
   };
@@ -91,8 +98,12 @@ describe('GitLab discovery — B4 workspace-sourced groups + DB-only credentials
     await runScheduled(envWithoutGitLabVars(db), '*/5 * * * *');
 
     // Discovery re-fetched the persisted group (not GITLAB_GROUPS, which is unset).
-    expect(mocks.getGroupWorkspace).toHaveBeenCalledWith(expect.anything(), 'acme-labs');
+    // Stable numeric group identity survives a provider-side path rename.
+    expect(mocks.getGroupWorkspace).toHaveBeenCalledWith(expect.anything(), 'grp-1');
     expect(mocks.listGroupProjects).toHaveBeenCalled();
+    expect((await db.prepare(
+      `SELECT slug FROM workspaces WHERE connection_id = ?1 AND external_id = 'grp-1'`,
+    ).bind(connectionId).first<{ slug: string }>())?.slug).toBe('acme-labs');
   });
 
   it('falls back to GITLAB_GROUPS when the connection has no persisted workspaces', async () => {
@@ -109,5 +120,80 @@ describe('GitLab discovery — B4 workspace-sourced groups + DB-only credentials
   it('does nothing when neither a DB token nor GITLAB_TOKEN/GITLAB_GROUPS is configured', async () => {
     await runScheduled(envWithoutGitLabVars(db), '*/5 * * * *');
     expect(mocks.getGroupWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('continues reconciling completed groups while preserving the failed group', async () => {
+    const connectionId = await ensureGitLabConnection(db, 'https://gitlab.com');
+    await storeGitLabToken(db, connectionId, 'db-only-token');
+    const firstWorkspace = await upsertWorkspace(db, connectionId,
+      makeWorkspaceSnapshot({ externalId: '1', slug: 'first', kind: 'group' }));
+    const secondWorkspace = await upsertWorkspace(db, connectionId,
+      makeWorkspaceSnapshot({ externalId: '2', slug: 'second', kind: 'group' }));
+    const staleId = await upsertRepository(db, firstWorkspace,
+      makeRepositorySnapshot({ externalId: 'stale', fullName: 'first/stale' }));
+    const secondStaleId = await upsertRepository(db, secondWorkspace,
+      makeRepositorySnapshot({ externalId: 'second-stale', fullName: 'second/stale' }));
+    mocks.getGroupWorkspace.mockImplementation(async (_client, id: string) => ({
+      externalId: id, slug: id === '1' ? 'first' : 'second', kind: 'group' as const,
+    }));
+    mocks.listGroupProjects.mockImplementation(async (_client, id: string) => {
+      if (id === '1') throw new Error('Failed to list projects for 1 (HTTP 503).');
+      return { repositories: [], nextPage: undefined };
+    });
+    await db.prepare(
+      `INSERT INTO sync_jobs (id, job_type, priority, scope, state, attempts)
+       VALUES ('partial-run', 'gitlab_discovery', 3, ?1, 'running', 1)`,
+    ).bind(connectionId).run();
+
+    await runGitLabDiscovery(envWithoutGitLabVars(db), 'partial-run', connectionId);
+
+    expect(mocks.listGroupProjects).toHaveBeenCalledTimes(2);
+    const repositories = await db.prepare(
+      'SELECT id, status FROM repositories WHERE id IN (?1, ?2) ORDER BY id',
+    ).bind(staleId, secondStaleId).all<{ id: string; status: string }>();
+    expect(repositories.results).toEqual([
+      { id: staleId, status: 'active' },
+      { id: secondStaleId, status: 'inaccessible' },
+    ].sort((left, right) => left.id.localeCompare(right.id)));
+    expect(await db.prepare(
+      `SELECT status, error_code, retry_eligible FROM discovery_runs WHERE id = 'partial-run'`,
+    ).first()).toEqual({
+      status: 'failed', error_code: 'partial_discovery_failure', retry_eligible: 1,
+    });
+    expect(await db.prepare(
+      `SELECT state, last_error FROM sync_jobs WHERE id = 'partial-run'`,
+    ).first()).toEqual({
+      state: 'failed', last_error: '1 of 2 GitLab groups failed discovery.',
+    });
+  });
+
+  it('marks a provider-deleted group and its repositories removed without deleting history', async () => {
+    const connectionId = await ensureGitLabConnection(db, 'https://gitlab.com');
+    await storeGitLabToken(db, connectionId, 'db-only-token');
+    const workspaceId = await upsertWorkspace(db, connectionId,
+      makeWorkspaceSnapshot({ externalId: '404', slug: 'deleted-group', kind: 'group' }));
+    const repositoryId = await upsertRepository(db, workspaceId,
+      makeRepositorySnapshot({ externalId: 'project', fullName: 'deleted-group/repo' }));
+    mocks.getGroupWorkspace.mockRejectedValue(new Error('Failed to fetch GitLab group 404 (HTTP 404).'));
+
+    await runGitLabDiscovery(envWithoutGitLabVars(db), 'deleted-group-run', connectionId);
+
+    expect(await db.prepare('SELECT status, status_reason FROM workspaces WHERE id = ?1')
+      .bind(workspaceId).first()).toEqual({
+      status: 'removed', status_reason: 'provider_resource_deleted',
+    });
+    expect(await db.prepare('SELECT status, status_reason FROM repositories WHERE id = ?1')
+      .bind(repositoryId).first()).toEqual({
+      status: 'removed', status_reason: 'provider_resource_deleted',
+    });
+
+    await runGitLabDiscovery(envWithoutGitLabVars(db), 'deleted-group-repeat-run', connectionId);
+    const repeatedRun = await db.prepare('SELECT summary FROM discovery_runs WHERE id = ?1')
+      .bind('deleted-group-repeat-run').first<{ summary: string }>();
+    expect(JSON.parse(repeatedRun?.summary ?? '{}')).toMatchObject({
+      workspacesRemoved: 0,
+      groupsFailed: 1,
+      partial: true,
+    });
   });
 });

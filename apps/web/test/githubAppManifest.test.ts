@@ -18,6 +18,7 @@ describe('GitHub App manifest onboarding', () => {
     const manifest = createGitHubAppManifest('https://repo.example.com', 'def456');
     expect(manifest.hook_attributes?.url).toBe('https://repo.example.com/webhooks/github');
     expect(manifest.default_events).toContain('push');
+    expect(manifest.default_events).toContain('organization');
   });
 
   it.each([

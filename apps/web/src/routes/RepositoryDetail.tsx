@@ -353,6 +353,18 @@ export function RepositoryDetail() {
       {tab === 'Budgets' && (
         <div className="panel">
           <h2>Budgets &amp; usage</h2>
+          {budgets.state === 'available' && budgets.capabilityState
+            && budgets.capabilityState !== 'available' && (
+            <div className="error-box">
+              Showing the last successful budget snapshot. Latest provider check:{' '}
+              {CAPABILITY_LABELS[budgets.capabilityState] ?? budgets.capabilityState}
+              {budgets.capabilityErrorCode ? ` — ${budgets.capabilityErrorCode}` : ''}
+              {budgets.capabilityDetail ? ` — ${budgets.capabilityDetail}` : ''}
+              {budgets.capabilityCheckedAt ? ` · checked ${budgets.capabilityCheckedAt}` : ''}
+              {budgets.capabilityLastSuccessAt
+                ? ` · last successful ${budgets.capabilityLastSuccessAt}` : ''}
+            </div>
+          )}
           {budgets.state !== 'available' ? (
             <p className="capability">
               {CAPABILITY_LABELS[budgets.state] ?? budgets.state} — this is a capability state,
@@ -363,10 +375,11 @@ export function RepositoryDetail() {
               <thead>
                 <tr>
                   <th>Product</th>
-                  <th>Scope</th>
+                  <th>Applies from</th>
+                  <th>SKUs</th>
                   <th>Amount</th>
                   <th>Hard stop</th>
-                  <th>Status</th>
+                  <th>Alerts</th>
                 </tr>
               </thead>
               <tbody>
@@ -374,16 +387,21 @@ export function RepositoryDetail() {
                   <tr key={index}>
                     <td>{budget.product ?? '—'}</td>
                     <td>
-                      {budget.scopeType ?? '—'}
-                      {budget.scopeTarget ? ` (${budget.scopeTarget})` : ''}
+                      {budget.repositoryId === repository.id ? 'Direct repository budget' : 'Inherited'}
+                      {' · '}{budget.scopeType ?? 'broader scope'}
+                      {(budget.scopeEntityName ?? budget.scopeTarget)
+                        ? ` (${budget.scopeEntityName ?? budget.scopeTarget})` : ''}
                     </td>
+                    <td>{budget.productSkus.length ? budget.productSkus.join(', ') : '—'}</td>
                     <td>
                       {budget.amount !== undefined
-                        ? `${budget.amount} ${budget.unit ?? ''}`
+                        ? `${budget.amount} ${budget.unit ?? '(provider unit not reported)'}`
                         : '—'}
                     </td>
                     <td>{budget.preventFurtherUsage ? 'yes' : 'no'}</td>
-                    <td>{budget.alertStatus ?? '—'}</td>
+                    <td>{budget.alertEnabled === undefined ? '—' : budget.alertEnabled
+                      ? `enabled${budget.alertRecipients.length
+                        ? ` · ${budget.alertRecipients.join(', ')}` : ''}` : 'disabled'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -442,7 +460,7 @@ export function RepositoryDetail() {
               {[
                 { label: 'Security findings', state: security.state },
                 { label: 'Governance', state: governance?.state ?? 'not_configured' },
-                { label: 'Budgets & usage', state: budgets.state },
+                { label: 'Budgets & usage', state: budgets.capabilityState ?? budgets.state },
               ].map((row) => (
                 <tr key={row.label}>
                   <td>{row.label}</td>

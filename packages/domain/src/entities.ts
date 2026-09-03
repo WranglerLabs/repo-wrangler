@@ -160,11 +160,43 @@ export interface GovernanceInfo {
 
 export interface BudgetSnapshot {
   externalId: string;
+  budgetType?: string;
   product?: string;
+  /** All provider SKUs covered by the budget. Unknown SKUs are preserved. */
+  productSkus: string[];
   scopeType?: string;
   scopeTarget?: string;
+  scopeEntityName?: string;
+  repositoryFullName?: string;
+  organizationName?: string;
+  userLogin?: string;
   amount?: number;
   unit?: string;
   preventFurtherUsage: boolean;
+  alertEnabled?: boolean;
+  alertRecipients: string[];
   alertStatus?: string;
+}
+
+/** One provider billing usage item, normalized without discarding unknown SKUs. */
+export interface UsageSnapshot {
+  usageDate: string;
+  periodGranularity: 'day' | 'month';
+  product: string;
+  sku: string;
+  repositoryFullName?: string;
+  organizationName?: string;
+  userLogin?: string;
+  model?: string;
+  quantity?: number;
+  unitType?: string;
+  pricePerUnit?: number;
+  grossQuantity?: number;
+  discountQuantity?: number;
+  netQuantity?: number;
+  grossAmount?: number;
+  discountAmount?: number;
+  netAmount?: number;
+  currency?: string;
+  observedAt: string;
 }

@@ -35,6 +35,10 @@ vi.mock('@repo-wrangler/provider-github', async () => {
   return {
     ...actual,
     listInstallations: githubMocks.listInstallations,
+    listInstallationsDetailed: async (appId: string, privateKey: string) => ({
+      installations: await githubMocks.listInstallations(appId, privateKey),
+      subrequestsUsed: 1,
+    }),
     getInstallationToken: githubMocks.getInstallationToken,
     listInstallationRepositories: githubMocks.listInstallationRepositories,
   };
@@ -52,6 +56,9 @@ vi.mock('@repo-wrangler/provider-gitlab', async () => {
   return {
     ...actual,
     GitLabClient: vi.fn().mockImplementation(() => ({})),
+    inspectGitLabToken: vi.fn().mockResolvedValue({
+      status: 'read_scope_verified', details: { standardScopes: 'read_api' },
+    }),
     getGroupWorkspace: gitlabMocks.getGroupWorkspace,
     listGroupProjects: gitlabMocks.listGroupProjects,
   };
@@ -81,7 +88,11 @@ function gitlabEnv(db: D1Database): Env {
 /** Pending `enrich_repository` jobs — the queue state `claimNextSyncJob` would drain. */
 async function pendingEnrichScopes(db: D1Database): Promise<string[]> {
   const result = await db
-    .prepare(`SELECT scope FROM sync_jobs WHERE job_type = 'enrich_repository' AND state = 'pending'`)
+    .prepare(
+      `SELECT r.full_name AS scope FROM sync_jobs j
+       JOIN repositories r ON r.id = j.scope
+       WHERE j.job_type = 'enrich_repository' AND j.state = 'pending'`,
+    )
     .all<{ scope: string }>();
   return result.results.map((r) => r.scope).sort();
 }
@@ -97,7 +108,11 @@ describe('GitHub discovery chains enrich_repository (B3b)', () => {
     githubMocks.getInstallationToken.mockReset();
     githubMocks.listInstallationRepositories.mockReset();
     githubMocks.listInstallations.mockResolvedValue([
-      { id: 111, account: { id: 5001, login: 'acme-labs', type: 'Organization' } },
+      {
+        id: 111,
+        account: { id: 5001, login: 'acme-labs', type: 'Organization' },
+        permissions: { metadata: 'read', administration: 'write' },
+      },
     ]);
     githubMocks.getInstallationToken.mockResolvedValue('inst-token');
   });
@@ -114,6 +129,11 @@ describe('GitHub discovery chains enrich_repository (B3b)', () => {
     await runDiscovery(githubEnv(db), 'job-1', null, 40);
 
     expect(await pendingEnrichScopes(db)).toEqual(['acme-labs/gadget', 'acme-labs/widget']);
+    const connection = await db.prepare(
+      `SELECT capability_status, permission_details FROM provider_connections WHERE provider_type = 'github'`,
+    ).first<{ capability_status: string; permission_details: string }>();
+    expect(connection?.capability_status).toBe('write_scope_detected');
+    expect(JSON.parse(connection!.permission_details)).toEqual({ metadata: 'read', administration: 'write' });
   });
 
   it('does not double-enqueue when discovery runs twice back to back', async () => {
@@ -133,9 +153,36 @@ describe('GitHub discovery chains enrich_repository (B3b)', () => {
     expect(await pendingEnrichScopes(db)).toEqual(['acme-labs/widget']);
 
     const count = await db
-      .prepare(`SELECT COUNT(*) AS n FROM sync_jobs WHERE job_type = 'enrich_repository' AND scope = 'acme-labs/widget'`)
+      .prepare(`SELECT COUNT(*) AS n FROM sync_jobs WHERE job_type = 'enrich_repository'`)
       .first<{ n: number }>();
     expect(count?.n).toBe(1);
+    const secondSummary = await db.prepare(
+      `SELECT summary FROM discovery_runs WHERE id = 'job-2'`,
+    ).first<{ summary: string }>();
+    expect(JSON.parse(secondSummary!.summary)).toMatchObject({
+      noChange: true, repositoriesAdded: 0, repositoriesRenamed: 0, repositoriesMoved: 0,
+    });
+  });
+
+  it('reconciles an organization that now contains zero repositories', async () => {
+    githubMocks.listInstallationRepositories.mockResolvedValueOnce({
+      repositories: [makeRepositorySnapshot({ externalId: 'gone', fullName: 'acme-labs/gone' })],
+      nextPage: undefined,
+    });
+    await runDiscovery(githubEnv(db), 'job-with-repo', null, 40);
+    await db.prepare('DELETE FROM sync_jobs').run();
+    githubMocks.listInstallationRepositories.mockResolvedValue({ repositories: [], nextPage: undefined });
+
+    await runDiscovery(githubEnv(db), 'job-empty-org', null, 40);
+
+    expect(await db.prepare(
+      `SELECT status, status_reason FROM repositories WHERE external_id = 'gone'`,
+    ).first()).toEqual({
+      status: 'inaccessible', status_reason: 'not_seen_after_complete_discovery',
+    });
+    expect(await db.prepare(
+      `SELECT status FROM workspaces WHERE external_id = '5001'`,
+    ).first()).toEqual({ status: 'active' });
   });
 
   it('does not enqueue enrichment for a repo in an ignored workspace', async () => {
@@ -154,6 +201,25 @@ describe('GitHub discovery chains enrich_repository (B3b)', () => {
 
     expect(githubMocks.listInstallationRepositories).not.toHaveBeenCalled();
     expect(await pendingEnrichScopes(db)).toEqual([]);
+  });
+
+  it('records a suspended installation as permission-lost without scanning repositories', async () => {
+    githubMocks.listInstallations.mockResolvedValue([
+      {
+        id: 111,
+        account: { id: 5001, login: 'acme-labs', type: 'Organization' },
+        suspended_at: '2026-09-03T00:00:00Z',
+      },
+    ]);
+
+    await runDiscovery(githubEnv(db), 'job-suspended', null, 40);
+
+    const workspace = await db.prepare(
+      `SELECT status, status_reason FROM workspaces WHERE external_id = '5001'`,
+    ).first<{ status: string; status_reason: string | null }>();
+    expect(workspace).toEqual({ status: 'inaccessible', status_reason: 'permission_lost' });
+    expect(githubMocks.getInstallationToken).not.toHaveBeenCalled();
+    expect(githubMocks.listInstallationRepositories).not.toHaveBeenCalled();
   });
 });
 

@@ -19,8 +19,13 @@ export interface RepositoryRow {
   monitoring_state: MonitoringState;
   status: string;
   first_seen_at: string;
+  last_seen_at: string;
+  removed_at: string | null;
   snapshot_synced_at: string | null;
   enrich_synced_at: string | null;
+  status_reason: string | null;
+  state_changed_at: string | null;
+  last_reconciled_at: string | null;
 }
 
 export async function upsertRepository(
@@ -28,14 +33,60 @@ export async function upsertRepository(
   workspaceId: string,
   snapshot: RepositorySnapshot,
 ): Promise<string> {
-  const existing = await db
-    .prepare(`SELECT id FROM repositories WHERE workspace_id = ?1 AND external_id = ?2`)
-    .bind(workspaceId, snapshot.externalId)
-    .first<{ id: string }>();
+  const scope = await db.prepare('SELECT connection_id FROM workspaces WHERE id = ?1')
+    .bind(workspaceId).first<{ connection_id: string }>();
+  if (!scope) throw new Error(`Workspace ${workspaceId} does not exist.`);
+
+  let existing = await db.prepare(
+    `SELECT r.id, r.workspace_id, r.full_name FROM repository_provider_identities i
+     JOIN repositories r ON r.id = i.repository_id
+     WHERE i.connection_id = ?1 AND i.external_id = ?2`,
+  ).bind(scope.connection_id, snapshot.externalId)
+    .first<{ id: string; workspace_id: string; full_name: string }>();
+  existing ??= await db.prepare(
+    `SELECT id, workspace_id, full_name FROM repositories WHERE workspace_id = ?1 AND external_id = ?2`,
+  ).bind(workspaceId, snapshot.externalId)
+    .first<{ id: string; workspace_id: string; full_name: string }>();
 
   const topics = JSON.stringify(snapshot.topics ?? []);
 
   if (existing) {
+    if (existing.workspace_id !== workspaceId) {
+      const collision = await db.prepare(
+        'SELECT id, full_name FROM repositories WHERE workspace_id = ?1 AND external_id = ?2 AND id != ?3',
+      ).bind(workspaceId, snapshot.externalId, existing.id)
+        .first<{ id: string; full_name: string }>();
+      if (collision) {
+        await db.prepare(
+          `INSERT INTO repository_move_history (
+             id, repository_id, from_workspace_id, to_workspace_id,
+             provider_full_name_before, provider_full_name_after
+           ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
+        ).bind(
+          crypto.randomUUID(), collision.id, existing.workspace_id, workspaceId,
+          existing.full_name, snapshot.fullName,
+        ).run();
+        await db.prepare(
+          `UPDATE repositories SET status = 'removed', status_reason = 'duplicate_merged',
+             state_changed_at = datetime('now'), removed_at = COALESCE(removed_at, datetime('now'))
+           WHERE id = ?1`,
+        ).bind(existing.id).run();
+        existing = { id: collision.id, workspace_id: workspaceId, full_name: collision.full_name };
+        await db.prepare(
+          `UPDATE repository_provider_identities SET repository_id = ?3, last_seen_at = datetime('now')
+           WHERE connection_id = ?1 AND external_id = ?2`,
+        ).bind(scope.connection_id, snapshot.externalId, collision.id).run();
+      } else {
+        await db.prepare(
+          `INSERT INTO repository_move_history (
+             id, repository_id, from_workspace_id, to_workspace_id,
+             provider_full_name_before, provider_full_name_after
+           ) SELECT ?1, id, workspace_id, ?2, full_name, ?3 FROM repositories WHERE id = ?4`,
+        ).bind(crypto.randomUUID(), workspaceId, snapshot.fullName, existing.id).run();
+        await db.prepare('UPDATE repositories SET workspace_id = ?2 WHERE id = ?1')
+          .bind(existing.id, workspaceId).run();
+      }
+    }
     await db
       .prepare(
         `UPDATE repositories SET
@@ -44,8 +95,11 @@ export async function upsertRepository(
            is_template = ?11, default_branch = ?12, pushed_at = ?13,
            provider_updated_at = ?14, primary_language = ?15, topics = ?16,
            license_spdx = ?17, size_kb = ?18,
-           status = 'active', removed_at = NULL,
-           last_seen_at = datetime('now'), snapshot_synced_at = datetime('now')
+           status = 'active', status_reason = NULL, removed_at = NULL,
+           state_changed_at = CASE WHEN status != 'active' OR status_reason IS NOT NULL
+             THEN datetime('now') ELSE state_changed_at END,
+           last_seen_at = datetime('now'), last_reconciled_at = datetime('now'),
+           snapshot_synced_at = datetime('now')
          WHERE id = ?1`,
       )
       .bind(
@@ -69,6 +123,13 @@ export async function upsertRepository(
         snapshot.sizeKb ?? null,
       )
       .run();
+    await db.prepare(
+      `INSERT INTO repository_provider_identities (connection_id, external_id, repository_id)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT (connection_id, external_id) DO UPDATE SET
+         repository_id = excluded.repository_id, last_seen_at = datetime('now')`,
+    ).bind(scope.connection_id, snapshot.externalId, existing.id).run();
+    await refreshRepositoryBudgetAttributions(db, existing.id, workspaceId);
     return existing.id;
   }
 
@@ -105,6 +166,11 @@ export async function upsertRepository(
       snapshot.sizeKb ?? null,
     )
     .run();
+  await db.prepare(
+    `INSERT INTO repository_provider_identities (connection_id, external_id, repository_id)
+     VALUES (?1, ?2, ?3)`,
+  ).bind(scope.connection_id, snapshot.externalId, id).run();
+  await refreshRepositoryBudgetAttributions(db, id, workspaceId);
   return id;
 }
 
@@ -116,7 +182,9 @@ export async function markRepositoryRemoved(
 ): Promise<void> {
   await db
     .prepare(
-      `UPDATE repositories SET status = 'removed', removed_at = datetime('now')
+      `UPDATE repositories SET status = 'removed', status_reason = 'provider_resource_deleted',
+         state_changed_at = CASE WHEN status != 'removed' THEN datetime('now') ELSE state_changed_at END,
+         removed_at = COALESCE(removed_at, datetime('now')), last_reconciled_at = datetime('now')
        WHERE workspace_id = ?1 AND external_id = ?2`,
     )
     .bind(workspaceId, externalId)
@@ -128,16 +196,99 @@ export async function markUnseenInaccessible(
   db: D1Database,
   workspaceId: string,
   seenExternalIds: string[],
-): Promise<void> {
-  if (seenExternalIds.length === 0) return;
-  const placeholders = seenExternalIds.map((_, i) => `?${i + 2}`).join(', ');
-  await db
+): Promise<number> {
+  const exclusion = seenExternalIds.length === 0
+    ? ''
+    : `AND external_id NOT IN (${seenExternalIds.map((_, i) => `?${i + 2}`).join(', ')})`;
+  const result = await db
     .prepare(
-      `UPDATE repositories SET status = 'inaccessible'
-       WHERE workspace_id = ?1 AND status = 'active' AND external_id NOT IN (${placeholders})`,
+      `UPDATE repositories SET status = 'inaccessible', status_reason = 'not_seen_after_complete_discovery',
+         state_changed_at = datetime('now'), last_reconciled_at = datetime('now')
+       WHERE workspace_id = ?1 AND status = 'active' ${exclusion}`,
     )
     .bind(workspaceId, ...seenExternalIds)
     .run();
+  return result.meta.changes ?? 0;
+}
+
+export interface ConnectionRepositoryRow {
+  id: string;
+  full_name: string;
+  workspace_slug: string;
+  monitoring_state: MonitoringState;
+  status: string;
+  status_reason: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  state_changed_at: string | null;
+  removed_at: string | null;
+  last_reconciled_at: string | null;
+}
+
+async function refreshRepositoryBudgetAttributions(
+  db: D1Database,
+  repositoryId: string,
+  workspaceId: string,
+): Promise<void> {
+  await db.prepare('DELETE FROM budget_repository_attributions WHERE repository_id = ?1')
+    .bind(repositoryId).run();
+  await db.prepare(
+    `UPDATE budgets SET repository_id = NULL
+     WHERE repository_id = ?1 AND workspace_id != ?2`,
+  ).bind(repositoryId, workspaceId).run();
+  await db.prepare(
+    `UPDATE budgets SET repository_id = ?1
+     WHERE workspace_id = ?2 AND lower(COALESCE(scope_type, '')) IN ('repository', 'repo')
+       AND EXISTS (
+         SELECT 1 FROM repositories r WHERE r.id = ?1
+           AND (lower(budgets.scope_entity_name) = lower(r.full_name)
+             OR lower(budgets.scope_entity_name) = lower(r.name)
+             OR lower(budgets.scope_target) = lower(r.full_name)
+             OR lower(budgets.scope_target) = lower(r.name))
+       )`,
+  ).bind(repositoryId, workspaceId).run();
+  await db.prepare(
+    `INSERT INTO budget_repository_attributions (budget_id, repository_id, attribution_type)
+     SELECT id, ?1, CASE WHEN repository_id = ?1 THEN 'direct' ELSE 'inherited' END
+     FROM budgets
+     WHERE workspace_id = ?2 AND (
+       repository_id = ?1 OR lower(COALESCE(scope_type, '')) IN
+         ('organization', 'org', 'enterprise', 'cost_center')
+     )
+     ON CONFLICT (budget_id, repository_id) DO UPDATE SET
+       attribution_type = excluded.attribution_type`,
+  ).bind(repositoryId, workspaceId).run();
+}
+
+/** Complete current and historical inventory for one provider connection. */
+export async function listConnectionRepositories(
+  db: D1Database,
+  connectionId: string,
+): Promise<ConnectionRepositoryRow[]> {
+  const result = await db.prepare(
+    `SELECT r.id, r.full_name, w.slug AS workspace_slug, r.monitoring_state,
+            r.status, r.status_reason, r.first_seen_at, r.last_seen_at,
+            r.state_changed_at, r.removed_at, r.last_reconciled_at
+     FROM repositories r
+     JOIN workspaces w ON w.id = r.workspace_id
+     WHERE w.connection_id = ?1
+     ORDER BY CASE r.status WHEN 'active' THEN 0 WHEN 'inaccessible' THEN 1 ELSE 2 END,
+              lower(r.full_name)`,
+  ).bind(connectionId).all<ConnectionRepositoryRow>();
+  return result.results;
+}
+
+export async function getRepositoryDiscoveryState(
+  db: D1Database,
+  connectionId: string,
+  externalId: string,
+): Promise<{ id: string; workspace_id: string; full_name: string; status: string } | null> {
+  return db.prepare(
+    `SELECT r.id, r.workspace_id, r.full_name, r.status
+     FROM repository_provider_identities i JOIN repositories r ON r.id = i.repository_id
+     WHERE i.connection_id = ?1 AND i.external_id = ?2`,
+  ).bind(connectionId, externalId)
+    .first<{ id: string; workspace_id: string; full_name: string; status: string }>();
 }
 
 /**
@@ -167,10 +318,11 @@ export async function getRepositoryByFullName(
   db: D1Database,
   fullName: string,
 ): Promise<RepositoryRow | null> {
-  return db
-    .prepare(`SELECT * FROM repositories WHERE full_name = ?1 LIMIT 1`)
+  const result = await db
+    .prepare(`SELECT * FROM repositories WHERE full_name = ?1 ORDER BY id LIMIT 2`)
     .bind(fullName)
-    .first<RepositoryRow>();
+    .all<RepositoryRow>();
+  return result.results.length === 1 ? result.results[0]! : null;
 }
 
 export async function getRepositoryByExternalId(
@@ -195,8 +347,13 @@ export async function listActiveMonitoredRepositories(
 ): Promise<RepositoryRow[]> {
   const result = await db
     .prepare(
-      `SELECT * FROM repositories
-       WHERE workspace_id = ?1 AND status = 'active' AND monitoring_state = 'monitored' AND is_archived = 0`,
+      `SELECT r.* FROM repositories r
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       WHERE r.workspace_id = ?1 AND r.status = 'active'
+         AND r.monitoring_state = 'monitored' AND r.is_archived = 0
+         AND w.status = 'active' AND w.monitoring_state = 'monitored'
+         AND c.status = 'active'`,
     )
     .bind(workspaceId)
     .all<RepositoryRow>();
@@ -210,9 +367,13 @@ export async function claimEnrichmentBatch(
 ): Promise<RepositoryRow[]> {
   const result = await db
     .prepare(
-      `SELECT * FROM repositories
-       WHERE status = 'active' AND monitoring_state = 'monitored' AND is_archived = 0
-       ORDER BY enrich_synced_at ASC NULLS FIRST
+      `SELECT r.* FROM repositories r
+       JOIN workspaces w ON w.id = r.workspace_id
+       JOIN provider_connections c ON c.id = w.connection_id
+       WHERE r.status = 'active' AND r.monitoring_state = 'monitored' AND r.is_archived = 0
+         AND w.status = 'active' AND w.monitoring_state = 'monitored'
+         AND c.status = 'active'
+       ORDER BY r.enrich_synced_at ASC NULLS FIRST
        LIMIT ?1`,
     )
     .bind(limit)
@@ -301,7 +462,9 @@ export async function listRepositoryItems(
        JOIN workspaces w ON w.id = r.workspace_id
        JOIN provider_connections c ON c.id = w.connection_id
        LEFT JOIN health_snapshots h ON h.repository_id = r.id
-       WHERE r.status IN ('active', 'inaccessible') ${archivedClause} ${monitoringClause}
+       WHERE r.status IN ('active', 'inaccessible')
+         AND w.status = 'active' AND c.status = 'active'
+         ${archivedClause} ${monitoringClause}
        ORDER BY r.full_name
        LIMIT ?1`,
     )
@@ -331,7 +494,8 @@ export async function listNewSinceReview(
        JOIN workspaces w ON w.id = r.workspace_id
        JOIN provider_connections c ON c.id = w.connection_id
        LEFT JOIN health_snapshots h ON h.repository_id = r.id
-       WHERE r.status IN ('active', 'inaccessible') AND r.first_seen_at > ?1
+       WHERE r.status IN ('active', 'inaccessible') AND w.status = 'active'
+         AND c.status = 'active' AND r.first_seen_at > ?1
        ORDER BY r.first_seen_at DESC
        LIMIT 200`,
     )
@@ -356,12 +520,15 @@ export async function getOverviewCounts(db: D1Database): Promise<OverviewCounts>
   // ignored repository directly and any repository under an ignored
   // workspace. openCrs/branchesAhead/securityOpen/inaccessible are unscoped
   // per the design (not estate-membership counts).
-  const monitoredWorkspaceIds = `(SELECT id FROM workspaces WHERE monitoring_state = 'monitored')`;
+  const monitoredWorkspaceIds = `(SELECT w.id FROM workspaces w
+    JOIN provider_connections c ON c.id = w.connection_id
+    WHERE w.status = 'active' AND w.monitoring_state = 'monitored' AND c.status = 'active')`;
+  const activeConnectionWorkspaceIds = `(SELECT w.id FROM workspaces w
+    JOIN provider_connections c ON c.id = w.connection_id WHERE c.status = 'active')`;
   const row = await db
     .prepare(
       `SELECT
-         (SELECT COUNT(*) FROM workspaces WHERE status = 'active'
-            AND monitoring_state = 'monitored') AS workspaces,
+         (SELECT COUNT(*) FROM workspaces WHERE id IN ${monitoredWorkspaceIds}) AS workspaces,
          (SELECT COUNT(*) FROM repositories WHERE status = 'active' AND is_archived = 0
             AND monitoring_state = 'monitored'
             AND workspace_id IN ${monitoredWorkspaceIds}) AS repositories,
@@ -378,7 +545,8 @@ export async function getOverviewCounts(db: D1Database): Promise<OverviewCounts>
          (SELECT COUNT(*) FROM repositories WHERE status = 'active'
             AND monitoring_state = 'monitored' AND workspace_id IN ${monitoredWorkspaceIds}
             AND first_seen_at >= datetime('now', '-7 days')) AS new7d,
-         (SELECT COUNT(*) FROM repositories WHERE status = 'inaccessible') AS inaccessible`,
+         (SELECT COUNT(*) FROM repositories WHERE status = 'inaccessible'
+            AND workspace_id IN ${activeConnectionWorkspaceIds}) AS inaccessible`,
     )
     .first<OverviewCounts>();
   return (

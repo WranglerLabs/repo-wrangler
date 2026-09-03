@@ -6,6 +6,49 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.19] - 2026-09-03
+
+### Added
+
+- Administration now has connection inventory and detail screens for multiple
+  GitHub Apps and GitLab tokens/instances, credential provenance and permission
+  inspection, scope management, reconciliation, rotation, disablement, and
+  history-preserving disconnects.
+- Administration now exposes discovery, billing, and usage operation history,
+  checkpoints, request consumption, correlation IDs, change summaries, errors,
+  and history-preserving manual retries.
+- GitHub actual-usage ingestion now records daily and monthly product/SKU,
+  repository, user, quantity, discount, gross/net cost, and freshness data for
+  Actions, Packages, Codespaces, Copilot, AI credits, premium requests, and
+  provider-defined products.
+- Budget Settings and Actual Usage views now provide scope/product/SKU filters,
+  repository attribution, top consumers, trends, unattributed usage, and
+  budget-versus-actual projections without rendering unavailable values as zero.
+
+### Changed
+
+- GitHub budgets use the `2026-03-10` organization billing API, retrieve every
+  page, validate provider responses, preserve all product SKUs and user scope,
+  and replace only complete successful snapshots.
+- Discovery now identifies organizations, groups, and repositories by stable
+  provider IDs; records complete seen-set runs; preserves history for removals,
+  permission loss, App uninstallations, renames, and GitLab group moves; and
+  reconciles successful GitLab groups independently from failed groups.
+- Estate Scope now controls monitoring only. Provider credential and connection
+  lifecycle management lives under Administration.
+
+### Fixed
+
+- Deleted or empty organizations/groups no longer retain stale active
+  repositories after a complete discovery pass, while failed or interrupted
+  passes cannot mark unseen resources missing.
+- GitLab project moves no longer create active duplicate repository records,
+  including legacy collisions repaired by the forward-only migration.
+- Repository detail now shows only directly applicable and inherited budgets,
+  and retained last-good snapshots disclose the latest capability failure.
+- Webhooks, discovery, enrichment, billing, and usage resolve the owning
+  connection instead of selecting the first active provider credential.
+
 ## [1.0.18] - 2026-07-19
 
 ### Added
