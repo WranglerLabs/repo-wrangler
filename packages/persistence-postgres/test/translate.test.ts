@@ -21,6 +21,21 @@ describe('translateSql — placeholders', () => {
   it('rewrites double-digit placeholders', () => {
     expect(translateSql('VALUES (?9, ?10, ?11, ?20)')).toBe('VALUES ($9, $10, $11, $20)');
   });
+
+  it('types omitted optional text filters so PostgreSQL accepts null values', () => {
+    const out = translateSql(
+      'WHERE (?1 IS NULL OR usage_date >= ?1) AND (?2 IS NULL OR usage_date <= ?2)',
+    );
+    expect(out).toBe(
+      'WHERE (CAST($1 AS text) IS NULL OR usage_date >= $1) AND (CAST($2 AS text) IS NULL OR usage_date <= $2)',
+    );
+  });
+
+  it('types nullable connection filters without changing the reused comparison', () => {
+    expect(translateSql("AND (?2 IS NULL OR COALESCE(base_url, '') = ?2)")).toBe(
+      "AND (CAST($2 AS text) IS NULL OR COALESCE(base_url, '') = $2)",
+    );
+  });
 });
 
 describe('translateSql — case-preserving aliases', () => {

@@ -9,7 +9,7 @@
  * already valid PostgreSQL once the compatibility functions from
  * `migrations`/compat are installed (see `applyPostgresMigrations`).
  *
- * The rewrite handles exactly the three constructs that differ:
+ * The rewrite handles exactly the four constructs that differ:
  *
  *  1. **Placeholders.** D1 uses `?1, ?2, …`; PostgreSQL uses `$1, $2, …`.
  *  2. **Case-preserving aliases.** PostgreSQL folds unquoted identifiers to
@@ -18,7 +18,11 @@
  *     upper-case letter is double-quoted to preserve the exact casing D1/SQLite
  *     returns. Lower-case aliases (and lower-case type names in a `CAST … AS
  *     type`) are left untouched because they already round-trip unchanged.
- *  3. **`INSERT OR IGNORE`.** SQLite's conflict-swallowing insert becomes
+ *  3. **Nullable text filters.** PostgreSQL cannot infer the type of a null
+ *     parameter used as `?1 IS NULL`, even when the same placeholder is later
+ *     compared with a text column. Cast the null check to `text` so optional
+ *     repository, workspace, and date filters work when omitted.
+ *  4. **`INSERT OR IGNORE`.** SQLite's conflict-swallowing insert becomes
  *     `INSERT … ON CONFLICT DO NOTHING`, preserving the "0 rows affected on
  *     duplicate" semantics the webhook idempotency check relies on.
  *
@@ -45,6 +49,14 @@ export function translateSql(sql: string): string {
   // 3. ?N positional placeholders → $N. The persistence layer uses numbered
   //    placeholders exclusively, so there is no bare `?` to disambiguate.
   out = out.replace(/\?(\d+)/g, '$$$1');
+
+  // 4. PostgreSQL cannot resolve an untyped null parameter in `$N IS NULL`.
+  // All optional filters in the portable query layer target TEXT-backed ids,
+  // dates, or URLs, so giving the null check an explicit text type is safe and
+  // leaves the reused comparison placeholder unchanged.
+  out = out.replace(/\$(\d+)\s+IS\s+(NOT\s+)?NULL/gi, (_match, number, not) =>
+    `CAST($${number} AS text) IS ${not ?? ''}NULL`,
+  );
 
   return out;
 }
