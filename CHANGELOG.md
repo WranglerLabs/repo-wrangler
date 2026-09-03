@@ -6,6 +6,16 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.20] - 2026-09-03
+
+### Fixed
+
+- Actual Usage and other optional text-filter queries now give omitted
+  parameters an explicit PostgreSQL type, preventing HTTP 500 responses when
+  date, workspace, repository, or connection filters are not supplied.
+- PostgreSQL adapter regression coverage now exercises the nullable-filter SQL
+  pattern that failed during v1.0.19 production verification.
+
 ## [1.0.19] - 2026-09-03
 
 ### Added
