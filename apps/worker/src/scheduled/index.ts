@@ -73,6 +73,7 @@ import {
   upsertBranch,
   replaceWorkspaceBudgets,
   setProviderCapability,
+  upsertCopilotSubscription,
   replaceWorkspaceUsagePeriod,
   upsertChangeRequest,
   upsertHealthSnapshot,
@@ -87,6 +88,7 @@ import {
   collectBranches,
   fetchGovernanceProfile,
   getInstallationToken,
+  getOrganizationCopilotSubscription,
   latestDefaultBranchRun,
   listInstallationRepositories,
   listInstallationsDetailed,
@@ -907,6 +909,7 @@ interface BillingCursor {
   workspaceIndex: number;
   monthOffset: number;
   budgetsCompleted: boolean;
+  copilotSubscriptionCompleted: boolean;
 }
 
 function billingPeriod(monthOffset: number) {
@@ -923,13 +926,16 @@ function billingPeriod(monthOffset: number) {
 }
 
 function parseBillingCursor(cursorText: string | null): BillingCursor {
-  if (!cursorText) return { workspaceIndex: 0, monthOffset: 0, budgetsCompleted: false };
+  if (!cursorText) return {
+    workspaceIndex: 0, monthOffset: 0, budgetsCompleted: false, copilotSubscriptionCompleted: false,
+  };
   try {
     const parsed = JSON.parse(cursorText) as Partial<BillingCursor>;
     return {
       workspaceIndex: parsed.workspaceIndex ?? 0,
       monthOffset: parsed.monthOffset ?? 0,
       budgetsCompleted: parsed.budgetsCompleted ?? false,
+      copilotSubscriptionCompleted: parsed.copilotSubscriptionCompleted ?? false,
     };
   } catch {
     const legacyIndex = Number.parseInt(cursorText, 10);
@@ -937,6 +943,7 @@ function parseBillingCursor(cursorText: string | null): BillingCursor {
       workspaceIndex: Number.isFinite(legacyIndex) ? legacyIndex : 0,
       monthOffset: 0,
       budgetsCompleted: false,
+      copilotSubscriptionCompleted: false,
     };
   }
 }
@@ -969,6 +976,8 @@ export async function runBillingSync(
         workspaceIndex: index,
         monthOffset: index === cursor.workspaceIndex ? cursor.monthOffset : 0,
         budgetsCompleted: index === cursor.workspaceIndex ? cursor.budgetsCompleted : false,
+        copilotSubscriptionCompleted: index === cursor.workspaceIndex
+          ? cursor.copilotSubscriptionCompleted : false,
       } satisfies BillingCursor);
       await checkpointSyncJob(env.DB, jobId, checkpoint, used);
       await checkpointOperationRun(env.DB, jobId, checkpoint, used);
@@ -985,6 +994,18 @@ export async function runBillingSync(
     used += 1;
 
     let budgetsCompleted = index === cursor.workspaceIndex ? cursor.budgetsCompleted : false;
+    let copilotSubscriptionCompleted = index === cursor.workspaceIndex
+      ? cursor.copilotSubscriptionCompleted : false;
+    if (!copilotSubscriptionCompleted) {
+      const subscription = await getOrganizationCopilotSubscription(token, workspace.slug);
+      used += subscription.data?.subrequestsUsed ?? 1;
+      if (subscription.state === 'available' && subscription.data?.item) {
+        await upsertCopilotSubscription(env.DB, workspace.id, subscription.data.item);
+      }
+      await setProviderCapability(env.DB, workspace.id, 'copilot_subscription', subscription.state,
+        subscription.state === 'available' ? undefined : subscription.state, subscription.detail);
+      copilotSubscriptionCompleted = true;
+    }
     if (!budgetsCompleted) {
       const budgetAllowance = Math.max(1, budget - used - 3);
       const budgets = await listOrganizationBudgets(token, workspace.slug, budgetAllowance);
@@ -1006,7 +1027,7 @@ export async function runBillingSync(
       )) continue;
       if (budget - used < 3) {
         const checkpoint = JSON.stringify({
-          workspaceIndex: index, monthOffset, budgetsCompleted,
+          workspaceIndex: index, monthOffset, budgetsCompleted, copilotSubscriptionCompleted,
         } satisfies BillingCursor);
         await checkpointSyncJob(env.DB, jobId, checkpoint, used);
         await checkpointOperationRun(env.DB, jobId, checkpoint, used);

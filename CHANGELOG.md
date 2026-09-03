@@ -6,6 +6,23 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.22] - 2026-09-03
+
+### Added
+
+- Budget Settings now collects and displays organization-wide GitHub Copilot
+  Business or Enterprise subscription plans, seat counts, assignment mode, and
+  feature policies separately from explicitly configured metered budgets.
+- Copilot subscription availability has its own per-organization capability and
+  freshness state, preserving the last successful subscription snapshot when a
+  later provider request fails.
+
+### Fixed
+
+- Empty Copilot budget and usage results now explain that GitHub returned no
+  configured metered AI-credit or premium-request record; they no longer imply
+  that an organization lacks a Copilot subscription or consumed zero usage.
+
 ## [1.0.21] - 2026-09-03
 
 ### Fixed

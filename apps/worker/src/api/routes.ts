@@ -25,6 +25,7 @@ import {
   getSyncStats,
   getWebhookStats,
   listAllBudgets,
+  listCopilotSubscriptions,
   listActiveConnectionsByType,
   listApplicableRepositoryBudgets,
   listAttentionRows,
@@ -439,9 +440,33 @@ apiRoutes.get('/security', async (c) => {
 
 apiRoutes.get('/budgets', async (c) => {
   if (isDemoMode(c.env)) return c.json(demoEstateBudgets());
-  const [rows, capabilities] = await Promise.all([
+  const [rows, capabilities, copilotSubscriptions, copilotCapabilities] = await Promise.all([
     listAllBudgets(c.env.DB), listProviderCapabilities(c.env.DB, 'budgets'),
+    listCopilotSubscriptions(c.env.DB), listProviderCapabilities(c.env.DB, 'copilot_subscription'),
   ]);
+  const mappedCopilotCapabilities = copilotCapabilities.map((capability) => ({
+    workspaceSlug: capability.workspace_slug, provider: capability.provider,
+    state: capability.state, errorCode: capability.error_code ?? undefined,
+    detail: capability.error_detail ?? undefined,
+    checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
+  }));
+  const mappedCopilotSubscriptions = copilotSubscriptions.map((subscription) => ({
+    workspaceSlug: subscription.workspace_slug, provider: subscription.provider,
+    planType: subscription.plan_type,
+    seatManagementSetting: subscription.seat_management_setting ?? undefined,
+    totalSeats: subscription.total_seats,
+    addedThisCycle: subscription.added_this_cycle ?? undefined,
+    pendingInvitation: subscription.pending_invitation ?? undefined,
+    pendingCancellation: subscription.pending_cancellation ?? undefined,
+    activeThisCycle: subscription.active_this_cycle ?? undefined,
+    inactiveThisCycle: subscription.inactive_this_cycle ?? undefined,
+    ideChat: subscription.ide_chat ?? undefined,
+    platformChat: subscription.platform_chat ?? undefined,
+    cli: subscription.cli ?? undefined,
+    publicCodeSuggestions: subscription.public_code_suggestions ?? undefined,
+    observedAt: subscription.observed_at,
+    lastSuccessfulSyncAt: subscription.last_successful_sync_at,
+  }));
   const body: EstateBudgetsDto =
     rows.length === 0
       ? {
@@ -452,6 +477,8 @@ apiRoutes.get('/budgets', async (c) => {
             detail: capability.error_detail ?? undefined,
             checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
           })),
+          copilotSubscriptions: mappedCopilotSubscriptions,
+          copilotCapabilities: mappedCopilotCapabilities,
         }
       : {
           state: 'available',
@@ -483,6 +510,8 @@ apiRoutes.get('/budgets', async (c) => {
             detail: capability.error_detail ?? undefined,
             checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
           })),
+          copilotSubscriptions: mappedCopilotSubscriptions,
+          copilotCapabilities: mappedCopilotCapabilities,
         };
   return c.json(body);
 });

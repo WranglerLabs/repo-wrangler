@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BudgetDto, UsageItemDto } from '@repo-wrangler/contracts';
 import { aggregate, budgetApplies, isActionsMinute } from '../src/routes/Usage';
+import { isCopilotBudget } from '../src/routes/Budgets';
 
 function usage(overrides: Partial<UsageItemDto> = {}): UsageItemDto {
   return {
@@ -65,5 +66,10 @@ describe('Actual Usage view calculations', () => {
   it('recognizes Actions minute SKUs without depending on exact capitalization', () => {
     expect(isActionsMinute(usage({ product: 'github actions', unitType: 'Minutes' }))).toBe(true);
     expect(isActionsMinute(usage({ product: 'Packages', unitType: 'gigabytes' }))).toBe(false);
+  });
+
+  it('distinguishes metered Copilot and AI-credit budgets from the subscription', () => {
+    expect(isCopilotBudget(budget({ product: 'Copilot', productSkus: ['ai_credits'] }))).toBe(true);
+    expect(isCopilotBudget(budget({ product: 'Actions', productSkus: ['actions'] }))).toBe(false);
   });
 });

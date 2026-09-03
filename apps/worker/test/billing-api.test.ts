@@ -5,7 +5,7 @@ import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite
 import { makeBudgetSnapshot, makeRepositorySnapshot, makeWorkspaceSnapshot } from '@repo-wrangler/test-support';
 import {
   ensureGitHubConnection, replaceWorkspaceBudgets, setProviderCapability,
-  upsertRepository, upsertUsage, upsertWorkspace,
+  upsertCopilotSubscription, upsertRepository, upsertUsage, upsertWorkspace,
 } from '@repo-wrangler/persistence-d1';
 import { apiRoutes } from '../src/api/routes';
 import type { Env } from '../src/bindings';
@@ -54,6 +54,25 @@ describe('budget and usage APIs', () => {
       amount: 20, alertEnabled: true, alertRecipients: ['billing-manager'],
       preventFurtherUsage: true,
     });
+  });
+
+  it('returns Copilot subscription seats separately from metered Copilot budgets', async () => {
+    await upsertCopilotSubscription(db, workspaceId, {
+      planType: 'business', totalSeats: 12, activeThisCycle: 10,
+      seatManagementSetting: 'assign_selected', publicCodeSuggestions: 'block',
+    });
+    await setProviderCapability(db, workspaceId, 'copilot_subscription', 'available');
+    await setProviderCapability(db, workspaceId, 'budgets', 'available');
+
+    const body = await (await app.request('/api/v1/budgets', {}, env())).json();
+    expect(body.items).toBeUndefined();
+    expect(body.copilotSubscriptions).toEqual([expect.objectContaining({
+      workspaceSlug: 'heritage-virginia', planType: 'business', totalSeats: 12,
+      activeThisCycle: 10, seatManagementSetting: 'assign_selected',
+    })]);
+    expect(body.copilotCapabilities).toEqual([
+      expect.objectContaining({ workspaceSlug: 'heritage-virginia', state: 'available' }),
+    ]);
   });
 
   it('returns actual repository usage and honest unavailable capability state', async () => {

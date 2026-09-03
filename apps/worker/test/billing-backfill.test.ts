@@ -12,6 +12,7 @@ import { runBillingSync } from '../src/scheduled/index';
 const migrationsDir = join(__dirname, '../../../migrations');
 const mocks = vi.hoisted(() => ({
   getInstallationToken: vi.fn(),
+  getOrganizationCopilotSubscription: vi.fn(),
   listOrganizationBudgets: vi.fn(),
   listOrganizationUsage: vi.fn(),
 }));
@@ -41,6 +42,9 @@ describe('checkpointed billing and historical usage import', () => {
        VALUES ('billing-backfill', 'billing', 8, ?1, 'running')`,
     ).bind(connectionId).run();
     mocks.getInstallationToken.mockReset().mockResolvedValue('installation-token');
+    mocks.getOrganizationCopilotSubscription.mockReset().mockResolvedValue({
+      state: 'available', data: { item: { planType: 'business', totalSeats: 4 }, subrequestsUsed: 1 },
+    });
     mocks.listOrganizationBudgets.mockReset().mockResolvedValue({
       state: 'available', data: { items: [], subrequestsUsed: 1 },
     });
@@ -67,7 +71,7 @@ describe('checkpointed billing and historical usage import', () => {
 
     const used = await runBillingSync(env, 'billing-backfill', null, 10, connectionId);
 
-    expect(used).toBe(8);
+    expect(used).toBe(9);
     expect(mocks.listOrganizationUsage).toHaveBeenCalledTimes(2);
     const job = await db.prepare(
       `SELECT state, cursor FROM sync_jobs WHERE id = 'billing-backfill'`,
@@ -75,6 +79,7 @@ describe('checkpointed billing and historical usage import', () => {
     expect(job?.state).toBe('pending');
     expect(JSON.parse(job!.cursor)).toMatchObject({
       workspaceIndex: 0, monthOffset: 2, budgetsCompleted: true,
+      copilotSubscriptionCompleted: true,
     });
     const imports = await listUsageImports(db);
     expect(imports).toHaveLength(2);

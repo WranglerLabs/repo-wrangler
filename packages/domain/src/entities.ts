@@ -178,6 +178,22 @@ export interface BudgetSnapshot {
   alertStatus?: string;
 }
 
+/** Organization-wide Copilot subscription metadata, distinct from metered budgets. */
+export interface CopilotSubscriptionSnapshot {
+  planType: string;
+  seatManagementSetting?: string;
+  totalSeats: number;
+  addedThisCycle?: number;
+  pendingInvitation?: number;
+  pendingCancellation?: number;
+  activeThisCycle?: number;
+  inactiveThisCycle?: number;
+  ideChat?: string;
+  platformChat?: string;
+  cli?: string;
+  publicCodeSuggestions?: string;
+}
+
 /** One provider billing usage item, normalized without discarding unknown SKUs. */
 export interface UsageSnapshot {
   usageDate: string;

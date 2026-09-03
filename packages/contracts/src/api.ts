@@ -328,6 +328,26 @@ export const budgetDtoSchema = z.object({
 });
 export type BudgetDto = z.infer<typeof budgetDtoSchema>;
 
+export const copilotSubscriptionDtoSchema = z.object({
+  workspaceSlug: z.string(),
+  provider: z.string(),
+  planType: z.string(),
+  seatManagementSetting: z.string().optional(),
+  totalSeats: z.number(),
+  addedThisCycle: z.number().optional(),
+  pendingInvitation: z.number().optional(),
+  pendingCancellation: z.number().optional(),
+  activeThisCycle: z.number().optional(),
+  inactiveThisCycle: z.number().optional(),
+  ideChat: z.string().optional(),
+  platformChat: z.string().optional(),
+  cli: z.string().optional(),
+  publicCodeSuggestions: z.string().optional(),
+  observedAt: z.string(),
+  lastSuccessfulSyncAt: z.string(),
+});
+export type CopilotSubscriptionDto = z.infer<typeof copilotSubscriptionDtoSchema>;
+
 export const estatePipelineSchema = z.object({
   repositoryId: z.string(),
   repositoryFullName: z.string(),
@@ -367,6 +387,12 @@ export const estateBudgetsSchema = z.object({
     )
     .optional(),
   capabilities: z.array(z.object({
+    workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
+    errorCode: z.string().optional(), detail: z.string().optional(),
+    checkedAt: z.string(), lastSuccessAt: z.string().optional(),
+  })).optional(),
+  copilotSubscriptions: z.array(copilotSubscriptionDtoSchema).optional(),
+  copilotCapabilities: z.array(z.object({
     workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
     errorCode: z.string().optional(), detail: z.string().optional(),
     checkedAt: z.string(), lastSuccessAt: z.string().optional(),
