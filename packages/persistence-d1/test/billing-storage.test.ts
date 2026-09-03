@@ -4,8 +4,9 @@ import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite
 import { makeBudgetSnapshot, makeRepositorySnapshot, makeWorkspaceSnapshot } from '@repo-wrangler/test-support';
 import {
   ensureGitHubConnection, getProviderCapability, listApplicableRepositoryBudgets,
+  listCopilotSubscriptions,
   listUsage, listWorkspaceBudgets, replaceWorkspaceBudgets, setProviderCapability,
-  replaceWorkspaceUsagePeriod, upsertRepository, upsertUsage, upsertWorkspace,
+  replaceWorkspaceUsagePeriod, upsertCopilotSubscription, upsertRepository, upsertUsage, upsertWorkspace,
 } from '../src';
 
 const migrationsDir = join(__dirname, '../../../migrations');
@@ -22,6 +23,23 @@ async function estate() {
 }
 
 describe('billing persistence', () => {
+  it('stores organization Copilot subscription metadata separately from budgets', async () => {
+    const { db, workspaceId } = await estate();
+    await upsertCopilotSubscription(db, workspaceId, {
+      planType: 'business', totalSeats: 12, activeThisCycle: 10,
+      seatManagementSetting: 'assign_selected', ideChat: 'enabled',
+      publicCodeSuggestions: 'block',
+    });
+
+    expect(await listWorkspaceBudgets(db, workspaceId)).toEqual([]);
+    expect(await listCopilotSubscriptions(db)).toEqual([
+      expect.objectContaining({
+        workspace_id: workspaceId, plan_type: 'business', total_seats: 12,
+        active_this_cycle: 10, seat_management_setting: 'assign_selected',
+      }),
+    ]);
+  });
+
   it('replaces a successful budget snapshot and removes deleted provider budgets', async () => {
     const { db, workspaceId } = await estate();
     await replaceWorkspaceBudgets(db, workspaceId, [

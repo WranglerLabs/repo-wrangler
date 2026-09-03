@@ -814,6 +814,21 @@ export function demoEstateBudgets(): EstateBudgetsDto {
         observedAt: daysAgo(0.5),
       },
     ],
+    capabilities: [{
+      workspaceSlug: 'hill-valley-labs', provider: 'github', state: 'available',
+      checkedAt: daysAgo(0.5), lastSuccessAt: daysAgo(0.5),
+    }],
+    copilotSubscriptions: [{
+      workspaceSlug: 'hill-valley-labs', provider: 'github', planType: 'business',
+      seatManagementSetting: 'assign_selected', totalSeats: 8, activeThisCycle: 7,
+      pendingInvitation: 1, ideChat: 'enabled', platformChat: 'enabled', cli: 'enabled',
+      publicCodeSuggestions: 'block', observedAt: daysAgo(0.5),
+      lastSuccessfulSyncAt: daysAgo(0.5),
+    }],
+    copilotCapabilities: [{
+      workspaceSlug: 'hill-valley-labs', provider: 'github', state: 'available',
+      checkedAt: daysAgo(0.5), lastSuccessAt: daysAgo(0.5),
+    }],
   };
 }
 

@@ -243,7 +243,7 @@ export function Usage() {
             <td>{row.key}</td><td>{aggregateNumber(row.aggregate)}</td>
             <td>{row.rows[0]?.unitType ?? 'Unavailable'}</td>
             <td>{aggregateMoney(aggregate(row.rows, (item) => item.netAmount))}</td>
-          </tr>)}</tbody>
+          </tr>)}{copilotBySku.length === 0 && <tr><td colSpan={4}>No Copilot, AI-credit, or premium-request usage was returned for this selection. This does not mean the organization lacks a Copilot subscription.</td></tr>}</tbody>
         </table>
       </div>
 

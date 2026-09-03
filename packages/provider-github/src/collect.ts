@@ -3,6 +3,7 @@ import type {
   BudgetSnapshot,
   CapabilityResult,
   ChangeRequestSnapshot,
+  CopilotSubscriptionSnapshot,
   GovernanceInfo,
   PipelineRunSnapshot,
   RepositorySnapshot,
@@ -436,6 +437,67 @@ export async function listOrganizationBudgets(
   }
   return { ...capabilityUnavailable('temporarily_unavailable', 'Budget pagination exceeded the request allowance.'),
     data: { items: [], subrequestsUsed: maxSubrequests } };
+}
+
+export interface CopilotSubscriptionCollection {
+  item?: CopilotSubscriptionSnapshot;
+  subrequestsUsed: number;
+}
+
+function parseCopilotSubscription(value: unknown): CopilotSubscriptionSnapshot | null {
+  if (!isRecord(value)) return null;
+  const seatBreakdown = value.seat_breakdown;
+  if (!isRecord(seatBreakdown)) return null;
+  const planType = optionalString(value.plan_type);
+  const totalSeats = optionalNumber(seatBreakdown.total);
+  if (!planType || totalSeats === undefined) return null;
+  const optionalSeatFields = [
+    'added_this_cycle', 'pending_invitation', 'pending_cancellation',
+    'active_this_cycle', 'inactive_this_cycle',
+  ] as const;
+  if (optionalSeatFields.some((field) => seatBreakdown[field] !== undefined
+    && optionalNumber(seatBreakdown[field]) === undefined)) return null;
+  const optionalPolicyFields = [
+    'seat_management_setting', 'ide_chat', 'platform_chat', 'cli', 'public_code_suggestions',
+  ] as const;
+  if (optionalPolicyFields.some((field) => value[field] !== undefined
+    && optionalString(value[field]) === undefined)) return null;
+  return {
+    planType,
+    seatManagementSetting: optionalString(value.seat_management_setting),
+    totalSeats,
+    addedThisCycle: optionalNumber(seatBreakdown.added_this_cycle),
+    pendingInvitation: optionalNumber(seatBreakdown.pending_invitation),
+    pendingCancellation: optionalNumber(seatBreakdown.pending_cancellation),
+    activeThisCycle: optionalNumber(seatBreakdown.active_this_cycle),
+    inactiveThisCycle: optionalNumber(seatBreakdown.inactive_this_cycle),
+    ideChat: optionalString(value.ide_chat),
+    platformChat: optionalString(value.platform_chat),
+    cli: optionalString(value.cli),
+    publicCodeSuggestions: optionalString(value.public_code_suggestions),
+  };
+}
+
+/** Copilot Business/Enterprise subscription metadata; this is not a metered budget. */
+export async function getOrganizationCopilotSubscription(
+  token: string,
+  orgSlug: string,
+): Promise<CapabilityResult<CopilotSubscriptionCollection>> {
+  const response = await new GitHubClient(token).request<unknown>(
+    `/orgs/${encodeURIComponent(orgSlug)}/copilot/billing`,
+    { headers: { 'x-github-api-version': GITHUB_BILLING_API_VERSION } },
+  );
+  if (!response.ok) {
+    const state = response.status === 404 ? 'unsupported_by_plan'
+      : capabilityStateFromHttpStatus(response.status, { rateLimited: isSecondaryRateLimited(response) });
+    return { ...capabilityUnavailable(state), data: { subrequestsUsed: 1 } };
+  }
+  const item = parseCopilotSubscription(response.data);
+  if (!item) return {
+    ...capabilityUnavailable('error', 'GitHub returned an invalid Copilot subscription response.'),
+    data: { subrequestsUsed: 1 },
+  };
+  return capabilityAvailable({ item, subrequestsUsed: 1 });
 }
 
 function parseUsageItem(

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { listOrganizationBudgets, listOrganizationUsage } from '../src/collect';
+import {
+  getOrganizationCopilotSubscription, listOrganizationBudgets, listOrganizationUsage,
+} from '../src/collect';
 import { GITHUB_BILLING_API_VERSION } from '../src/client';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -12,6 +14,36 @@ function jsonResponse(body: unknown, status = 200): Response {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('GitHub enhanced billing', () => {
+  it('collects and validates organization-wide Copilot subscription metadata separately', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      seat_breakdown: {
+        total: 12, added_this_cycle: 2, pending_invitation: 1,
+        pending_cancellation: 0, active_this_cycle: 10, inactive_this_cycle: 2,
+      },
+      seat_management_setting: 'assign_selected', ide_chat: 'enabled',
+      platform_chat: 'enabled', cli: 'enabled', public_code_suggestions: 'block',
+      plan_type: 'business',
+    })));
+
+    const result = await getOrganizationCopilotSubscription('token', 'heritage-virginia');
+
+    expect(result).toEqual(expect.objectContaining({
+      state: 'available',
+      data: { subrequestsUsed: 1, item: expect.objectContaining({
+        planType: 'business', totalSeats: 12, activeThisCycle: 10,
+        seatManagementSetting: 'assign_selected', publicCodeSuggestions: 'block',
+      }) },
+    }));
+  });
+
+  it('does not turn an unavailable or malformed Copilot subscription into an empty subscription', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({ message: 'not found' }, 404))
+      .mockResolvedValueOnce(jsonResponse({ plan_type: 'business' })));
+    expect((await getOrganizationCopilotSubscription('token', 'acme')).state)
+      .toBe('unsupported_by_plan');
+    expect((await getOrganizationCopilotSubscription('token', 'acme')).state).toBe('error');
+  });
+
   it('paginates and maps the complete current budget schema', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ budgets: [{

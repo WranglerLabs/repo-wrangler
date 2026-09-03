@@ -1,4 +1,4 @@
-import type { BudgetSnapshot, CapabilityState } from '@repo-wrangler/domain';
+import type { BudgetSnapshot, CapabilityState, CopilotSubscriptionSnapshot } from '@repo-wrangler/domain';
 
 export interface BudgetRow {
   id: string;
@@ -32,6 +32,63 @@ export interface ProviderCapabilityRow {
   error_detail: string | null;
   checked_at: string;
   last_success_at: string | null;
+}
+
+export interface CopilotSubscriptionRow {
+  workspace_id: string;
+  plan_type: string;
+  seat_management_setting: string | null;
+  total_seats: number;
+  added_this_cycle: number | null;
+  pending_invitation: number | null;
+  pending_cancellation: number | null;
+  active_this_cycle: number | null;
+  inactive_this_cycle: number | null;
+  ide_chat: string | null;
+  platform_chat: string | null;
+  cli: string | null;
+  public_code_suggestions: string | null;
+  observed_at: string;
+  last_successful_sync_at: string;
+}
+
+export async function upsertCopilotSubscription(
+  db: D1Database,
+  workspaceId: string,
+  subscription: CopilotSubscriptionSnapshot,
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO copilot_subscriptions (
+       workspace_id, plan_type, seat_management_setting, total_seats,
+       added_this_cycle, pending_invitation, pending_cancellation,
+       active_this_cycle, inactive_this_cycle, ide_chat, platform_chat, cli,
+       public_code_suggestions, observed_at, last_successful_sync_at
+     ) VALUES (
+       ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13,
+       datetime('now'), datetime('now')
+     ) ON CONFLICT (workspace_id) DO UPDATE SET
+       plan_type = excluded.plan_type,
+       seat_management_setting = excluded.seat_management_setting,
+       total_seats = excluded.total_seats,
+       added_this_cycle = excluded.added_this_cycle,
+       pending_invitation = excluded.pending_invitation,
+       pending_cancellation = excluded.pending_cancellation,
+       active_this_cycle = excluded.active_this_cycle,
+       inactive_this_cycle = excluded.inactive_this_cycle,
+       ide_chat = excluded.ide_chat,
+       platform_chat = excluded.platform_chat,
+       cli = excluded.cli,
+       public_code_suggestions = excluded.public_code_suggestions,
+       observed_at = datetime('now'),
+       last_successful_sync_at = datetime('now')`,
+  ).bind(
+    workspaceId, subscription.planType, subscription.seatManagementSetting ?? null,
+    subscription.totalSeats, subscription.addedThisCycle ?? null,
+    subscription.pendingInvitation ?? null, subscription.pendingCancellation ?? null,
+    subscription.activeThisCycle ?? null, subscription.inactiveThisCycle ?? null,
+    subscription.ideChat ?? null, subscription.platformChat ?? null,
+    subscription.cli ?? null, subscription.publicCodeSuggestions ?? null,
+  ).run();
 }
 
 export async function upsertBudget(
@@ -192,6 +249,22 @@ export async function listProviderCapabilities(
      JOIN provider_connections c ON c.id = w.connection_id
      WHERE pc.capability = ?1 ORDER BY w.slug`,
   ).bind(capability).all<EstateCapabilityRow>();
+  return result.results;
+}
+
+export interface EstateCopilotSubscriptionRow extends CopilotSubscriptionRow {
+  workspace_slug: string;
+  provider: string;
+}
+
+export async function listCopilotSubscriptions(db: D1Database): Promise<EstateCopilotSubscriptionRow[]> {
+  const result = await db.prepare(
+    `SELECT s.*, w.slug AS workspace_slug, c.provider_type AS provider
+     FROM copilot_subscriptions s
+     JOIN workspaces w ON w.id = s.workspace_id
+     JOIN provider_connections c ON c.id = w.connection_id
+     ORDER BY w.slug`,
+  ).all<EstateCopilotSubscriptionRow>();
   return result.results;
 }
 
