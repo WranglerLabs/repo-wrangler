@@ -10,9 +10,9 @@
   },
   "dependencies": {
     "@repo-wrangler/domain": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }
