@@ -22,7 +22,7 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 ## Now — stabilize v1.0 GA
 
-**Status: GA.** RepoWrangler v1.0.20 is the current supported patch release.
+**Status: GA.** RepoWrangler v1.0.21 is the current supported patch release.
 Ranch Hand `v0.1.0-rc.9` is now the primary recommended Windows deployment path
 in **Public Preview**; the manual recipes remain a supported alternative. The
 immediate focus is operator feedback, deployment safety, and the Ranch Hand GA

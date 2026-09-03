@@ -6,6 +6,13 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.21] - 2026-09-03
+
+### Fixed
+
+- Attribute GitHub enhanced-billing usage to repositories when the API returns
+  a bare repository name instead of an `owner/repository` full name.
+
 ## [1.0.20] - 2026-09-03
 
 ### Fixed

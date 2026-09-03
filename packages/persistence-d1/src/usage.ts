@@ -44,7 +44,10 @@ export async function upsertUsage(
          observed_at, import_run_id, source_key, organization_name, user_login, model,
          period_granularity
        ) VALUES (
-         ?1, ?2, (SELECT id FROM repositories WHERE workspace_id = ?2 AND lower(full_name) = lower(?3) LIMIT 1),
+         ?1, ?2, (SELECT id FROM repositories
+                    WHERE workspace_id = ?2
+                      AND (lower(full_name) = lower(?3) OR lower(name) = lower(?3))
+                    LIMIT 1),
          ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
          ?18, ?19, ?20, ?21, ?22, ?23, ?24
        )

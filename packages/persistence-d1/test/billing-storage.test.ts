@@ -97,6 +97,21 @@ describe('billing persistence', () => {
     expect(rows[0]).toMatchObject({ quantity: 12, net_amount: 0.096 });
   });
 
+  it('attributes GitHub usage when the provider returns a bare repository name', async () => {
+    const { db, workspaceId, repositoryId } = await estate();
+    await upsertUsage(db, workspaceId, {
+      usageDate: '2026-09-01', periodGranularity: 'day',
+      product: 'Actions', sku: 'Actions Linux', repositoryFullName: 'repo',
+      unitType: 'minutes', quantity: 100, grossAmount: 0.8,
+      discountAmount: 0, netAmount: 0.8, currency: 'USD',
+      observedAt: '2026-09-03T00:00:00Z',
+    });
+
+    const rows = await listUsage(db, { workspaceId });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ repository_id: repositoryId, quantity: 100 });
+  });
+
   it('replaces a successful usage period so corrections and removed line items converge', async () => {
     const { db, workspaceId } = await estate();
     const base = {
