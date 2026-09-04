@@ -43,3 +43,21 @@ export const releaseManifestSchema = z.object({
 }).strict();
 
 export type ReleaseManifestDto = z.infer<typeof releaseManifestSchema>;
+
+export const upgradeTargetSelectionSchema = z.object({
+  targetVersion: z.string().regex(/^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/),
+  targetDigest: digest,
+}).strict();
+
+export const executeUpgradeRequestSchema = upgradeTargetSelectionSchema.extend({
+  approvalToken: z.string().min(40).max(4096),
+  idempotencyKey: z.string().min(16).max(200),
+}).strict();
+
+export const upgradeActionSchema = z.object({
+  action: z.enum(['cancel', 'rollback']),
+}).strict();
+
+export const executeUpgradeActionSchema = upgradeActionSchema.extend({
+  approvalToken: z.string().min(40).max(4096),
+}).strict();

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canReleaseUpgradeLock,
+  upgradeJobTransitionPath,
   canTransitionUpgradeJob,
   TERMINAL_UPGRADE_JOB_STATES,
   UPGRADE_JOB_STATES,
@@ -52,6 +54,16 @@ describe('upgrade lifecycle state machine', () => {
     expect(canTransitionUpgradeJob('deploying', 'canceled')).toBe(false);
   });
 
+  it('derives governed paths when polling skips controller checkpoints', () => {
+    expect(upgradeJobTransitionPath('accepted', 'deploying')).toEqual([
+      'preflight', 'backup', 'validating_artifact', 'deploying',
+    ]);
+    expect(upgradeJobTransitionPath('verifying', 'rolled_back')).toEqual([
+      'rollback_requested', 'rolling_back', 'rolled_back',
+    ]);
+    expect(upgradeJobTransitionPath('completed', 'canceled')).toEqual([]);
+  });
+
   it('keeps terminal states explicit and every declared state governed', () => {
     expect(TERMINAL_UPGRADE_JOB_STATES).toEqual([
       'completed', 'canceled', 'failed', 'rolled_back',
@@ -59,5 +71,13 @@ describe('upgrade lifecycle state machine', () => {
     for (const state of TERMINAL_UPGRADE_JOB_STATES) {
       expect(UPGRADE_JOB_STATES).toContain(state);
     }
+  });
+
+  it('holds the deployment lock for ambiguous failures', () => {
+    expect(canReleaseUpgradeLock('failed', {})).toBe(false);
+    expect(canReleaseUpgradeLock('failed', {
+      failure: { productionPreserved: true, verifiedAt: '2026-09-04T00:00:00Z' },
+    })).toBe(true);
+    expect(canReleaseUpgradeLock('completed', {})).toBe(true);
   });
 });

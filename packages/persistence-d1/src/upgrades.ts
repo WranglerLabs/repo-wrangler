@@ -1,4 +1,5 @@
 import {
+  canReleaseUpgradeLock,
   canTransitionUpgradeJob,
   missingUpgradeSafetyEvidence,
   type UpgradeControllerEvidence,
@@ -47,6 +48,7 @@ interface UpgradeJobRow {
   controller_correlation_id: string | null;
   preflight_result: string | null;
   controller_evidence: string;
+  lock_released_at: string | null;
   safe_error_code: string | null;
   safe_error_detail: string | null;
   requested_at: string;
@@ -152,7 +154,7 @@ export async function listUpgradeJobs(
 async function activeUpgradeJobId(db: D1Database): Promise<string | null> {
   const row = await db.prepare(
     `SELECT id FROM upgrade_jobs
-     WHERE state NOT IN ('completed', 'canceled', 'failed', 'rolled_back')
+     WHERE lock_released_at IS NULL
      ORDER BY requested_at LIMIT 1`,
   ).first<{ id: string }>();
   return row?.id ?? null;
@@ -239,6 +241,7 @@ export async function transitionUpgradeJob(
   }
 
   const terminal = ['completed', 'canceled', 'failed', 'rolled_back'].includes(nextState);
+  const releaseLock = canReleaseUpgradeLock(nextState, mergedEvidence);
   const result = await db.prepare(
     `UPDATE upgrade_jobs SET state = ?2,
        controller_correlation_id = COALESCE(?3, controller_correlation_id),
@@ -248,6 +251,7 @@ export async function transitionUpgradeJob(
        accepted_at = CASE WHEN ?2 = 'accepted' THEN COALESCE(accepted_at, datetime('now')) ELSE accepted_at END,
        started_at = CASE WHEN ?2 = 'preflight' THEN COALESCE(started_at, datetime('now')) ELSE started_at END,
        completed_at = CASE WHEN ?8 = 1 THEN datetime('now') ELSE completed_at END,
+       lock_released_at = CASE WHEN ?10 = 1 THEN datetime('now') ELSE lock_released_at END,
        cancel_requested_at = CASE WHEN ?2 = 'cancel_requested' THEN datetime('now') ELSE cancel_requested_at END,
        rollback_requested_at = CASE WHEN ?2 = 'rollback_requested' THEN datetime('now') ELSE rollback_requested_at END,
        last_observed_at = datetime('now'), updated_at = datetime('now')
@@ -257,7 +261,7 @@ export async function transitionUpgradeJob(
     input.preflightResult ? JSON.stringify(input.preflightResult) : null,
     input.evidence ? JSON.stringify(mergedEvidence) : null,
     input.safeErrorCode ?? null, input.safeErrorDetail?.slice(0, 500) ?? null,
-    terminal ? 1 : 0, current.state,
+    terminal ? 1 : 0, current.state, releaseLock ? 1 : 0,
   ).run();
   if ((result.meta.changes ?? 0) !== 1) {
     throw new Error(`Upgrade job ${id} changed concurrently.`);

@@ -95,7 +95,7 @@ describe('durable upgrade jobs', () => {
       ]);
   });
 
-  it('refuses invalid state jumps and releases the lock after a final failure', async () => {
+  it('keeps the lock after an ambiguous failure and releases it only with preservation evidence', async () => {
     const { d1 } = database();
     const db = d1 as unknown as D1Database;
     await createUpgradeJob(db, input('upgrade-1'));
@@ -108,7 +108,22 @@ describe('durable upgrade jobs', () => {
       eventId: 'failed', safeErrorCode: 'controller_unavailable',
       safeErrorDetail: 'The controller did not accept the request.',
     });
-    await expect(createUpgradeJob(db, input('upgrade-2'))).resolves.toMatchObject({
+    await expect(createUpgradeJob(db, input('upgrade-2')))
+      .rejects.toBeInstanceOf(UpgradeInProgressError);
+
+    const second = database();
+    const secondDb = second.d1 as unknown as D1Database;
+    await createUpgradeJob(secondDb, input('upgrade-safe'));
+    await transitionUpgradeJob(secondDb, 'upgrade-safe', 'failed', {
+      eventId: 'failed-safe', safeErrorCode: 'controller_rejected',
+      evidence: {
+        failure: {
+          productionPreserved: true,
+          verifiedAt: '2026-09-04T00:00:00.000Z',
+        },
+      },
+    });
+    await expect(createUpgradeJob(secondDb, input('upgrade-2'))).resolves.toMatchObject({
       created: true, job: { id: 'upgrade-2' },
     });
   });

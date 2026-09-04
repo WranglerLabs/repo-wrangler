@@ -53,6 +53,29 @@ export function canTransitionUpgradeJob(
   return ALLOWED_TRANSITIONS[from].includes(to);
 }
 
+/** Shortest governed path to a controller-observed state (empty when unreachable). */
+export function upgradeJobTransitionPath(
+  from: UpgradeJobState,
+  to: UpgradeJobState,
+): UpgradeJobState[] {
+  if (from === to) return [];
+  const queue: Array<{ state: UpgradeJobState; path: UpgradeJobState[] }> = [
+    { state: from, path: [] },
+  ];
+  const visited = new Set<UpgradeJobState>([from]);
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const next of ALLOWED_TRANSITIONS[current.state]) {
+      if (visited.has(next)) continue;
+      const path = [...current.path, next];
+      if (next === to) return path;
+      visited.add(next);
+      queue.push({ state: next, path });
+    }
+  }
+  return [];
+}
+
 export type UpgradeControllerAvailability = 'available' | 'manual' | 'unavailable';
 
 export interface UpgradeControllerCapabilities {
@@ -114,6 +137,11 @@ export interface UpgradeControllerStatus {
 }
 
 export interface UpgradeControllerEvidence extends Record<string, unknown> {
+  failure?: {
+    /** True only after the controller has verified that production was not changed. */
+    productionPreserved: boolean;
+    verifiedAt: string;
+  };
   backup?: { verified: boolean; id: string; completedAt: string };
   migrationValidation?: {
     verified: boolean;
@@ -142,6 +170,17 @@ export interface UpgradeControllerEvidence extends Record<string, unknown> {
     restored?: boolean;
     healthVerified?: boolean;
   };
+}
+
+/** A failed job releases its deployment lock only with affirmative safety evidence. */
+export function canReleaseUpgradeLock(
+  state: UpgradeJobState,
+  evidence: UpgradeControllerEvidence,
+): boolean {
+  if (['completed', 'canceled', 'rolled_back'].includes(state)) return true;
+  return state === 'failed'
+    && evidence.failure?.productionPreserved === true
+    && Boolean(evidence.failure.verifiedAt);
 }
 
 /** Evidence required before crossing each production safety boundary. */

@@ -21,6 +21,7 @@ CREATE TABLE upgrade_jobs (
   controller_correlation_id TEXT,
   preflight_result TEXT,
   controller_evidence TEXT NOT NULL DEFAULT '{}',
+  lock_released_at TEXT,
   safe_error_code TEXT,
   safe_error_detail TEXT,
   requested_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -35,10 +36,12 @@ CREATE TABLE upgrade_jobs (
 );
 
 -- The database, not the UI, prevents two deployments from mutating the same
--- installation concurrently. Terminal outcomes release the lock.
+-- installation concurrently. A failure keeps the lock unless the controller
+-- proves that production was preserved; this prevents a second deployment
+-- from starting while a failed or ambiguous rollout still needs recovery.
 CREATE UNIQUE INDEX idx_upgrade_jobs_active_lock
 ON upgrade_jobs (lock_scope)
-WHERE state NOT IN ('completed', 'canceled', 'failed', 'rolled_back');
+WHERE lock_released_at IS NULL;
 
 CREATE INDEX idx_upgrade_jobs_requested
 ON upgrade_jobs (requested_at, state);
