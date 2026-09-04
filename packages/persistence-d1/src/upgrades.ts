@@ -286,6 +286,63 @@ export async function transitionUpgradeJob(
   return updated;
 }
 
+/** Persist controller evidence even when the external lifecycle state did not change. */
+export async function recordUpgradeJobObservation(
+  db: D1Database,
+  id: string,
+  input: Omit<TransitionUpgradeJobInput, 'preflightResult' | 'controllerCorrelationId'>,
+): Promise<UpgradeJobSnapshot> {
+  const current = await db.prepare('SELECT * FROM upgrade_jobs WHERE id = ?1')
+    .bind(id).first<UpgradeJobRow>();
+  if (!current) throw new Error(`Upgrade job ${id} was not found.`);
+
+  const mergedEvidence: UpgradeControllerEvidence = {
+    ...parseJsonObject(current.controller_evidence),
+    ...(input.evidence ?? {}),
+  };
+  const serializedEvidence = JSON.stringify(mergedEvidence);
+  const detail = input.safeDetail?.slice(0, 500) ?? null;
+  const errorDetail = input.safeErrorDetail?.slice(0, 500) ?? null;
+  const result = await db.prepare(
+    `UPDATE upgrade_jobs SET
+       controller_evidence = ?2,
+       safe_error_code = COALESCE(?3, safe_error_code),
+       safe_error_detail = COALESCE(?4, safe_error_detail),
+       last_observed_at = datetime('now'), updated_at = datetime('now')
+     WHERE id = ?1 AND state = ?5 AND controller_evidence = ?6`,
+  ).bind(
+    id, serializedEvidence, input.safeErrorCode ?? null, errorDetail,
+    current.state, current.controller_evidence,
+  ).run();
+  if ((result.meta.changes ?? 0) !== 1) {
+    const concurrent = await getUpgradeJob(db, id);
+    if (!concurrent) throw new Error(`Upgrade job ${id} disappeared during observation.`);
+    return concurrent;
+  }
+
+  const evidenceChanged = serializedEvidence !== current.controller_evidence
+    || (input.safeErrorCode !== undefined && input.safeErrorCode !== current.safe_error_code)
+    || (input.safeErrorDetail !== undefined && errorDetail !== current.safe_error_detail);
+  if (evidenceChanged) {
+    const sequence = await db.prepare(
+      'SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM upgrade_job_events WHERE upgrade_job_id = ?1',
+    ).bind(id).first<{ sequence: number }>();
+    await db.prepare(
+      `INSERT INTO upgrade_job_events (
+         id, upgrade_job_id, sequence, event_type, from_state, to_state,
+         actor_id, safe_detail, evidence
+       ) VALUES (?1, ?2, ?3, 'observation', ?4, ?4, ?5, ?6, ?7)`,
+    ).bind(
+      input.eventId, id, sequence?.sequence ?? 1, current.state,
+      input.actorId ?? null, detail, JSON.stringify(input.evidence ?? {}),
+    ).run();
+  }
+
+  const updated = await getUpgradeJob(db, id);
+  if (!updated) throw new Error(`Upgrade job ${id} disappeared after observation.`);
+  return updated;
+}
+
 export interface UpgradeJobEventRow {
   id: string;
   upgrade_job_id: string;

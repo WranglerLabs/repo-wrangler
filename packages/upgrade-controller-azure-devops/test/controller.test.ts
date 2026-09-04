@@ -51,7 +51,7 @@ describe('Azure DevOps upgrade controller', () => {
       previewRun: true,
       resources: { repositories: { self: { refName: 'refs/heads/main' } } },
       templateParameters: {
-        operation: 'preflight', targetDigest: request.targetDigest,
+        operation: 'upgrade', targetDigest: request.targetDigest,
         deploymentTarget: 'hcs-production', actorId: 'owner@example.test',
       },
     });

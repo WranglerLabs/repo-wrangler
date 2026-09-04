@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
+  AdministrationUpdatesDto,
   ActivityEventDto,
   AttentionItemDto,
   ConnectionDto,
@@ -19,11 +20,13 @@ import type {
   OperationJobDto,
   OverviewDto,
   PlatformHealthDto,
+  PrepareUpgradeDto,
   RepositoryDetailDto,
   RepositoryListItemDto,
   SavedViewDto,
   SessionUserDto,
   WorkspaceDto,
+  UpgradeJobDetailDto,
 } from '@repo-wrangler/contracts';
 
 export type MonitoringState = 'monitored' | 'ignored';
@@ -564,4 +567,62 @@ export function useConnectionRepositories(connectionId: string | undefined) {
 
 export async function retryOperation(id: string): Promise<void> {
   await apiSend(`/api/v1/admin/operations/${id}/retry`, 'POST');
+}
+
+export type UpgradeJobDto = AdministrationUpdatesDto['jobs'][number];
+export type UpgradeAction = 'cancel' | 'rollback';
+
+export function useAdministrationUpdates() {
+  return useQuery<AdministrationUpdatesDto>({
+    queryKey: ['administration-updates'],
+    queryFn: () => apiGet('/api/v1/admin/updates'),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useUpgradeJob(id: string | undefined) {
+  return useQuery<UpgradeJobDetailDto>({
+    queryKey: ['upgrade-job', id],
+    queryFn: () => apiGet(`/api/v1/admin/updates/jobs/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const state = query.state.data?.job.state;
+      return state && ['completed', 'canceled', 'failed', 'rolled_back'].includes(state)
+        ? false : 5_000;
+    },
+  });
+}
+
+export async function prepareUpgrade(targetVersion: string, targetDigest: string) {
+  return apiSend<PrepareUpgradeDto>('/api/v1/admin/updates/prepare', 'POST', {
+    targetVersion, targetDigest,
+  });
+}
+
+export async function requestUpgrade(
+  prepared: PrepareUpgradeDto,
+  idempotencyKey: string,
+): Promise<{ replayed: boolean; job: UpgradeJobDto }> {
+  return apiSend('/api/v1/admin/updates/request', 'POST', {
+    targetVersion: prepared.target.targetVersion,
+    targetDigest: prepared.target.targetDigest,
+    approvalToken: prepared.approvalToken,
+    idempotencyKey,
+  });
+}
+
+export async function prepareUpgradeAction(jobId: string, action: UpgradeAction) {
+  return apiSend<{ approvalToken: string; action: UpgradeAction; job: UpgradeJobDto }>(
+    `/api/v1/admin/updates/jobs/${jobId}/prepare-action`, 'POST', { action },
+  );
+}
+
+export async function executeUpgradeAction(
+  jobId: string,
+  action: UpgradeAction,
+  approvalToken: string,
+): Promise<{ job: UpgradeJobDto }> {
+  return apiSend(`/api/v1/admin/updates/jobs/${jobId}/${action}`, 'POST', {
+    action, approvalToken,
+  });
 }

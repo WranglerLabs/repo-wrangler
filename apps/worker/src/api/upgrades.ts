@@ -17,8 +17,10 @@ import {
   createUpgradeJob,
   getUpgradeJob,
   getUpgradeJobByIdempotencyKey,
+  listAuditEvents,
   listUpgradeJobEvents,
   listUpgradeJobs,
+  recordUpgradeJobObservation,
   recordAuditEvent,
   registerUpgradeRequestNonce,
   transitionUpgradeJob,
@@ -85,8 +87,33 @@ function publicJob(job: UpgradeJobSnapshot) {
   return job;
 }
 
+function publicJobEvent(event: Awaited<ReturnType<typeof listUpgradeJobEvents>>[number]) {
+  let evidence: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(event.evidence);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      evidence = parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Historical malformed evidence is represented honestly as unavailable.
+  }
+  return {
+    id: event.id,
+    sequence: event.sequence,
+    eventType: event.event_type,
+    fromState: event.from_state ?? undefined,
+    toState: event.to_state,
+    actorId: event.actor_id ?? undefined,
+    detail: event.safe_detail ?? undefined,
+    evidence,
+    createdAt: event.created_at,
+  };
+}
+
 upgradeRoutes.get('/', requireAdmin, async (c) => {
-  const [release, jobs] = await Promise.all([currentEvaluation(c.env), listUpgradeJobs(c.env.DB)]);
+  const [release, jobs, audit] = await Promise.all([
+    currentEvaluation(c.env), listUpgradeJobs(c.env.DB), listAuditEvents(c.env.DB, 200),
+  ]);
   return c.json({
     installedVersion: appVersion(c.env),
     channel: release.configured.channel,
@@ -100,6 +127,15 @@ upgradeRoutes.get('/', requireAdmin, async (c) => {
       code: release.fetched.code, detail: release.fetched.detail,
     },
     jobs: jobs.map(publicJob),
+    auditEvents: audit
+      .filter((event) => event.action.startsWith('upgrade.'))
+      .slice(0, 50)
+      .map((event) => ({
+        actor: event.actor,
+        action: event.action,
+        detail: event.detail ?? undefined,
+        createdAt: event.created_at,
+      })),
   });
 });
 
@@ -140,6 +176,11 @@ upgradeRoutes.post('/prepare', requireAdmin, async (c) => {
     ready: controllerPreflight.ready,
     irreversibleChanges: evaluation.irreversibleMigrations,
   };
+  if (!preflight.ready) {
+    await recordAuditEvent(c.env.DB, upgradeActor.id, 'upgrade.preflight.rejected',
+      `correlation=${correlationId} target=${request.targetVersion} reason=controller_not_ready`);
+    return c.json({ error: 'controller_preflight_failed', correlationId, preflight }, 409);
+  }
   const issued = await createUpgradeActionToken(c.env.SESSION_SECRET, {
     actor: upgradeActor, action: 'request',
     deploymentTarget: request.deploymentTarget,
@@ -282,12 +323,23 @@ upgradeRoutes.get('/jobs/:id', requireAdmin, async (c) => {
               : `Reconciled skipped controller checkpoint ${state}.`,
           });
         }
+      } else {
+        job = await recordUpgradeJobObservation(c.env.DB, job.id, {
+          eventId: crypto.randomUUID(), evidence: observed.evidence,
+          safeErrorCode: observed.safeErrorCode,
+          safeErrorDetail: observed.safeErrorDetail
+            ? redactUpgradeDetail(observed.safeErrorDetail) : undefined,
+          safeDetail: 'Controller evidence refreshed without a lifecycle transition.',
+        });
       }
     } catch {
       // Preserve the last durable state; a transient poll failure is not a job failure.
     }
   }
-  return c.json({ job: publicJob(job), events: await listUpgradeJobEvents(c.env.DB, job.id) });
+  return c.json({
+    job: publicJob(job),
+    events: (await listUpgradeJobEvents(c.env.DB, job.id)).map(publicJobEvent),
+  });
 });
 
 upgradeRoutes.post('/jobs/:id/prepare-action', requireAdmin, async (c) => {
@@ -295,6 +347,9 @@ upgradeRoutes.post('/jobs/:id/prepare-action', requireAdmin, async (c) => {
   const parsed = upgradeActionSchema.safeParse(await readJson(c));
   const job = await getUpgradeJob(c.env.DB, c.req.param('id'));
   if (!parsed.success || !job || !c.env.SESSION_SECRET) return c.json({ error: 'invalid_request' }, 400);
+  if (!upgradeActionAvailable(job, parsed.data.action)) {
+    return c.json({ error: 'action_not_available' }, 409);
+  }
   const upgradeActor = actor(c);
   const issued = await createUpgradeActionToken(c.env.SESSION_SECRET, {
     actor: upgradeActor, action: parsed.data.action,
@@ -321,6 +376,9 @@ async function executeAction(
   const job = await getUpgradeJob(c.env.DB, c.req.param('id'));
   if (!parsed.success || parsed.data.action !== expectedAction || !job || !c.env.SESSION_SECRET
     || !job.controllerCorrelationId) return c.json({ error: 'invalid_request' }, 400);
+  if (!upgradeActionAvailable(job, expectedAction)) {
+    return c.json({ error: 'action_not_available' }, 409);
+  }
   const upgradeActor = actor(c);
   const binding = {
     actor: upgradeActor, action: expectedAction,
@@ -355,3 +413,13 @@ upgradeRoutes.post('/jobs/:id/cancel', requireAdmin,
   (c) => executeAction(c, 'cancel'));
 upgradeRoutes.post('/jobs/:id/rollback', requireAdmin,
   (c) => executeAction(c, 'rollback'));
+
+function upgradeActionAvailable(
+  job: UpgradeJobSnapshot,
+  action: UpgradeProtectedAction,
+): boolean {
+  if (!job.controllerCorrelationId) return false;
+  if (action === 'cancel') return ['accepted', 'preflight'].includes(job.state);
+  return ['deploying', 'verifying', 'completed', 'failed'].includes(job.state)
+    && job.controllerEvidence.rollback?.available === true;
+}

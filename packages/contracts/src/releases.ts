@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import type {
+  ReleaseEvaluation,
+  UpgradeControllerCapabilities,
+  UpgradeJobSnapshot,
+  UpgradePreflightResult,
+} from '@repo-wrangler/domain';
 
 const httpsUrl = z.string().url().refine((value) => value.startsWith('https://'), 'HTTPS URL required');
 const digest = z.string().regex(/^sha256:[a-fA-F0-9]{64}$/);
@@ -61,3 +67,50 @@ export const upgradeActionSchema = z.object({
 export const executeUpgradeActionSchema = upgradeActionSchema.extend({
   approvalToken: z.string().min(40).max(4096),
 }).strict();
+
+export interface UpgradeAuditEventDto {
+  actor: string;
+  action: string;
+  detail?: string;
+  createdAt: string;
+}
+
+export interface UpgradeJobEventDto {
+  id: string;
+  sequence: number;
+  eventType: string;
+  fromState?: string;
+  toState: string;
+  actorId?: string;
+  detail?: string;
+  evidence: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AdministrationUpdatesDto {
+  installedVersion: string;
+  channel: 'stable' | 'preview';
+  deploymentTarget: string;
+  releaseTarget: string;
+  manifestUrl: string;
+  checkedAt: string;
+  evaluation: ReleaseEvaluation;
+  controller: UpgradeControllerCapabilities;
+  sourceError?: { code: string; detail: string };
+  jobs: UpgradeJobSnapshot[];
+  auditEvents: UpgradeAuditEventDto[];
+}
+
+export interface PrepareUpgradeDto {
+  correlationId: string;
+  preflight: UpgradePreflightResult;
+  approvalToken: string;
+  approvalExpiresAt: string;
+  target: z.infer<typeof upgradeTargetSelectionSchema>;
+  rollback: { version?: string; digest?: string };
+}
+
+export interface UpgradeJobDetailDto {
+  job: UpgradeJobSnapshot;
+  events: UpgradeJobEventDto[];
+}

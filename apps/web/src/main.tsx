@@ -19,6 +19,7 @@ import { Administration } from './routes/Administration';
 import { Connections } from './routes/Connections';
 import { ConnectionDetail } from './routes/ConnectionDetail';
 import { Operations } from './routes/Operations';
+import { Updates } from './routes/Updates';
 import { Credits } from './routes/Credits';
 import { ThemeStudio } from './routes/ThemeStudio';
 import { Onboarding } from './routes/Onboarding';
@@ -62,6 +63,7 @@ const router = createBrowserRouter([
       { path: 'admin/connections', element: <Connections /> },
       { path: 'admin/connections/:id', element: <ConnectionDetail /> },
       { path: 'admin/operations', element: <Operations /> },
+      { path: 'admin/updates', element: <Updates /> },
       { path: 'admin/estate-scope', element: <EstateScope /> },
       { path: 'onboarding', element: <Onboarding /> },
       { path: 'theme', element: <ThemeStudio /> },

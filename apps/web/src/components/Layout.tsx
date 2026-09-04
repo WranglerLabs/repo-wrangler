@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     { to: '/admin', label: 'Overview', end: true },
     { to: '/admin/connections', label: 'Connections' },
     { to: '/admin/estate-scope', label: 'Estate scope' },
+    { to: '/admin/updates', label: 'Updates' },
   ] },
   { label: 'Information', items: [
     { to: '/credits', label: 'About & Credits' },

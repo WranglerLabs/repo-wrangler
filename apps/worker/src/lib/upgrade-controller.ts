@@ -29,11 +29,7 @@ class ManualUpgradeController implements UpgradeDeploymentController {
       controllerType: 'manual', availability: 'manual',
       operations: { preflight: false, request: false, status: false, cancel: false, rollback: false },
       detail: this.detail,
-      manualInstructions: [
-        `Use the supported ${this.target} deployment procedure.`,
-        'Select the immutable version and digest shown by RepoWrangler.',
-        'Complete backup, migration validation, deployment, health verification, and rollback recording externally.',
-      ],
+      manualInstructions: manualUpgradeInstructions(this.target),
     });
   }
 
@@ -56,6 +52,29 @@ class ManualUpgradeController implements UpgradeDeploymentController {
   rollback(_controllerCorrelationId: string, _actor: UpgradeActor): Promise<UpgradeControllerReceipt> {
     return Promise.reject(this.unsupported());
   }
+}
+
+export function manualUpgradeInstructions(target: string): string[] {
+  const procedure = (() => {
+    switch (target) {
+      case 'cloudflare':
+        return 'Use the supported Cloudflare Worker and D1 deployment procedure.';
+      case 'local-compose':
+        return 'Use the supported local Docker Compose deployment procedure.';
+      case 'remote-linux-compose':
+        return 'Use the supported remote Linux Docker Compose deployment procedure.';
+      case 'kubernetes':
+        return 'Use the supported Kubernetes deployment procedure for your cluster.';
+      default:
+        return `Use the supported ${target} deployment procedure.`;
+    }
+  })();
+  return [
+    procedure,
+    'Select the exact immutable version and artifact checksum shown by RepoWrangler.',
+    'Verify the published provenance and container digest when the release supplies them.',
+    'Complete backup, restored-database migration validation, deployment, health verification, and rollback recording externally.',
+  ];
 }
 
 function positiveInteger(value: string | undefined, fallback: number): number {

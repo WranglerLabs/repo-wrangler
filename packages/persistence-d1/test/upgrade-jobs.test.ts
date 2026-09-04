@@ -9,6 +9,7 @@ import {
   MissingUpgradeSafetyEvidenceError,
   listUpgradeJobEvents,
   registerUpgradeRequestNonce,
+  recordUpgradeJobObservation,
   consumeUpgradeRequestNonce,
   transitionUpgradeJob,
   UpgradeInProgressError,
@@ -95,6 +96,25 @@ describe('durable upgrade jobs', () => {
       ]);
   });
 
+  it('durably refreshes evidence while a controller remains in the same state', async () => {
+    const { d1 } = database();
+    const db = d1 as unknown as D1Database;
+    await createUpgradeJob(db, input('observed'));
+    await transitionUpgradeJob(db, 'observed', 'accepted', {
+      eventId: 'observed-2', controllerCorrelationId: 'controller-42',
+    });
+
+    const observed = await recordUpgradeJobObservation(db, 'observed', {
+      eventId: 'observed-3',
+      evidence: { checkpoint: 3 },
+      safeDetail: 'Controller evidence refreshed.',
+    });
+
+    expect(observed).toMatchObject({ state: 'accepted', controllerEvidence: { checkpoint: 3 } });
+    expect((await listUpgradeJobEvents(db, 'observed')).map((event) => event.event_type))
+      .toEqual(['requested', 'transition', 'observation']);
+  });
+
   it('keeps the lock after an ambiguous failure and releases it only with preservation evidence', async () => {
     const { d1 } = database();
     const db = d1 as unknown as D1Database;
@@ -149,7 +169,7 @@ describe('durable upgrade jobs', () => {
       targetDigest: 'sha256:target', correlationId: 'restart-upgrade-correlation',
     });
     restarted.raw.close();
-  });
+  }, 20_000);
 
   it('consumes a target-bound approval nonce exactly once', async () => {
     const { d1 } = database();

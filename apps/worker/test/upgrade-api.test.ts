@@ -11,6 +11,7 @@ const migrationsDir = join(__dirname, '../../../migrations');
 const sourceDigest = `sha256:${'a'.repeat(64)}`;
 const targetDigest = `sha256:${'b'.repeat(64)}`;
 let controllerCheckpoint: Record<string, unknown> | undefined;
+let controllerPreviewYaml: string | undefined;
 
 const manifest = {
   schemaVersion: '1.1', product: 'RepoWrangler', version: 'v1.0.24',
@@ -73,7 +74,7 @@ function providerFetch() {
         result: controllerCheckpoint?.state === 'completed' ? 'succeeded' : undefined,
       });
       const body = JSON.parse(String(init?.body)) as { previewRun?: boolean };
-      if (body.previewRun) return Response.json({ finalYaml: 'stages: []' });
+      if (body.previewRun) return Response.json({ finalYaml: controllerPreviewYaml });
       run += 1;
       return Response.json({ id: run, state: 'inProgress', createdDate: '2026-09-05T00:00:00Z' });
     }
@@ -105,6 +106,7 @@ describe('Administration Updates API', () => {
     db = opened.d1 as unknown as D1Database;
     env = environment(db);
     controllerCheckpoint = undefined;
+    controllerPreviewYaml = 'stages: []';
     vi.stubGlobal('fetch', providerFetch());
   });
 
@@ -116,7 +118,7 @@ describe('Administration Updates API', () => {
       deploymentTarget: 'hcs-production',
       evaluation: { status: 'update_available', availableVersion: 'v1.0.24', imageDigest: targetDigest },
       controller: { availability: 'available', controllerType: 'azure-devops' },
-      jobs: [],
+      jobs: [], auditEvents: [],
     });
   });
 
@@ -172,6 +174,34 @@ describe('Administration Updates API', () => {
       'upgrade.preflight.completed', 'upgrade.request.accepted',
     ]);
     expect(JSON.stringify(events.results)).not.toContain(confirmation.approvalToken);
+
+    const status = await application().request('/api/v1/admin/updates', {}, env);
+    const statusBody = await status.json() as { auditEvents: Array<{ action: string }> };
+    expect(statusBody.auditEvents.map((event) => event.action).sort()).toEqual([
+      'upgrade.preflight.completed', 'upgrade.request.accepted',
+    ]);
+  });
+
+  it('does not mint an execution approval when controller preflight fails', async () => {
+    controllerPreviewYaml = undefined;
+    const response = await application().request('/api/v1/admin/updates/prepare', {
+      method: 'POST', headers: {
+        'content-type': 'application/json', origin: 'https://wrangler.example.test',
+      },
+      body: JSON.stringify({ targetVersion: 'v1.0.24', targetDigest }),
+    }, env);
+
+    expect(response.status).toBe(409);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body).toMatchObject({
+      error: 'controller_preflight_failed',
+      preflight: { ready: false },
+    });
+    expect(body).not.toHaveProperty('approvalToken');
+    const audit = await db.prepare(
+      `SELECT action, detail FROM audit_events WHERE action = 'upgrade.preflight.rejected'`,
+    ).first<{ action: string; detail: string }>();
+    expect(audit?.detail).toContain('reason=controller_not_ready');
   });
 
   it('forbids viewers before release or controller access', async () => {
@@ -223,9 +253,9 @@ describe('Administration Updates API', () => {
     expect(await polled.json()).toMatchObject({
       job: { state: 'completed' },
       events: [
-        { to_state: 'requested' }, { to_state: 'accepted' }, { to_state: 'preflight' },
-        { to_state: 'backup' }, { to_state: 'validating_artifact' },
-        { to_state: 'deploying' }, { to_state: 'verifying' }, { to_state: 'completed' },
+        { toState: 'requested' }, { toState: 'accepted' }, { toState: 'preflight' },
+        { toState: 'backup' }, { toState: 'validating_artifact' },
+        { toState: 'deploying' }, { toState: 'verifying' }, { toState: 'completed' },
       ],
     });
 
@@ -263,6 +293,15 @@ describe('Administration Updates API', () => {
       }),
     }, env);
     const accepted = await requested.json() as { job: { id: string } };
+    const invalidRollback = await app.request(
+      `/api/v1/admin/updates/jobs/${accepted.job.id}/prepare-action`, {
+        method: 'POST', headers: {
+          'content-type': 'application/json', origin: 'https://wrangler.example.test',
+        }, body: JSON.stringify({ action: 'rollback' }),
+      }, env,
+    );
+    expect(invalidRollback.status).toBe(409);
+    expect(await invalidRollback.json()).toEqual({ error: 'action_not_available' });
     const cancelPrepared = await app.request(
       `/api/v1/admin/updates/jobs/${accepted.job.id}/prepare-action`, {
         method: 'POST', headers: {

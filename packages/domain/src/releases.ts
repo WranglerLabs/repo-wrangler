@@ -211,7 +211,10 @@ export function evaluateRelease(input: EvaluateReleaseInput): ReleaseEvaluation 
   const noUpdate = comparison !== null && comparison <= 0;
   const requiredChecksPass = checks
     .filter((check) => check.id !== 'provenance')
-    .every((check) => check.status === 'passed');
+    .every((check) => check.status === 'passed'
+      || (check.id === 'controller'
+        && input.controller.availability === 'manual'
+        && check.status === 'warning'));
   const executableImagePresent = input.controller.availability !== 'available' || Boolean(image?.digest);
   const status: ReleaseCheckStatus = noUpdate
     ? 'no_update'

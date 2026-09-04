@@ -244,7 +244,9 @@ export class AzureDevOpsUpgradeController implements UpgradeDeploymentController
     ) as { name?: string };
     const preview = await this.requestJson(
       `/_apis/pipelines/${this.options.pipelineId}/runs?api-version=7.1`,
-      { method: 'POST', body: JSON.stringify(this.runBody(request, 'preflight', true)) },
+      // Preview the exact executable branch. `preflight` is an application
+      // lifecycle state, not a pipeline operation accepted by the governed YAML.
+      { method: 'POST', body: JSON.stringify(this.runBody(request, 'upgrade', true)) },
     ) as { finalYaml?: string };
     const identityMatches = !this.options.expectedPipelineName
       || pipeline.name === this.options.expectedPipelineName;

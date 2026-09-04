@@ -101,4 +101,40 @@ describe('release compatibility evaluation', () => {
     expect(evaluate({ sourceSupported: false }).status).toBe('unsupported_installation_source');
     expect(evaluate({ manifest: undefined }).status).toBe('unavailable_manifest');
   });
+
+  it('reports a compatible manual update without implying controller execution', () => {
+    const manualController: UpgradeControllerCapabilities = {
+      controllerType: 'manual',
+      availability: 'manual',
+      operations: { preflight: false, request: false, status: false, cancel: false, rollback: false },
+      detail: 'No trusted external controller is configured.',
+    };
+    const composeManifest = manifest({
+      artifacts: [{
+        target: 'local-compose',
+        url: 'https://example.test/compose.tar.gz',
+        sha256: 'c'.repeat(64),
+        size: 2048,
+      }],
+      containerImages: undefined,
+      compatibility: {
+        minimumSourceVersion: 'v1.0.20',
+        databaseSchema: { minimum: 9, maximum: 9, target: 9, migrations: [] },
+        targets: ['local-compose'],
+      },
+    });
+
+    const result = evaluate({
+      deploymentTarget: 'local-compose',
+      manifest: composeManifest,
+      controller: manualController,
+    });
+
+    expect(result.status).toBe('update_available');
+    expect(result.imageDigest).toBeUndefined();
+    expect(result.checks.find((check) => check.id === 'controller')).toMatchObject({
+      status: 'warning',
+      detail: 'This installation requires a manual upgrade.',
+    });
+  });
 });
