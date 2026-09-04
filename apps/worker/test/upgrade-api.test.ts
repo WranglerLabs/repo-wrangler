@@ -12,6 +12,7 @@ const sourceDigest = `sha256:${'a'.repeat(64)}`;
 const targetDigest = `sha256:${'b'.repeat(64)}`;
 let controllerCheckpoint: Record<string, unknown> | undefined;
 let controllerPreviewYaml: string | undefined;
+let controllerPreflightThrows = false;
 
 const manifest = {
   schemaVersion: '1.1', product: 'RepoWrangler', version: 'v1.0.24',
@@ -74,7 +75,10 @@ function providerFetch() {
         result: controllerCheckpoint?.state === 'completed' ? 'succeeded' : undefined,
       });
       const body = JSON.parse(String(init?.body)) as { previewRun?: boolean };
-      if (body.previewRun) return Response.json({ finalYaml: controllerPreviewYaml });
+      if (body.previewRun) {
+        if (controllerPreflightThrows) throw new Error('request timed out with secret=do-not-show');
+        return Response.json({ finalYaml: controllerPreviewYaml });
+      }
       run += 1;
       return Response.json({ id: run, state: 'inProgress', createdDate: '2026-09-05T00:00:00Z' });
     }
@@ -107,6 +111,7 @@ describe('Administration Updates API', () => {
     env = environment(db);
     controllerCheckpoint = undefined;
     controllerPreviewYaml = 'stages: []';
+    controllerPreflightThrows = false;
     vi.stubGlobal('fetch', providerFetch());
   });
 
@@ -202,6 +207,26 @@ describe('Administration Updates API', () => {
       `SELECT action, detail FROM audit_events WHERE action = 'upgrade.preflight.rejected'`,
     ).first<{ action: string; detail: string }>();
     expect(audit?.detail).toContain('reason=controller_not_ready');
+  });
+
+  it('redacts and audits a controller timeout without minting an approval', async () => {
+    controllerPreflightThrows = true;
+    const response = await application().request('/api/v1/admin/updates/prepare', {
+      method: 'POST', headers: {
+        'content-type': 'application/json', origin: 'https://wrangler.example.test',
+      },
+      body: JSON.stringify({ targetVersion: 'v1.0.24', targetDigest }),
+    }, env);
+
+    expect(response.status).toBe(502);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body.error).toBe('controller_preflight_failed');
+    expect(JSON.stringify(body)).not.toContain('do-not-show');
+    expect(body).not.toHaveProperty('approvalToken');
+    const audit = await db.prepare(
+      `SELECT detail FROM audit_events WHERE action = 'upgrade.preflight.rejected'`,
+    ).first<{ detail: string }>();
+    expect(audit?.detail).toContain('reason=controller_error');
   });
 
   it('forbids viewers before release or controller access', async () => {

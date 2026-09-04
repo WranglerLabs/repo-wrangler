@@ -34,6 +34,21 @@ describe('Azure DevOps upgrade controller', () => {
     expect(init?.headers).toMatchObject({ 'X-IDENTITY-HEADER': 'platform-header' });
   });
 
+  it('fails a stalled controller request at the configured timeout boundary', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    const controller = new AzureDevOpsUpgradeController({
+      organization: 'hybridcloudsolutions', project: 'WranglerLabs', pipelineId: 42,
+      controllerVersion: '1.0.0', tokenProvider, fetcher, requestTimeoutMs: 5,
+    });
+
+    await expect(controller.capabilities()).resolves.toMatchObject({
+      availability: 'unavailable',
+      detail: 'Azure DevOps controller request timed out.',
+    });
+  });
+
   it('previews the approved private pipeline without creating a run', async () => {
     const fetcher = vi.fn<typeof fetch>(async (url, _init) => {
       if (String(url).includes('/runs')) return Response.json({ finalYaml: 'stages: []' });

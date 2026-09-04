@@ -77,6 +77,7 @@ export interface AzureDevOpsControllerOptions {
   tokenProvider: AccessTokenProvider;
   fetcher?: typeof fetch;
   now?: () => string;
+  requestTimeoutMs?: number;
 }
 
 interface PipelineRun {
@@ -185,27 +186,46 @@ export class AzureDevOpsUpgradeController implements UpgradeDeploymentController
   private readonly fetcher: typeof fetch;
   private readonly now: () => string;
   private readonly base: string;
+  private readonly requestTimeoutMs: number;
 
   constructor(private readonly options: AzureDevOpsControllerOptions) {
     validateOptions(options);
     this.fetcher = options.fetcher ?? fetch;
     this.now = options.now ?? (() => new Date().toISOString());
     this.base = `https://dev.azure.com/${options.organization}/${encodeURIComponent(options.project)}`;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
+    if (!Number.isInteger(this.requestTimeoutMs)
+      || this.requestTimeoutMs < 1
+      || this.requestTimeoutMs > 60_000) {
+      throw new Error('Azure DevOps request timeout must be between 1 and 60000 milliseconds.');
+    }
   }
 
   private async requestJson(path: string, init: RequestInit = {}): Promise<unknown> {
     const access = await this.options.tokenProvider.getToken();
-    const response = await this.fetcher(`${this.base}${path}`, {
-      ...init,
-      headers: {
-        accept: 'application/json',
-        authorization: `Bearer ${access.token}`,
-        ...(init.body ? { 'content-type': 'application/json' } : {}),
-        ...init.headers,
-      },
-    });
-    if (!response.ok) throw new Error(`Azure DevOps controller request failed (${response.status}).`);
-    return response.status === 204 ? {} : response.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    try {
+      const response = await this.fetcher(`${this.base}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${access.token}`,
+          ...(init.body ? { 'content-type': 'application/json' } : {}),
+          ...init.headers,
+        },
+      });
+      if (!response.ok) throw new Error(`Azure DevOps controller request failed (${response.status}).`);
+      return response.status === 204 ? {} : response.json();
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Azure DevOps controller request timed out.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async capabilities(): Promise<UpgradeControllerCapabilities> {

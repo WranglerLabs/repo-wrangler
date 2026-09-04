@@ -11,6 +11,7 @@ import {
   upgradeJobTransitionPath,
   type UpgradeActor,
   type UpgradeJobSnapshot,
+  type UpgradePreflightResult,
 } from '@repo-wrangler/domain';
 import {
   consumeUpgradeRequestNonce,
@@ -170,7 +171,17 @@ upgradeRoutes.post('/prepare', requireAdmin, async (c) => {
     rollbackDigest: c.env.UPGRADE_CURRENT_IMAGE_DIGEST,
     actor: upgradeActor,
   };
-  const controllerPreflight = await release.configured.controller.preflight(request);
+  let controllerPreflight: UpgradePreflightResult;
+  try {
+    controllerPreflight = await release.configured.controller.preflight(request);
+  } catch (error) {
+    const detail = redactUpgradeDetail(
+      error instanceof Error ? error.message : 'Controller preflight failed.',
+    );
+    await recordAuditEvent(c.env.DB, upgradeActor.id, 'upgrade.preflight.rejected',
+      `correlation=${correlationId} target=${request.targetVersion} reason=controller_error`);
+    return c.json({ error: 'controller_preflight_failed', detail }, 502);
+  }
   const preflight = {
     ...controllerPreflight,
     ready: controllerPreflight.ready,
