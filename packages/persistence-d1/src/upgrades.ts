@@ -1,5 +1,7 @@
 import {
   canTransitionUpgradeJob,
+  missingUpgradeSafetyEvidence,
+  type UpgradeControllerEvidence,
   type UpgradeJobSnapshot,
   type UpgradeJobState,
   type UpgradePreflightResult,
@@ -16,6 +18,13 @@ export class InvalidUpgradeTransitionError extends Error {
   constructor(readonly from: UpgradeJobState, readonly to: UpgradeJobState) {
     super(`Upgrade job cannot transition from ${from} to ${to}.`);
     this.name = 'InvalidUpgradeTransitionError';
+  }
+}
+
+export class MissingUpgradeSafetyEvidenceError extends Error {
+  constructor(readonly missing: string[]) {
+    super(`Upgrade transition is missing required evidence: ${missing.join(', ')}.`);
+    this.name = 'MissingUpgradeSafetyEvidenceError';
   }
 }
 
@@ -86,7 +95,7 @@ function toSnapshot(row: UpgradeJobRow): UpgradeJobSnapshot {
     safeErrorCode: row.safe_error_code ?? undefined,
     safeErrorDetail: row.safe_error_detail ?? undefined,
     preflightResult: preflight,
-    controllerEvidence: parseJsonObject(row.controller_evidence),
+    controllerEvidence: parseJsonObject(row.controller_evidence) as UpgradeControllerEvidence,
   };
 }
 
@@ -218,6 +227,17 @@ export async function transitionUpgradeJob(
     throw new InvalidUpgradeTransitionError(current.state, nextState);
   }
 
+  const mergedEvidence: UpgradeControllerEvidence = {
+    ...parseJsonObject(current.controller_evidence),
+    ...(input.evidence ?? {}),
+  };
+  const missingEvidence = missingUpgradeSafetyEvidence(
+    nextState, mergedEvidence, current.target_digest,
+  );
+  if (missingEvidence.length > 0) {
+    throw new MissingUpgradeSafetyEvidenceError(missingEvidence);
+  }
+
   const terminal = ['completed', 'canceled', 'failed', 'rolled_back'].includes(nextState);
   const result = await db.prepare(
     `UPDATE upgrade_jobs SET state = ?2,
@@ -235,7 +255,7 @@ export async function transitionUpgradeJob(
   ).bind(
     id, nextState, input.controllerCorrelationId ?? null,
     input.preflightResult ? JSON.stringify(input.preflightResult) : null,
-    input.evidence ? JSON.stringify(input.evidence) : null,
+    input.evidence ? JSON.stringify(mergedEvidence) : null,
     input.safeErrorCode ?? null, input.safeErrorDetail?.slice(0, 500) ?? null,
     terminal ? 1 : 0, current.state,
   ).run();
@@ -283,4 +303,47 @@ export async function listUpgradeJobEvents(
     'SELECT * FROM upgrade_job_events WHERE upgrade_job_id = ?1 ORDER BY sequence',
   ).bind(jobId).all<UpgradeJobEventRow>();
   return rows.results;
+}
+
+export interface UpgradeRequestNonceInput {
+  nonce: string;
+  actorId: string;
+  action: string;
+  deploymentTarget: string;
+  targetVersion: string;
+  targetDigest: string;
+  expiresAt: string;
+}
+
+export async function registerUpgradeRequestNonce(
+  db: D1Database,
+  input: UpgradeRequestNonceInput,
+): Promise<void> {
+  await db.prepare(
+    `INSERT INTO upgrade_request_nonces (
+       nonce, actor_id, action, deployment_target, target_version,
+       target_digest, expires_at
+     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+  ).bind(
+    input.nonce, input.actorId, input.action, input.deploymentTarget,
+    input.targetVersion, input.targetDigest, input.expiresAt,
+  ).run();
+}
+
+/** Atomically consumes an exact target-bound approval at most once. */
+export async function consumeUpgradeRequestNonce(
+  db: D1Database,
+  input: Omit<UpgradeRequestNonceInput, 'expiresAt'>,
+  now = new Date().toISOString(),
+): Promise<boolean> {
+  const result = await db.prepare(
+    `UPDATE upgrade_request_nonces SET used_at = ?7
+     WHERE nonce = ?1 AND actor_id = ?2 AND action = ?3
+       AND deployment_target = ?4 AND target_version = ?5 AND target_digest = ?6
+       AND used_at IS NULL AND expires_at >= ?7`,
+  ).bind(
+    input.nonce, input.actorId, input.action, input.deploymentTarget,
+    input.targetVersion, input.targetDigest, now,
+  ).run();
+  return (result.meta.changes ?? 0) === 1;
 }

@@ -3,6 +3,7 @@ import {
   canTransitionUpgradeJob,
   TERMINAL_UPGRADE_JOB_STATES,
   UPGRADE_JOB_STATES,
+  missingUpgradeSafetyEvidence,
 } from '../src/upgrades';
 
 describe('upgrade lifecycle state machine', () => {
@@ -14,6 +15,31 @@ describe('upgrade lifecycle state machine', () => {
     for (let index = 1; index < path.length; index += 1) {
       expect(canTransitionUpgradeJob(path[index - 1]!, path[index]!)).toBe(true);
     }
+  });
+
+  it('fails closed at production boundaries until controller evidence is complete', () => {
+    expect(missingUpgradeSafetyEvidence('validating_artifact', {}, 'sha256:target'))
+      .toEqual(['verified_backup', 'restored_migration_validation']);
+    const predeploy = {
+      backup: { verified: true, id: 'backup-1', completedAt: '2026-09-04T00:00:00Z' },
+      migrationValidation: {
+        verified: true, restoredDatabaseId: 'restore-1', sourceSchema: 9,
+        targetSchema: 10, completedAt: '2026-09-04T00:10:00Z',
+      },
+      artifact: {
+        digest: 'sha256:target', checksumVerified: true, provenanceVerified: true,
+        signatureVerified: true, imageAvailable: true,
+      },
+      rollback: { available: true, revision: 'old', imageDigest: 'sha256:old' },
+    };
+    expect(missingUpgradeSafetyEvidence('deploying', predeploy, 'sha256:target')).toEqual([]);
+    expect(missingUpgradeSafetyEvidence('completed', predeploy, 'sha256:target'))
+      .toEqual(['healthy_traffic_transition', 'application_health', 'schema_health']);
+    expect(missingUpgradeSafetyEvidence('completed', {
+      ...predeploy,
+      deployment: { revision: 'new', imageDigest: 'sha256:target', trafficPercent: 100 },
+      health: { application: true, schema: true, checkedAt: '2026-09-04T00:20:00Z' },
+    }, 'sha256:target')).toEqual([]);
   });
 
   it('supports safe cancellation and rollback without arbitrary state jumps', () => {

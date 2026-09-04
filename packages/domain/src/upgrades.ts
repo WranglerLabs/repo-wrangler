@@ -113,6 +113,71 @@ export interface UpgradeControllerStatus {
   evidence?: Record<string, unknown>;
 }
 
+export interface UpgradeControllerEvidence extends Record<string, unknown> {
+  backup?: { verified: boolean; id: string; completedAt: string };
+  migrationValidation?: {
+    verified: boolean;
+    restoredDatabaseId: string;
+    sourceSchema: number;
+    targetSchema: number;
+    completedAt: string;
+  };
+  artifact?: {
+    digest: string;
+    checksumVerified: boolean;
+    provenanceVerified: boolean;
+    signatureVerified: boolean;
+    imageAvailable: boolean;
+  };
+  deployment?: {
+    revision: string;
+    imageDigest: string;
+    trafficPercent: number;
+  };
+  health?: { application: boolean; schema: boolean; checkedAt: string };
+  rollback?: {
+    available: boolean;
+    revision?: string;
+    imageDigest?: string;
+    restored?: boolean;
+    healthVerified?: boolean;
+  };
+}
+
+/** Evidence required before crossing each production safety boundary. */
+export function missingUpgradeSafetyEvidence(
+  nextState: UpgradeJobState,
+  evidence: UpgradeControllerEvidence,
+  targetDigest: string,
+): string[] {
+  const missing: string[] = [];
+  if (['validating_artifact', 'deploying', 'verifying', 'completed'].includes(nextState)) {
+    if (!evidence.backup?.verified || !evidence.backup.id) missing.push('verified_backup');
+    if (!evidence.migrationValidation?.verified
+      || !evidence.migrationValidation.restoredDatabaseId) missing.push('restored_migration_validation');
+  }
+  if (['deploying', 'verifying', 'completed'].includes(nextState)) {
+    const artifact = evidence.artifact;
+    if (!artifact?.checksumVerified || artifact.digest !== targetDigest) missing.push('artifact_checksum');
+    if (!artifact?.provenanceVerified) missing.push('artifact_provenance');
+    if (!artifact?.signatureVerified) missing.push('artifact_signature');
+    if (!artifact?.imageAvailable) missing.push('container_availability');
+    if (!evidence.rollback?.available || !evidence.rollback.revision
+      || !evidence.rollback.imageDigest) missing.push('rollback_target');
+  }
+  if (nextState === 'completed') {
+    if (!evidence.deployment?.revision || evidence.deployment.imageDigest !== targetDigest
+      || evidence.deployment.trafficPercent !== 100) missing.push('healthy_traffic_transition');
+    if (!evidence.health?.application) missing.push('application_health');
+    if (!evidence.health?.schema) missing.push('schema_health');
+  }
+  if (nextState === 'rolled_back') {
+    if (!evidence.rollback?.restored) missing.push('rollback_restored');
+    if (!evidence.rollback?.healthVerified) missing.push('rollback_health');
+  }
+  return missing;
+}
+
 export interface UpgradeControllerRequest extends UpgradeTarget {
   correlationId: string;
   idempotencyKey: string;
@@ -137,7 +202,7 @@ export interface UpgradeJobSnapshot extends UpgradeTarget {
   safeErrorCode?: string;
   safeErrorDetail?: string;
   preflightResult?: UpgradePreflightResult;
-  controllerEvidence: Record<string, unknown>;
+  controllerEvidence: UpgradeControllerEvidence;
 }
 
 export interface UpgradeDeploymentController {

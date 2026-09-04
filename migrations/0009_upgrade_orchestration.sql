@@ -59,3 +59,20 @@ CREATE TABLE upgrade_job_events (
 
 CREATE INDEX idx_upgrade_job_events_job
 ON upgrade_job_events (upgrade_job_id, sequence);
+
+-- One-time, short-lived approvals provide durable replay protection even when
+-- multiple app replicas receive the same signed request concurrently.
+CREATE TABLE upgrade_request_nonces (
+  nonce TEXT PRIMARY KEY,
+  actor_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  deployment_target TEXT NOT NULL,
+  target_version TEXT NOT NULL,
+  target_digest TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_upgrade_request_nonces_expiry
+ON upgrade_request_nonces (expires_at, used_at);

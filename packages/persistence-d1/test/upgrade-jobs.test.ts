@@ -6,7 +6,10 @@ import {
   createUpgradeJob,
   getUpgradeJob,
   InvalidUpgradeTransitionError,
+  MissingUpgradeSafetyEvidenceError,
   listUpgradeJobEvents,
+  registerUpgradeRequestNonce,
+  consumeUpgradeRequestNonce,
   transitionUpgradeJob,
   UpgradeInProgressError,
 } from '../src/upgrades';
@@ -131,5 +134,38 @@ describe('durable upgrade jobs', () => {
       targetDigest: 'sha256:target', correlationId: 'restart-upgrade-correlation',
     });
     restarted.raw.close();
+  });
+
+  it('consumes a target-bound approval nonce exactly once', async () => {
+    const { d1 } = database();
+    const db = d1 as unknown as D1Database;
+    const nonce = {
+      nonce: 'one-time', actorId: 'owner-1', action: 'request',
+      deploymentTarget: 'installation', targetVersion: 'v1.0.24',
+      targetDigest: 'sha256:target', expiresAt: '2026-09-04T01:00:00.000Z',
+    };
+    await registerUpgradeRequestNonce(db, nonce);
+    await expect(consumeUpgradeRequestNonce(
+      db, nonce, '2026-09-04T00:30:00.000Z',
+    )).resolves.toBe(true);
+    await expect(consumeUpgradeRequestNonce(
+      db, nonce, '2026-09-04T00:31:00.000Z',
+    )).resolves.toBe(false);
+  });
+
+  it('refuses to cross a deployment boundary without safety evidence', async () => {
+    const { d1 } = database();
+    const db = d1 as unknown as D1Database;
+    await createUpgradeJob(db, input('gated'));
+    await transitionUpgradeJob(db, 'gated', 'accepted', { eventId: 'gated-2' });
+    await transitionUpgradeJob(db, 'gated', 'preflight', { eventId: 'gated-3' });
+    await transitionUpgradeJob(db, 'gated', 'backup', { eventId: 'gated-4' });
+    await expect(transitionUpgradeJob(db, 'gated', 'validating_artifact', {
+      eventId: 'gated-5', evidence: {
+        backup: { verified: true, id: 'backup', completedAt: '2026-09-04T00:00:00Z' },
+      },
+    })).rejects.toEqual(expect.objectContaining<Partial<MissingUpgradeSafetyEvidenceError>>({
+      missing: ['restored_migration_validation'],
+    }));
   });
 });
