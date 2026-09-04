@@ -6,6 +6,33 @@ semantic versioning.
 
 ## [Unreleased]
 
+### Added
+
+- A single FinOps-oriented Cost & Billing area now organizes overview, actual
+  usage, provider budgets and controls, data coverage, and optimization findings.
+- Cost overview separates provider-reported net and gross metered cost,
+  discounts, fixed-license lines, unclassified charges, unattributed usage, and
+  clearly labeled daily run-rate forecasts.
+- Coverage views expose organization capability and freshness, products without
+  matching controls, direct versus inherited repository budgets, and Copilot
+  subscription and seat-detail availability.
+- Read-only optimization findings identify Copilot seats for human review,
+  recent cost increases, high-cost Actions repositories, and storage, cache,
+  artifact, and bandwidth cleanup candidates.
+- GitHub organization Copilot seats are collected with complete pagination and
+  retained as lifecycle records keyed by stable GitHub user ID. CSV exports are
+  available for filtered usage and budget data.
+
+### Fixed
+
+- Budget fields missing from a provider response now say so explicitly instead
+  of rendering an ambiguous dash or false zero.
+- Budget comparisons always use their complete provider scope regardless of UI
+  filters, and projections use the latest provider day rather than the current
+  wall-clock date. Monthly aggregate rows are never projected as daily data.
+- An empty Copilot seat response is shown as a real zero only after the separate
+  seat capability succeeds; authorization and plan failures remain unavailable.
+
 ## [1.0.22] - 2026-09-03
 
 ### Added

@@ -6,6 +6,7 @@ import type {
   EstateChangeRequestDto,
   EstatePipelineDto,
   EstateSecurityFindingDto,
+  EstateUsageDto,
   OverviewDto,
   PlatformHealthDto,
   RepositoryDetailDto,
@@ -825,9 +826,72 @@ export function demoEstateBudgets(): EstateBudgetsDto {
       publicCodeSuggestions: 'block', observedAt: daysAgo(0.5),
       lastSuccessfulSyncAt: daysAgo(0.5),
     }],
+    copilotSeats: [
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github', externalUserId: '1001',
+        userLogin: 'doc-brown', planType: 'business', assigningTeamSlug: 'inventors',
+        lastActivityAt: daysAgo(0.5), lastActivityEditor: 'vscode', status: 'active',
+        firstSeenAt: daysAgo(90), lastSeenAt: daysAgo(0.5), lastSuccessfulSyncAt: daysAgo(0.5),
+      },
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github', externalUserId: '1002',
+        userLogin: 'marty-mcfly', planType: 'business', assigningTeamSlug: 'time-travelers',
+        lastActivityAt: daysAgo(45), lastActivityEditor: 'vscode', status: 'active',
+        firstSeenAt: daysAgo(90), lastSeenAt: daysAgo(0.5), lastSuccessfulSyncAt: daysAgo(0.5),
+      },
+    ],
     copilotCapabilities: [{
       workspaceSlug: 'hill-valley-labs', provider: 'github', state: 'available',
       checkedAt: daysAgo(0.5), lastSuccessAt: daysAgo(0.5),
+    }],
+    copilotSeatCapabilities: [{
+      workspaceSlug: 'hill-valley-labs', provider: 'github', state: 'available',
+      checkedAt: daysAgo(0.5), lastSuccessAt: daysAgo(0.5),
+    }],
+  };
+}
+
+export function demoEstateUsage(): EstateUsageDto {
+  const observedAt = daysAgo(0.25);
+  const date = (offset: number) => daysAgo(offset).slice(0, 10);
+  return {
+    items: [
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github',
+        repositoryId: 'gh-1', repositoryFullName: 'hill-valley-labs/flux-capacitor',
+        organizationName: 'hill-valley-labs', usageDate: date(1), periodGranularity: 'day',
+        product: 'Actions', sku: 'actions_linux', quantity: 460, netQuantity: 460,
+        unitType: 'minutes', pricePerUnit: 0.008, grossAmount: 3.68,
+        discountAmount: 0.8, netAmount: 2.88, currency: 'USD', observedAt,
+      },
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github',
+        repositoryId: 'gh-2', repositoryFullName: 'hill-valley-labs/delorean-dashboard',
+        organizationName: 'hill-valley-labs', usageDate: date(2), periodGranularity: 'day',
+        product: 'Actions', sku: 'actions_windows', quantity: 180, netQuantity: 180,
+        unitType: 'minutes', pricePerUnit: 0.016, grossAmount: 2.88,
+        discountAmount: 0, netAmount: 2.88, currency: 'USD', observedAt,
+      },
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github',
+        organizationName: 'hill-valley-labs', userLogin: 'doc-brown',
+        usageDate: date(1), periodGranularity: 'day', product: 'Copilot',
+        sku: 'ai_credits', model: 'GPT-5', grossQuantity: 320, discountQuantity: 200,
+        netQuantity: 120, unitType: 'credits', pricePerUnit: 0.01,
+        grossAmount: 3.2, discountAmount: 2, netAmount: 1.2, currency: 'USD', observedAt,
+      },
+      {
+        workspaceSlug: 'hill-valley-labs', provider: 'github',
+        repositoryId: 'gh-1', repositoryFullName: 'hill-valley-labs/flux-capacitor',
+        organizationName: 'hill-valley-labs', usageDate: date(3), periodGranularity: 'day',
+        product: 'Packages', sku: 'packages_storage', quantity: 4.5, netQuantity: 4.5,
+        unitType: 'gigabyte-months', pricePerUnit: 0.25, grossAmount: 1.125,
+        discountAmount: 0, netAmount: 1.125, currency: 'USD', observedAt,
+      },
+    ],
+    capabilities: [{
+      workspaceSlug: 'hill-valley-labs', provider: 'github', state: 'available',
+      checkedAt: observedAt, lastSuccessAt: observedAt,
     }],
   };
 }

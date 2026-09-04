@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { BudgetDto, UsageItemDto } from '@repo-wrangler/contracts';
 import { useEstateBudgets, useEstateUsage } from '../api/client';
 import { CAPABILITY_LABELS } from '../lib/format';
+import { CostBillingNav } from '../components/CostBillingNav';
+import { exportUsageCsv } from '../lib/export';
 
 export interface OptionalAggregate {
   value?: number;
@@ -92,6 +94,27 @@ export function budgetApplies(
   return productMatches || skuMatches;
 }
 
+export function projectMonthlyUsage(
+  actual: OptionalAggregate,
+  applicable: UsageItemDto[],
+  daysInMonth: number,
+): { projected?: number; basis: string } {
+  if (applicable.some((item) => item.periodGranularity === 'month')) {
+    return { basis: 'Unavailable: provider returned a monthly aggregate' };
+  }
+  const latestDailyDate = applicable.filter((item) => item.periodGranularity === 'day')
+    .map((item) => item.usageDate).sort().at(-1);
+  if (!latestDailyDate) return { basis: 'Unavailable: no daily usage returned' };
+  const elapsedProviderDays = new Date(`${latestDailyDate}T00:00:00Z`).getUTCDate();
+  if (actual.value === undefined || !Number.isFinite(elapsedProviderDays) || elapsedProviderDays < 1) {
+    return { basis: `Unavailable: provider amounts through ${latestDailyDate} were not returned` };
+  }
+  return {
+    projected: actual.value / elapsedProviderDays * daysInMonth,
+    basis: `through ${latestDailyDate}`,
+  };
+}
+
 export function Usage() {
   const usage = useEstateUsage();
   const budgets = useEstateBudgets();
@@ -118,6 +141,11 @@ export function Usage() {
     (!from || item.usageDate >= from) && (!to || item.usageDate <= to)),
   [categoryFiltered, from, to]);
   const currentMonthItems = categoryFiltered.filter((item) => item.usageDate >= monthStart && item.usageDate <= today);
+  // Budget health must always use the budget's complete provider scope. Applying
+  // the interactive repository/product filters here would produce a misleading
+  // partial organization total.
+  const budgetComparisonItems = allItems.filter((item) =>
+    item.usageDate >= monthStart && item.usageDate <= today);
 
   const values = (select: (item: UsageItemDto) => string | undefined) =>
     [...new Set(allItems.map(select).filter((value): value is string => Boolean(value)))].sort();
@@ -157,15 +185,14 @@ export function Usage() {
     (item) => item.netAmount).sort((left, right) => left.key.localeCompare(right.key));
 
   const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
-  const elapsedDays = Math.max(1, now.getUTCDate());
   const comparisons = (budgets.data?.items ?? []).map((budget) => {
-    const applicable = currentMonthItems.filter((item) => budgetApplies(budget, item));
+    const applicable = budgetComparisonItems.filter((item) => budgetApplies(budget, item));
     const monetary = budget.unit === 'USD';
     const actual = aggregate(applicable, (item) => monetary ? item.netAmount : undefined);
     const percent = monetary && budget.amount !== undefined && actual.value !== undefined && budget.amount !== 0
       ? actual.value / budget.amount * 100 : undefined;
-    const projected = actual.value === undefined ? undefined : actual.value / elapsedDays * daysInMonth;
-    return { budget, actual, percent, projected };
+    const projection = projectMonthlyUsage(actual, applicable, daysInMonth);
+    return { budget, actual, percent, projected: projection.projected, projectionBasis: projection.basis };
   });
 
   return (
@@ -175,6 +202,8 @@ export function Usage() {
         Provider-reported consumption, attribution, cost, trends, and configured-budget comparisons.
         Missing provider values remain unavailable and are never converted to zero.
       </p>
+      <CostBillingNav />
+      <div className="page-actions"><button className="ghost" type="button" onClick={() => exportUsageCsv(items)}>Export selected usage CSV</button></div>
       <div className="filter-bar">
         <input type="date" aria-label="Usage from" value={from} onChange={(event) => setFrom(event.target.value)} />
         <input type="date" aria-label="Usage to" value={to} onChange={(event) => setTo(event.target.value)} />
@@ -262,7 +291,7 @@ export function Usage() {
       <div className="panel table-scroll">
         <h2>Budget versus current-month actual</h2>
         <table className="data"><thead><tr><th>Organization</th><th>Budget source</th><th>Product / SKUs</th><th>Budget</th><th>Actual</th><th>Consumed</th><th>State</th><th>Projected</th></tr></thead>
-          <tbody>{comparisons.map(({ budget, actual, percent, projected }) => <tr key={`${budget.workspaceSlug}:${budget.externalId}`}>
+          <tbody>{comparisons.map(({ budget, actual, percent, projected, projectionBasis }) => <tr key={`${budget.workspaceSlug}:${budget.externalId}`}>
             <td>{budget.workspaceSlug}</td>
             <td>{budget.scopeType ?? 'broader scope'}{budget.scopeEntityName ? ` · ${budget.scopeEntityName}` : ''}</td>
             <td>{budget.product ?? 'Provider-defined'}{budget.productSkus.length ? ` · ${budget.productSkus.join(', ')}` : ''}</td>
@@ -272,7 +301,7 @@ export function Usage() {
             <td>{budget.unit === 'USD' ? aggregateMoney(actual, 'USD') : 'Unavailable'}</td>
             <td>{percent === undefined ? 'Unavailable' : `${actual.complete ? '' : 'At least '}${percent.toFixed(1)}%`}</td>
             <td>{percent === undefined ? 'Unavailable' : percent >= 100 ? 'Exceeded' : percent >= 80 ? 'Approaching' : 'Within budget'}</td>
-            <td>{projected === undefined ? 'Unavailable' : `${actual.complete ? '' : 'At least '}${money(projected, 'USD')}`}</td>
+            <td>{projected === undefined ? projectionBasis : `${actual.complete ? '' : 'At least '}${money(projected, 'USD')} · ${projectionBasis}`}</td>
           </tr>)}</tbody>
         </table>
       </div>

@@ -194,6 +194,20 @@ export interface CopilotSubscriptionSnapshot {
   publicCodeSuggestions?: string;
 }
 
+/** One organization-billed Copilot seat. Identity is the stable GitHub user ID. */
+export interface CopilotSeatSnapshot {
+  externalUserId: string;
+  userLogin: string;
+  planType?: string;
+  assigningTeamSlug?: string;
+  providerCreatedAt?: string;
+  providerUpdatedAt?: string;
+  pendingCancellationAt?: string;
+  lastActivityAt?: string;
+  lastActivityEditor?: string;
+  lastAuthenticatedAt?: string;
+}
+
 /** One provider billing usage item, normalized without discarding unknown SKUs. */
 export interface UsageSnapshot {
   usageDate: string;

@@ -4,9 +4,10 @@ import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite
 import { makeBudgetSnapshot, makeRepositorySnapshot, makeWorkspaceSnapshot } from '@repo-wrangler/test-support';
 import {
   ensureGitHubConnection, getProviderCapability, listApplicableRepositoryBudgets,
-  listCopilotSubscriptions,
+  listCopilotSeats, listCopilotSubscriptions,
   listUsage, listWorkspaceBudgets, replaceWorkspaceBudgets, setProviderCapability,
-  replaceWorkspaceUsagePeriod, upsertCopilotSubscription, upsertRepository, upsertUsage, upsertWorkspace,
+  replaceWorkspaceCopilotSeats, replaceWorkspaceUsagePeriod, upsertCopilotSubscription,
+  upsertRepository, upsertUsage, upsertWorkspace,
 } from '../src';
 
 const migrationsDir = join(__dirname, '../../../migrations');
@@ -38,6 +39,27 @@ describe('billing persistence', () => {
         active_this_cycle: 10, seat_management_setting: 'assign_selected',
       }),
     ]);
+  });
+
+  it('preserves Copilot seat lifecycle while replacing successful snapshots', async () => {
+    const { db, workspaceId } = await estate();
+    await replaceWorkspaceCopilotSeats(db, workspaceId, [
+      { externalUserId: '42', userLogin: 'octocat', planType: 'business',
+        lastActivityAt: '2026-09-01T00:00:00Z' },
+      { externalUserId: '43', userLogin: 'monalisa', planType: 'business' },
+    ]);
+    await replaceWorkspaceCopilotSeats(db, workspaceId, [
+      { externalUserId: '42', userLogin: 'octocat-renamed', planType: 'business',
+        lastActivityAt: '2026-09-03T00:00:00Z' },
+    ]);
+
+    const rows = await listCopilotSeats(db);
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ external_user_id: '42', user_login: 'octocat-renamed',
+        status: 'active', last_activity_at: '2026-09-03T00:00:00Z' }),
+      expect.objectContaining({ external_user_id: '43', status: 'removed',
+        removed_at: expect.any(String) }),
+    ]));
   });
 
   it('replaces a successful budget snapshot and removes deleted provider budgets', async () => {

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { BudgetDto } from '@repo-wrangler/contracts';
 import { useEstateBudgets } from '../api/client';
 import { CAPABILITY_LABELS } from '../lib/format';
+import { CostBillingNav } from '../components/CostBillingNav';
+import { exportBudgetsCsv } from '../lib/export';
 
 function normalize(value: string | undefined) {
   return (value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -42,11 +44,21 @@ export function Budgets() {
   const skus = [...new Set((budgets.data?.items ?? []).flatMap((item) => item.productSkus))].sort();
   const copilotCapabilities = (budgets.data?.copilotCapabilities ?? []).filter((item) =>
     (!provider || item.provider === provider) && (!workspace || item.workspaceSlug === workspace));
-  const copilotSubscriptions = budgets.data?.copilotSubscriptions ?? [];
+  const copilotSeatCapabilities = (budgets.data?.copilotSeatCapabilities ?? []).filter((item) =>
+    (!provider || item.provider === provider) && (!workspace || item.workspaceSlug === workspace));
+  const copilotSubscriptions = (budgets.data?.copilotSubscriptions ?? []).filter((item) =>
+    (!provider || item.provider === provider) && (!workspace || item.workspaceSlug === workspace));
+  const copilotOrganizations = [...new Map([
+    ...copilotCapabilities, ...copilotSeatCapabilities, ...copilotSubscriptions,
+  ].map((item) => [`${item.provider}\u001f${item.workspaceSlug}`, {
+    provider: item.provider, workspaceSlug: item.workspaceSlug,
+  }])).values()].sort((left, right) => left.workspaceSlug.localeCompare(right.workspaceSlug));
   const allBudgetItems = budgets.data?.items ?? [];
   return <>
-    <h1 className="page-title">Budget Settings</h1>
+    <h1 className="page-title">Budgets &amp; Controls</h1>
     <p className="page-subtitle">Configured provider limits, scopes, products, SKUs, alerts, and hard-stop behavior. Actual consumption is shown separately.</p>
+    <CostBillingNav />
+    <div className="page-actions"><button className="ghost" type="button" onClick={() => exportBudgetsCsv(items)}>Export selected budgets CSV</button></div>
     <div className="filter-bar">
       <select value={provider} onChange={(e) => setProvider(e.target.value)}><option value="">All providers</option>{providers.map((v) => <option key={v}>{v}</option>)}</select>
       <select value={workspace} onChange={(e) => setWorkspace(e.target.value)}><option value="">All organizations</option>{values('workspaceSlug').map((v) => <option key={v}>{v}</option>)}</select>
@@ -68,30 +80,41 @@ export function Budgets() {
       </p>
       <table className="data"><thead><tr>
         <th>Organization</th><th>Provider</th><th>Subscription plan</th><th>Seats</th>
-        <th>Seat assignment</th><th>Policies</th><th>Subscription capability</th><th>Metered Copilot / AI budget</th>
+        <th>Seat assignment</th><th>Policies</th><th>Subscription capability</th><th>Seat-detail capability</th><th>Metered Copilot / AI budget</th>
       </tr></thead><tbody>
-        {copilotCapabilities.map((capability) => {
-          const subscription = copilotSubscriptions.find((item) => item.provider === capability.provider
-            && item.workspaceSlug === capability.workspaceSlug);
-          const meteredBudgets = allBudgetItems.filter((item) => item.provider === capability.provider
-            && item.workspaceSlug === capability.workspaceSlug && isCopilotBudget(item));
-          const budgetCapability = budgets.data?.capabilities?.find((item) => item.provider === capability.provider
-            && item.workspaceSlug === capability.workspaceSlug);
-          return <tr key={`${capability.provider}:${capability.workspaceSlug}`}>
-            <td>{capability.workspaceSlug}</td><td>{capability.provider}</td>
+        {copilotOrganizations.map((organization) => {
+          const subscriptionCapability = copilotCapabilities.find((item) => item.provider === organization.provider
+            && item.workspaceSlug === organization.workspaceSlug);
+          const seatCapability = copilotSeatCapabilities.find((item) => item.provider === organization.provider
+            && item.workspaceSlug === organization.workspaceSlug);
+          const subscription = copilotSubscriptions.find((item) => item.provider === organization.provider
+            && item.workspaceSlug === organization.workspaceSlug);
+          const meteredBudgets = allBudgetItems.filter((item) => item.provider === organization.provider
+            && item.workspaceSlug === organization.workspaceSlug && isCopilotBudget(item));
+          const budgetCapability = budgets.data?.capabilities?.find((item) => item.provider === organization.provider
+            && item.workspaceSlug === organization.workspaceSlug);
+          return <tr key={`${organization.provider}:${organization.workspaceSlug}`}>
+            <td>{organization.workspaceSlug}</td><td>{organization.provider}</td>
             <td>{subscription?.planType ?? 'Unavailable'}</td>
             <td>{subscription ? `${subscription.totalSeats} total${subscription.activeThisCycle === undefined ? '' : ` · ${subscription.activeThisCycle} active this cycle`}` : 'Unavailable'}</td>
             <td>{subscription?.seatManagementSetting ?? 'Unavailable'}</td>
             <td>{subscription ? `IDE chat ${subscription.ideChat ?? 'unreported'} · platform chat ${subscription.platformChat ?? 'unreported'} · CLI ${subscription.cli ?? 'unreported'} · public code ${subscription.publicCodeSuggestions ?? 'unreported'}` : 'Unavailable'}</td>
-            <td>{CAPABILITY_LABELS[capability.state] ?? capability.state}{capability.errorCode ? ` · ${capability.errorCode}` : ''}<br />checked {capability.checkedAt}</td>
+            <td>{subscriptionCapability
+              ? <>{CAPABILITY_LABELS[subscriptionCapability.state] ?? subscriptionCapability.state}{subscriptionCapability.errorCode ? ` · ${subscriptionCapability.errorCode}` : ''}<br />checked {subscriptionCapability.checkedAt}</>
+              : 'Not checked'}</td>
+            <td>{seatCapability
+              ? <>{CAPABILITY_LABELS[seatCapability.state] ?? seatCapability.state}{seatCapability.errorCode ? ` · ${seatCapability.errorCode}` : ''}<br />checked {seatCapability.checkedAt}</>
+              : 'Not checked'}</td>
             <td>{meteredBudgets.length
               ? `${meteredBudgets.length} configured · ${meteredBudgets.flatMap((item) => item.productSkus).join(', ')}`
               : budgetCapability?.state === 'available'
-                ? 'No configured metered Copilot or AI-credit budget returned by GitHub'
+                ? subscription?.totalSeats === 0 && subscription.seatManagementSetting === 'unconfigured'
+                  ? 'No organization-assigned seats and no organization-scoped metered AI-credit budget returned'
+                  : 'No organization-scoped metered AI-credit budget returned; enterprise, cost-center, and personal scopes are not connected'
                 : 'Unavailable'}</td>
           </tr>;
         })}
-        {copilotCapabilities.length === 0 && <tr><td colSpan={8}>Copilot subscription capability has not been checked yet. Run a billing synchronization.</td></tr>}
+        {copilotOrganizations.length === 0 && <tr><td colSpan={9}>Copilot subscription and seat capabilities have not been checked yet. Run a billing synchronization.</td></tr>}
       </tbody></table>
     </div>
     <div className="panel table-scroll"><table className="data"><thead><tr>
@@ -100,11 +123,12 @@ export function Budgets() {
       <th>Stop at limit</th><th>Last successful check</th><th>Capability</th>
     </tr></thead><tbody>{items.map((budget) => <tr key={`${budget.workspaceSlug}:${budget.externalId}`}>
       <td>{budget.workspaceSlug}</td><td>{budget.provider}</td>
-      <td>{budget.scopeType ?? '—'}{budget.scopeEntityName ? ` · ${budget.scopeEntityName}` : ''}</td>
-      <td>{budget.budgetType ?? '—'}</td><td>{budget.product ?? '—'}</td>
-      <td>{budget.productSkus.length ? budget.productSkus.join(', ') : '—'}</td>
-      <td>{budget.amount === undefined ? '—' : `${budget.amount} ${budget.unit ?? '(provider unit not reported)'}`}</td>
-      <td>{budget.alertEnabled === undefined ? '—' : budget.alertEnabled ? `Enabled${budget.alertRecipients.length ? ` · ${budget.alertRecipients.join(', ')}` : ''}` : 'Disabled'}</td>
+      <td>{budget.scopeType ?? 'Not returned by provider'}{budget.scopeEntityName ? ` · ${budget.scopeEntityName}` : ''}</td>
+      <td>{budget.budgetType ?? 'Not returned by provider'}</td>
+      <td>{budget.product ?? 'Not returned by provider'}</td>
+      <td>{budget.productSkus.length ? budget.productSkus.join(', ') : 'No SKUs returned by provider'}</td>
+      <td>{budget.amount === undefined ? 'Not returned by provider' : `${budget.amount} ${budget.unit ?? '(unit not returned by provider)'}`}</td>
+      <td>{budget.alertEnabled === undefined ? 'Not returned by provider' : budget.alertEnabled ? `Enabled${budget.alertRecipients.length ? ` · ${budget.alertRecipients.join(', ')}` : ' · recipients not returned'}` : 'Disabled'}</td>
       <td>{budget.preventFurtherUsage ? 'Yes' : 'No'}</td>
       <td>{budget.lastSuccessfulSyncAt ?? budget.observedAt}</td>
       <td>{(() => {
