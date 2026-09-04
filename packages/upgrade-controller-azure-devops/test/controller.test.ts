@@ -79,6 +79,18 @@ describe('Azure DevOps upgrade controller', () => {
     });
   });
 
+  it('rejects template-parameter injection before contacting Azure DevOps', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const controller = new AzureDevOpsUpgradeController({
+      organization: 'hybridcloudsolutions', project: 'WranglerLabs', pipelineId: 42,
+      controllerVersion: '1.0.0', tokenProvider, fetcher,
+    });
+    await expect(controller.request({
+      ...request, idempotencyKey: "request'; Write-Host injected; #",
+    })).rejects.toThrow('template parameter idempotencyKey is invalid');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('maps checkpoint stages and never claims completion before evidence validation', async () => {
     const fetcher = vi.fn<typeof fetch>(async (url) => String(url).includes('timeline')
       ? Response.json({ records: [{ type: 'Stage', name: 'Deploy', state: 'inProgress', order: 4 }] })
@@ -92,6 +104,9 @@ describe('Azure DevOps upgrade controller', () => {
 
     fetcher.mockImplementation(async () => Response.json({ id: 700, state: 'completed', result: 'succeeded' }));
     await expect(controller.status('700')).resolves.toMatchObject({ state: 'verifying' });
+
+    fetcher.mockImplementation(async () => Response.json({ id: 700, state: 'completed', result: 'canceled' }));
+    await expect(controller.status('700')).resolves.toMatchObject({ state: 'canceled' });
   });
 
   it('reads cumulative safety evidence from build properties without an inbound callback secret', async () => {

@@ -155,8 +155,18 @@ function validateOptions(options: AzureDevOpsControllerOptions): void {
   }
 }
 
+function assertSafeTemplateParameter(name: string, value: string): void {
+  if (!/^[A-Za-z0-9@._:+-]{1,200}$/.test(value)) {
+    throw new Error(`Azure DevOps template parameter ${name} is invalid.`);
+  }
+}
+
 function pipelineState(run: PipelineRun, records: TimelineRecord[]): UpgradeJobState {
-  if (run.state === 'completed') return run.result === 'succeeded' ? 'verifying' : 'failed';
+  if (run.state === 'completed') {
+    if (run.result === 'succeeded') return 'verifying';
+    if (run.result === 'canceled') return 'canceled';
+    return 'failed';
+  }
   const active = records
     .filter((record) => record.type === 'Stage' && record.state === 'inProgress')
     .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))[0];
@@ -264,6 +274,21 @@ export class AzureDevOpsUpgradeController implements UpgradeDeploymentController
   }
 
   private runBody(request: UpgradeControllerRequest, operation: string, previewRun: boolean) {
+    for (const [name, value] of Object.entries({
+      operation,
+      correlationId: request.correlationId,
+      idempotencyKey: request.idempotencyKey,
+      deploymentTarget: request.deploymentTarget,
+      sourceVersion: request.sourceVersion,
+      sourceDigest: request.sourceDigest ?? '',
+      targetVersion: request.targetVersion,
+      targetDigest: request.targetDigest,
+      rollbackVersion: request.rollbackVersion ?? '',
+      rollbackDigest: request.rollbackDigest ?? '',
+      actorId: request.actor.id,
+    })) {
+      if (value) assertSafeTemplateParameter(name, value);
+    }
     return {
       previewRun,
       ...(this.options.pipelineRef ? {

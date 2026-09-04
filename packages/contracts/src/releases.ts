@@ -51,7 +51,7 @@ export const upgradeTargetSelectionSchema = z.object({
 
 export const executeUpgradeRequestSchema = upgradeTargetSelectionSchema.extend({
   approvalToken: z.string().min(40).max(4096),
-  idempotencyKey: z.string().min(16).max(200),
+  idempotencyKey: z.string().min(16).max(200).regex(/^[A-Za-z0-9._:+-]+$/),
 }).strict();
 
 export const upgradeActionSchema = z.object({
