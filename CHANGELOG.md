@@ -6,6 +6,8 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.23] - 2026-09-04
+
 ### Added
 
 - A single FinOps-oriented Cost & Billing area now organizes overview, actual
