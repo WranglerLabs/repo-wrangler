@@ -11,24 +11,30 @@ permissions:
   contents: read
 
 jobs:
-  dependency-audit:
-    # Pinned OSV-Scanner v2.5.0. This scans the complete lockfile without
-    # depending on npm's unreliable bulk-advisory endpoint.
-    permissions:
-      actions: read
-      contents: read
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@8deb546fdb875b9996d27d4950be7312dac076a1
-    with:
-      scan-args: |-
-        --lockfile=pnpm-lock.yaml
-      upload-sarif: false
-      fail-on-vuln: true
-
   verify:
-    needs: dependency-audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Pinned OSV-Scanner v2.5.0. The scanner records results even when it
+      # finds vulnerabilities; the immediately following reporter is the
+      # blocking gate. This does not use npm's bulk-advisory endpoint.
+      - name: Scan complete dependency lockfile
+        uses: google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --output=osv-results.json
+            --format=json
+            --lockfile=pnpm-lock.yaml
+        continue-on-error: true
+
+      - name: Enforce dependency vulnerability policy
+        uses: google/osv-scanner-action/osv-reporter-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --new=osv-results.json
+            --gh-annotations=true
+            --fail-on-vuln=true
 
       # pnpm version comes from the packageManager field in package.json.
       - uses: pnpm/action-setup@v4

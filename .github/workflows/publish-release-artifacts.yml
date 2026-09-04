@@ -14,24 +14,27 @@ env:
   IMAGE: ghcr.io/wranglerlabs/repo-wrangler-server
 
 jobs:
-  dependency-audit:
-    # A full release-time scan is deliberately independent of npm's
-    # bulk-advisory endpoint so registry transport failures cannot mask results.
-    permissions:
-      actions: read
-      contents: read
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@8deb546fdb875b9996d27d4950be7312dac076a1
-    with:
-      scan-args: |-
-        --lockfile=pnpm-lock.yaml
-      upload-sarif: false
-      fail-on-vuln: true
-
   publish:
-    needs: dependency-audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Scan complete dependency lockfile
+        uses: google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --output=osv-results.json
+            --format=json
+            --lockfile=pnpm-lock.yaml
+        continue-on-error: true
+
+      - name: Enforce dependency vulnerability policy
+        uses: google/osv-scanner-action/osv-reporter-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --new=osv-results.json
+            --gh-annotations=true
+            --fail-on-vuln=true
 
       - uses: pnpm/action-setup@v4
 

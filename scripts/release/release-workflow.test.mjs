@@ -8,23 +8,21 @@ const workflowURL = new URL(
 );
 const ciWorkflowURL = new URL("../../.github/workflows/ci.yml", import.meta.url);
 
-const pinnedOsvWorkflow =
-  "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@8deb546fdb875b9996d27d4950be7312dac076a1";
+const pinnedOsvScanner =
+  "google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f";
+const pinnedOsvReporter =
+  "google/osv-scanner-action/osv-reporter-action@06b2ab4348248b456ee06c9e953637f55e03504f";
 
 test("CI and release publication require the pinned full dependency audit", async () => {
-  for (const [name, url, gatedJob] of [
-    ["CI", ciWorkflowURL, "verify"],
-    ["release", workflowURL, "publish"],
+  for (const [name, url] of [
+    ["CI", ciWorkflowURL],
+    ["release", workflowURL],
   ]) {
     const workflow = await readFile(url, "utf8");
-    assert.match(workflow, new RegExp(`uses: ${pinnedOsvWorkflow}`));
+    assert.match(workflow, new RegExp(`uses: ${pinnedOsvScanner}`));
+    assert.match(workflow, new RegExp(`uses: ${pinnedOsvReporter}`));
     assert.match(workflow, /--lockfile=pnpm-lock\.yaml/);
-    assert.match(workflow, /fail-on-vuln:\s*true/);
-    assert.match(
-      workflow,
-      new RegExp(`\\n  ${gatedJob}:\\n    needs: dependency-audit`),
-      `${name} can proceed without the dependency audit`,
-    );
+    assert.match(workflow, /--fail-on-vuln=true/);
     assert.doesNotMatch(
       workflow,
       /pnpm audit/,
