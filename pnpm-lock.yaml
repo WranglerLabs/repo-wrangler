@@ -129,6 +129,9 @@ importers:
       '@repo-wrangler/secrets-core':
         specifier: workspace:*
         version: link:../../packages/secrets-core
+      '@repo-wrangler/upgrade-controller-azure-devops':
+        specifier: workspace:*
+        version: link:../../packages/upgrade-controller-azure-devops
       hono:
         specifier: ^4.13.5
         version: 4.13.5
@@ -297,6 +300,16 @@ importers:
         version: 5.9.3
 
   packages/ui:
+    dependencies:
+      '@repo-wrangler/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/upgrade-controller-azure-devops:
     dependencies:
       '@repo-wrangler/domain':
         specifier: workspace:*

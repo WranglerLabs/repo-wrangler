@@ -133,6 +133,15 @@ export function Administration() {
           .
         </p>
       </div>
+
+      <div className="panel">
+        <h2>Application updates</h2>
+        <p className="muted">
+          Check release compatibility, run protected upgrades, follow controller progress,
+          inspect verification evidence, and prepare rollback from one administration screen.
+        </p>
+        <Link className="button-link" to="/admin/updates">Manage updates</Link>
+      </div>
     </>
   );
 }

@@ -190,6 +190,12 @@ jobs:
             --version "$GITHUB_REF_NAME" \
             --released-at "$(git show -s --format=%cI "$GITHUB_SHA")" \
             --asset-base-url "$asset_base" \
+            --image "$IMAGE" \
+            --image-digest "${{ steps.build.outputs.digest }}" \
+            --minimum-source-version "v1.0.23" \
+            --database-schema-minimum "9" \
+            --database-schema-maximum "9" \
+            --database-schema-target "9" \
             --output dist/assets/release-artifacts.json
           node scripts/release/generate-release-manifest.mjs \
             --spec dist/assets/release-artifacts.json \

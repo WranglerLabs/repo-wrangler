@@ -16,6 +16,7 @@
     "@repo-wrangler/provider-gitlab": "workspace:*",
     "@repo-wrangler/provider-mock": "workspace:*",
     "@repo-wrangler/secrets-core": "workspace:*",
+    "@repo-wrangler/upgrade-controller-azure-devops": "workspace:*",
     "hono": "^4.13.5"
   },
   "devDependencies": {

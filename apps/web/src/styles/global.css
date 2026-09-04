@@ -476,6 +476,79 @@ button.ghost {
   border: 1px solid var(--rw-border);
 }
 
+button.danger {
+  background: var(--rw-critical);
+}
+
+.update-summary .version-value {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.subheading {
+  border-top: 1px solid var(--rw-border);
+  margin-top: 18px !important;
+  padding-top: 14px;
+}
+
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.check-row {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+}
+
+.confirmation-panel {
+  border-color: var(--rw-gold);
+}
+
+.confirmation-check {
+  align-items: flex-start;
+  display: flex;
+  gap: 9px;
+  margin: 16px 0;
+}
+
+.confirmation-check input {
+  margin-top: 3px;
+}
+
+.detail-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.evidence-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin: 14px 0;
+}
+
+.evidence-card {
+  background: var(--rw-surface-2);
+  border: 1px solid var(--rw-border);
+  border-radius: var(--rw-radius);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+}
+
+.evidence-card .badge {
+  align-self: flex-start;
+}
+
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;

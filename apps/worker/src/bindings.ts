@@ -91,6 +91,27 @@ export interface Env {
   NOTIFY_WEBHOOK_URL?: string;
   /** Runtime release identifier; container builds set this from their image tag. */
   APP_VERSION?: string;
+  /** Stable installation identifier bound into every upgrade approval. */
+  UPGRADE_DEPLOYMENT_TARGET?: string;
+  /** Release artifact family for this installation. */
+  UPGRADE_RELEASE_TARGET?: string;
+  UPGRADE_RELEASE_CHANNEL?: string;
+  UPGRADE_RELEASE_MANIFEST_URL?: string;
+  UPGRADE_SCHEMA_VERSION?: string;
+  UPGRADE_CURRENT_IMAGE_DIGEST?: string;
+  UPGRADE_CONTROLLER_TYPE?: string;
+  UPGRADE_CONTROLLER_VERSION?: string;
+  AZURE_DEVOPS_ORGANIZATION?: string;
+  AZURE_DEVOPS_PROJECT?: string;
+  AZURE_DEVOPS_PIPELINE_ID?: string;
+  AZURE_DEVOPS_PIPELINE_REF?: string;
+  AZURE_DEVOPS_PIPELINE_NAME?: string;
+  /** User-assigned identity used for short-lived Azure DevOps tokens. */
+  AZURE_CLIENT_ID?: string;
+  /** Azure Container Apps managed-identity endpoint; supplied by the platform. */
+  IDENTITY_ENDPOINT?: string;
+  /** Azure Container Apps identity endpoint header; never persisted or logged. */
+  IDENTITY_HEADER?: string;
 }
 
 /** Build/package fallback used when the host does not provide APP_VERSION. */

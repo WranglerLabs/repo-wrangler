@@ -15,3 +15,4 @@ export * from './usage';
 export * from './operations';
 export * from './saved-views';
 export * from './secrets';
+export * from './upgrades';

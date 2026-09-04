@@ -4,6 +4,7 @@ import { CREDITS } from '@repo-wrangler/credits';
 import { recordAuditEvent } from '@repo-wrangler/persistence-d1';
 import { appVersion, corsAllowedOrigins, isDemoMode, type Env } from './bindings';
 import { apiRoutes } from './api/routes';
+import { upgradeRoutes } from './api/upgrades';
 import { connectionRoutes } from './api/connections';
 import {
   authConfig,
@@ -104,6 +105,7 @@ app.route('/webhooks', gitlabWebhookRoutes);
 app.route('/internal', internalCronRoutes);
 
 app.use('/api/v1/*', requireAuth);
+app.route('/api/v1/admin/updates', upgradeRoutes);
 app.route('/api/v1', apiRoutes);
 app.route('/api/v1', connectionRoutes);
 
