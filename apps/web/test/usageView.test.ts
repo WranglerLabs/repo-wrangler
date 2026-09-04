@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BudgetDto, UsageItemDto } from '@repo-wrangler/contracts';
-import { aggregate, budgetApplies, isActionsMinute } from '../src/routes/Usage';
+import { aggregate, budgetApplies, isActionsMinute, projectMonthlyUsage } from '../src/routes/Usage';
 import { isCopilotBudget } from '../src/routes/Budgets';
 
 function usage(overrides: Partial<UsageItemDto> = {}): UsageItemDto {
@@ -71,5 +71,17 @@ describe('Actual Usage view calculations', () => {
   it('distinguishes metered Copilot and AI-credit budgets from the subscription', () => {
     expect(isCopilotBudget(budget({ product: 'Copilot', productSkus: ['ai_credits'] }))).toBe(true);
     expect(isCopilotBudget(budget({ product: 'Actions', productSkus: ['actions'] }))).toBe(false);
+  });
+
+  it('projects from the latest provider day and refuses to double count monthly aggregates', () => {
+    const rows = [usage({ usageDate: '2026-09-03', netAmount: 3 })];
+    expect(projectMonthlyUsage(aggregate(rows, (item) => item.netAmount), rows, 30)).toEqual({
+      projected: 30,
+      basis: 'through 2026-09-03',
+    });
+    const monthly = [usage({ usageDate: '2026-09-01', periodGranularity: 'month', netAmount: 20 })];
+    expect(projectMonthlyUsage(aggregate(monthly, (item) => item.netAmount), monthly, 30)).toEqual({
+      basis: 'Unavailable: provider returned a monthly aggregate',
+    });
   });
 });

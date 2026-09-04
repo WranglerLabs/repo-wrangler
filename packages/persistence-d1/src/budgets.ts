@@ -1,4 +1,6 @@
-import type { BudgetSnapshot, CapabilityState, CopilotSubscriptionSnapshot } from '@repo-wrangler/domain';
+import type {
+  BudgetSnapshot, CapabilityState, CopilotSeatSnapshot, CopilotSubscriptionSnapshot,
+} from '@repo-wrangler/domain';
 
 export interface BudgetRow {
   id: string;
@@ -50,6 +52,76 @@ export interface CopilotSubscriptionRow {
   public_code_suggestions: string | null;
   observed_at: string;
   last_successful_sync_at: string;
+}
+
+export interface CopilotSeatRow {
+  id: string;
+  workspace_id: string;
+  external_user_id: string;
+  user_login: string;
+  plan_type: string | null;
+  assigning_team_slug: string | null;
+  provider_created_at: string | null;
+  provider_updated_at: string | null;
+  pending_cancellation_at: string | null;
+  last_activity_at: string | null;
+  last_activity_editor: string | null;
+  last_authenticated_at: string | null;
+  status: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  state_changed_at: string | null;
+  removed_at: string | null;
+  last_successful_sync_at: string;
+}
+
+export async function replaceWorkspaceCopilotSeats(
+  db: D1Database,
+  workspaceId: string,
+  seats: CopilotSeatSnapshot[],
+): Promise<void> {
+  for (const seat of seats) {
+    await db.prepare(
+      `INSERT INTO copilot_seats (
+         id, workspace_id, external_user_id, user_login, plan_type, assigning_team_slug,
+         provider_created_at, provider_updated_at, pending_cancellation_at,
+         last_activity_at, last_activity_editor, last_authenticated_at
+       ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+       ON CONFLICT (workspace_id, external_user_id) DO UPDATE SET
+         user_login = excluded.user_login, plan_type = excluded.plan_type,
+         assigning_team_slug = excluded.assigning_team_slug,
+         provider_created_at = excluded.provider_created_at,
+         provider_updated_at = excluded.provider_updated_at,
+         pending_cancellation_at = excluded.pending_cancellation_at,
+         last_activity_at = excluded.last_activity_at,
+         last_activity_editor = excluded.last_activity_editor,
+         last_authenticated_at = excluded.last_authenticated_at,
+         status = 'active', last_seen_at = datetime('now'), removed_at = NULL,
+         state_changed_at = CASE WHEN copilot_seats.status != 'active' THEN datetime('now')
+                                 ELSE copilot_seats.state_changed_at END,
+         last_successful_sync_at = datetime('now')`,
+    ).bind(
+      crypto.randomUUID(), workspaceId, seat.externalUserId, seat.userLogin,
+      seat.planType ?? null, seat.assigningTeamSlug ?? null, seat.providerCreatedAt ?? null,
+      seat.providerUpdatedAt ?? null, seat.pendingCancellationAt ?? null,
+      seat.lastActivityAt ?? null, seat.lastActivityEditor ?? null,
+      seat.lastAuthenticatedAt ?? null,
+    ).run();
+  }
+  if (seats.length === 0) {
+    await db.prepare(
+      `UPDATE copilot_seats SET status = 'removed', state_changed_at = datetime('now'),
+       removed_at = datetime('now'), last_successful_sync_at = datetime('now')
+       WHERE workspace_id = ?1 AND status = 'active'`,
+    ).bind(workspaceId).run();
+    return;
+  }
+  const placeholders = seats.map((_, index) => `?${index + 2}`).join(', ');
+  await db.prepare(
+    `UPDATE copilot_seats SET status = 'removed', state_changed_at = datetime('now'),
+     removed_at = datetime('now'), last_successful_sync_at = datetime('now')
+     WHERE workspace_id = ?1 AND status = 'active' AND external_user_id NOT IN (${placeholders})`,
+  ).bind(workspaceId, ...seats.map((seat) => seat.externalUserId)).run();
 }
 
 export async function upsertCopilotSubscription(
@@ -255,6 +327,22 @@ export async function listProviderCapabilities(
 export interface EstateCopilotSubscriptionRow extends CopilotSubscriptionRow {
   workspace_slug: string;
   provider: string;
+}
+
+export interface EstateCopilotSeatRow extends CopilotSeatRow {
+  workspace_slug: string;
+  provider: string;
+}
+
+export async function listCopilotSeats(db: D1Database): Promise<EstateCopilotSeatRow[]> {
+  const result = await db.prepare(
+    `SELECT s.*, w.slug AS workspace_slug, c.provider_type AS provider
+     FROM copilot_seats s
+     JOIN workspaces w ON w.id = s.workspace_id
+     JOIN provider_connections c ON c.id = w.connection_id
+     ORDER BY w.slug, CASE s.status WHEN 'active' THEN 0 ELSE 1 END, s.user_login`,
+  ).all<EstateCopilotSeatRow>();
+  return result.results;
 }
 
 export async function listCopilotSubscriptions(db: D1Database): Promise<EstateCopilotSubscriptionRow[]> {

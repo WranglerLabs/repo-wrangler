@@ -4,6 +4,7 @@ import type {
   CapabilityResult,
   ChangeRequestSnapshot,
   CopilotSubscriptionSnapshot,
+  CopilotSeatSnapshot,
   GovernanceInfo,
   PipelineRunSnapshot,
   RepositorySnapshot,
@@ -498,6 +499,69 @@ export async function getOrganizationCopilotSubscription(
     data: { subrequestsUsed: 1 },
   };
   return capabilityAvailable({ item, subrequestsUsed: 1 });
+}
+
+function parseCopilotSeat(value: unknown): CopilotSeatSnapshot | null {
+  if (!isRecord(value) || !isRecord(value.assignee)) return null;
+  const externalUserId = value.assignee.id;
+  const userLogin = optionalString(value.assignee.login);
+  if ((typeof externalUserId !== 'string' && typeof externalUserId !== 'number') || !userLogin) return null;
+  const assigningTeam = isRecord(value.assigning_team) ? value.assigning_team : undefined;
+  const stringFields = [
+    'plan_type', 'created_at', 'updated_at', 'pending_cancellation_date',
+    'last_activity_at', 'last_activity_editor', 'last_authenticated_at',
+  ] as const;
+  if (stringFields.some((field) => value[field] !== undefined && value[field] !== null
+    && optionalString(value[field]) === undefined)) return null;
+  if (assigningTeam?.slug !== undefined && optionalString(assigningTeam.slug) === undefined) return null;
+  return {
+    externalUserId: String(externalUserId),
+    userLogin,
+    planType: optionalString(value.plan_type),
+    assigningTeamSlug: assigningTeam ? optionalString(assigningTeam.slug) : undefined,
+    providerCreatedAt: optionalString(value.created_at),
+    providerUpdatedAt: optionalString(value.updated_at),
+    pendingCancellationAt: optionalString(value.pending_cancellation_date),
+    lastActivityAt: optionalString(value.last_activity_at),
+    lastActivityEditor: optionalString(value.last_activity_editor),
+    lastAuthenticatedAt: optionalString(value.last_authenticated_at),
+  };
+}
+
+/** Organization-billed Copilot seats, fully paginated and validated. */
+export async function listOrganizationCopilotSeats(
+  token: string,
+  orgSlug: string,
+  maxSubrequests = 100,
+): Promise<CapabilityResult<BillingCollection<CopilotSeatSnapshot>>> {
+  const client = new GitHubClient(token);
+  const items: CopilotSeatSnapshot[] = [];
+  for (let page = 1; page <= maxSubrequests; page += 1) {
+    const response = await client.request<unknown>(
+      `/orgs/${encodeURIComponent(orgSlug)}/copilot/billing/seats?page=${page}&per_page=100`,
+      { headers: { 'x-github-api-version': GITHUB_BILLING_API_VERSION } },
+    );
+    if (!response.ok) {
+      const state = response.status === 404 ? 'unsupported_by_plan'
+        : capabilityStateFromHttpStatus(response.status, { rateLimited: isSecondaryRateLimited(response) });
+      return { ...capabilityUnavailable(state), data: { items: [], subrequestsUsed: page } };
+    }
+    if (!isRecord(response.data) || !Array.isArray(response.data.seats)) {
+      return { ...capabilityUnavailable('error', 'GitHub returned an invalid Copilot seats response.'),
+        data: { items: [], subrequestsUsed: page } };
+    }
+    const parsed = response.data.seats.map(parseCopilotSeat);
+    if (parsed.some((seat) => seat === null)) {
+      return { ...capabilityUnavailable('error', 'GitHub returned an invalid Copilot seat record.'),
+        data: { items: [], subrequestsUsed: page } };
+    }
+    items.push(...parsed.filter((seat): seat is CopilotSeatSnapshot => seat !== null));
+    if (!hasNextPage(response.link) && response.data.has_next_page !== true) {
+      return capabilityAvailable({ items, subrequestsUsed: page });
+    }
+  }
+  return { ...capabilityUnavailable('temporarily_unavailable', 'Copilot seat pagination exceeded the request allowance.'),
+    data: { items: [], subrequestsUsed: maxSubrequests } };
 }
 
 function parseUsageItem(

@@ -54,6 +54,9 @@ a Windows executable; Ranch Hand is released separately from its own repository.
   severity, with an explanation for every finding. No opaque health scores.
 - **Honest about missing data** — "0 budgets" and "budget API not authorized"
   are different states, and the UI never converts one into the other.
+- **Cost and billing intelligence** — separate configured controls from actual
+  provider usage, attribute Actions cost to repositories, review Copilot seats,
+  track coverage and freshness, and surface read-only optimization candidates.
 - **Branch intelligence** — `main is current` actually means something:
   ahead/behind/diverged comparison of active branches, with change-request
   tracking and bot-branch exclusions (FR-005 semantics).

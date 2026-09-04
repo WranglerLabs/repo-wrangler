@@ -10,21 +10,30 @@ import {
 } from '../themes/custom';
 import { mayRenderInitialRoute } from '../routes/initialRouting';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Command Center' },
-  { to: '/repositories', label: 'Repositories' },
-  { to: '/workspaces', label: 'Workspaces' },
-  { to: '/branches', label: 'Branches' },
-  { to: '/pipelines', label: 'Pipelines' },
-  { to: '/change-requests', label: 'Change Requests' },
-  { to: '/security', label: 'Security' },
-  { to: '/budgets', label: 'Budget Settings' },
-  { to: '/usage', label: 'Actual Usage' },
-  { to: '/activity', label: 'Activity' },
-  { to: '/platform', label: 'Platform Health' },
-  { to: '/admin', label: 'Administration' },
-  { to: '/admin/estate-scope', label: 'Estate scope' },
-  { to: '/credits', label: 'About & Credits' },
+const NAV_GROUPS = [
+  { label: 'Overview', items: [{ to: '/', label: 'Command Center' }] },
+  { label: 'Estate', items: [
+    { to: '/repositories', label: 'Repositories' },
+    { to: '/workspaces', label: 'Workspaces' },
+    { to: '/branches', label: 'Branches' },
+    { to: '/pipelines', label: 'Pipelines' },
+    { to: '/change-requests', label: 'Change Requests' },
+    { to: '/security', label: 'Security' },
+  ] },
+  { label: 'FinOps', items: [{ to: '/costs', label: 'Cost & Billing' }] },
+  { label: 'Operations', items: [
+    { to: '/activity', label: 'Activity' },
+    { to: '/admin/operations', label: 'Synchronization' },
+    { to: '/platform', label: 'Platform Health' },
+  ] },
+  { label: 'Administration', items: [
+    { to: '/admin', label: 'Overview', end: true },
+    { to: '/admin/connections', label: 'Connections' },
+    { to: '/admin/estate-scope', label: 'Estate scope' },
+  ] },
+  { label: 'Information', items: [
+    { to: '/credits', label: 'About & Credits' },
+  ] },
 ];
 
 function useTheme(): [string, (id: string) => void] {
@@ -99,11 +108,14 @@ export function Layout() {
           </div>
         ) : null}
         <nav>
-          {NAV_ITEMS.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'}>
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV_GROUPS.map((group) => <div className="nav-group" key={group.label}>
+            <div className="nav-group-label">{group.label}</div>
+            {group.items.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end ?? item.to === '/'}>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>)}
         </nav>
         <div className="footer">
           {setupMode ? (

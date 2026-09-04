@@ -348,6 +348,28 @@ export const copilotSubscriptionDtoSchema = z.object({
 });
 export type CopilotSubscriptionDto = z.infer<typeof copilotSubscriptionDtoSchema>;
 
+export const copilotSeatDtoSchema = z.object({
+  workspaceSlug: z.string(),
+  provider: z.string(),
+  externalUserId: z.string(),
+  userLogin: z.string(),
+  planType: z.string().optional(),
+  assigningTeamSlug: z.string().optional(),
+  providerCreatedAt: z.string().optional(),
+  providerUpdatedAt: z.string().optional(),
+  pendingCancellationAt: z.string().optional(),
+  lastActivityAt: z.string().optional(),
+  lastActivityEditor: z.string().optional(),
+  lastAuthenticatedAt: z.string().optional(),
+  status: z.string(),
+  firstSeenAt: z.string(),
+  lastSeenAt: z.string(),
+  stateChangedAt: z.string().optional(),
+  removedAt: z.string().optional(),
+  lastSuccessfulSyncAt: z.string(),
+});
+export type CopilotSeatDto = z.infer<typeof copilotSeatDtoSchema>;
+
 export const estatePipelineSchema = z.object({
   repositoryId: z.string(),
   repositoryFullName: z.string(),
@@ -392,7 +414,13 @@ export const estateBudgetsSchema = z.object({
     checkedAt: z.string(), lastSuccessAt: z.string().optional(),
   })).optional(),
   copilotSubscriptions: z.array(copilotSubscriptionDtoSchema).optional(),
+  copilotSeats: z.array(copilotSeatDtoSchema).optional(),
   copilotCapabilities: z.array(z.object({
+    workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
+    errorCode: z.string().optional(), detail: z.string().optional(),
+    checkedAt: z.string(), lastSuccessAt: z.string().optional(),
+  })).optional(),
+  copilotSeatCapabilities: z.array(z.object({
     workspaceSlug: z.string(), provider: z.string(), state: capabilityStateSchema,
     errorCode: z.string().optional(), detail: z.string().optional(),
     checkedAt: z.string(), lastSuccessAt: z.string().optional(),

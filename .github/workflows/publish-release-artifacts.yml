@@ -19,6 +19,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Scan complete dependency lockfile
+        uses: google/osv-scanner-action/osv-scanner-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --output=osv-results.json
+            --format=json
+            --lockfile=pnpm-lock.yaml
+        continue-on-error: true
+
+      - name: Enforce dependency vulnerability policy
+        uses: google/osv-scanner-action/osv-reporter-action@06b2ab4348248b456ee06c9e953637f55e03504f
+        with:
+          scan-args: |-
+            --new=osv-results.json
+            --gh-annotations=true
+            --fail-on-vuln=true
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
@@ -45,7 +62,6 @@ jobs:
 
       - name: Pre-publication verification
         run: |
-          pnpm audit
           pnpm typecheck
           pnpm test
           pnpm test:release-contracts

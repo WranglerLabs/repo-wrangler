@@ -26,6 +26,7 @@ import {
   getWebhookStats,
   listAllBudgets,
   listCopilotSubscriptions,
+  listCopilotSeats,
   listActiveConnectionsByType,
   listApplicableRepositoryBudgets,
   listAttentionRows,
@@ -70,6 +71,7 @@ import {
   demoEstateChangeRequests,
   demoEstatePipelines,
   demoEstateSecurity,
+  demoEstateUsage,
   demoOverview,
   demoPlatformHealth,
   demoRepositories,
@@ -440,10 +442,18 @@ apiRoutes.get('/security', async (c) => {
 
 apiRoutes.get('/budgets', async (c) => {
   if (isDemoMode(c.env)) return c.json(demoEstateBudgets());
-  const [rows, capabilities, copilotSubscriptions, copilotCapabilities] = await Promise.all([
+  const [rows, capabilities, copilotSubscriptions, copilotCapabilities, copilotSeats,
+    copilotSeatCapabilities] = await Promise.all([
     listAllBudgets(c.env.DB), listProviderCapabilities(c.env.DB, 'budgets'),
     listCopilotSubscriptions(c.env.DB), listProviderCapabilities(c.env.DB, 'copilot_subscription'),
+    listCopilotSeats(c.env.DB), listProviderCapabilities(c.env.DB, 'copilot_seats'),
   ]);
+  const mapCapabilities = (entries: typeof capabilities) => entries.map((capability) => ({
+    workspaceSlug: capability.workspace_slug, provider: capability.provider,
+    state: capability.state, errorCode: capability.error_code ?? undefined,
+    detail: capability.error_detail ?? undefined,
+    checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
+  }));
   const mappedCopilotCapabilities = copilotCapabilities.map((capability) => ({
     workspaceSlug: capability.workspace_slug, provider: capability.provider,
     state: capability.state, errorCode: capability.error_code ?? undefined,
@@ -478,7 +488,22 @@ apiRoutes.get('/budgets', async (c) => {
             checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
           })),
           copilotSubscriptions: mappedCopilotSubscriptions,
+          copilotSeats: copilotSeats.map((seat) => ({
+            workspaceSlug: seat.workspace_slug, provider: seat.provider,
+            externalUserId: seat.external_user_id, userLogin: seat.user_login,
+            planType: seat.plan_type ?? undefined, assigningTeamSlug: seat.assigning_team_slug ?? undefined,
+            providerCreatedAt: seat.provider_created_at ?? undefined,
+            providerUpdatedAt: seat.provider_updated_at ?? undefined,
+            pendingCancellationAt: seat.pending_cancellation_at ?? undefined,
+            lastActivityAt: seat.last_activity_at ?? undefined,
+            lastActivityEditor: seat.last_activity_editor ?? undefined,
+            lastAuthenticatedAt: seat.last_authenticated_at ?? undefined,
+            status: seat.status, firstSeenAt: seat.first_seen_at, lastSeenAt: seat.last_seen_at,
+            stateChangedAt: seat.state_changed_at ?? undefined, removedAt: seat.removed_at ?? undefined,
+            lastSuccessfulSyncAt: seat.last_successful_sync_at,
+          })),
           copilotCapabilities: mappedCopilotCapabilities,
+          copilotSeatCapabilities: mapCapabilities(copilotSeatCapabilities),
         }
       : {
           state: 'available',
@@ -511,13 +536,28 @@ apiRoutes.get('/budgets', async (c) => {
             checkedAt: capability.checked_at, lastSuccessAt: capability.last_success_at ?? undefined,
           })),
           copilotSubscriptions: mappedCopilotSubscriptions,
+          copilotSeats: copilotSeats.map((seat) => ({
+            workspaceSlug: seat.workspace_slug, provider: seat.provider,
+            externalUserId: seat.external_user_id, userLogin: seat.user_login,
+            planType: seat.plan_type ?? undefined, assigningTeamSlug: seat.assigning_team_slug ?? undefined,
+            providerCreatedAt: seat.provider_created_at ?? undefined,
+            providerUpdatedAt: seat.provider_updated_at ?? undefined,
+            pendingCancellationAt: seat.pending_cancellation_at ?? undefined,
+            lastActivityAt: seat.last_activity_at ?? undefined,
+            lastActivityEditor: seat.last_activity_editor ?? undefined,
+            lastAuthenticatedAt: seat.last_authenticated_at ?? undefined,
+            status: seat.status, firstSeenAt: seat.first_seen_at, lastSeenAt: seat.last_seen_at,
+            stateChangedAt: seat.state_changed_at ?? undefined, removedAt: seat.removed_at ?? undefined,
+            lastSuccessfulSyncAt: seat.last_successful_sync_at,
+          })),
           copilotCapabilities: mappedCopilotCapabilities,
+          copilotSeatCapabilities: mapCapabilities(copilotSeatCapabilities),
         };
   return c.json(body);
 });
 
 apiRoutes.get('/usage', async (c) => {
-  if (isDemoMode(c.env)) return c.json({ items: [], capabilities: [] } satisfies EstateUsageDto);
+  if (isDemoMode(c.env)) return c.json(demoEstateUsage());
   const [rows, capabilities] = await Promise.all([
     listEstateUsage(c.env.DB, { from: c.req.query('from'), to: c.req.query('to') }),
     listProviderCapabilities(c.env.DB, 'usage'),

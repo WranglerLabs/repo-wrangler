@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  getOrganizationCopilotSubscription, listOrganizationBudgets, listOrganizationUsage,
+  getOrganizationCopilotSubscription, listOrganizationBudgets, listOrganizationCopilotSeats,
+  listOrganizationUsage,
 } from '../src/collect';
 import { GITHUB_BILLING_API_VERSION } from '../src/client';
 
@@ -42,6 +43,39 @@ describe('GitHub enhanced billing', () => {
     expect((await getOrganizationCopilotSubscription('token', 'acme')).state)
       .toBe('unsupported_by_plan');
     expect((await getOrganizationCopilotSubscription('token', 'acme')).state).toBe('error');
+  });
+
+  it('paginates and validates organization-billed Copilot seats', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ total_seats: 2, seats: [{
+        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+        last_activity_at: '2026-09-02T00:00:00Z', last_activity_editor: 'vscode',
+        plan_type: 'business', assignee: { id: 42, login: 'octocat' },
+        assigning_team: { slug: 'platform' },
+      }] }), { status: 200, headers: { link: '<https://api.github.com/page=2>; rel="next"' } }))
+      .mockResolvedValueOnce(jsonResponse({ total_seats: 2, seats: [{
+        pending_cancellation_date: '2026-10-01', plan_type: 'business',
+        assignee: { id: 43, login: 'monalisa' }, assigning_team: null,
+      }] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await listOrganizationCopilotSeats('token', 'acme');
+
+    expect(result.state).toBe('available');
+    expect(result.data?.subrequestsUsed).toBe(2);
+    expect(result.data?.items).toEqual([
+      expect.objectContaining({ externalUserId: '42', userLogin: 'octocat',
+        assigningTeamSlug: 'platform', lastActivityEditor: 'vscode' }),
+      expect.objectContaining({ externalUserId: '43', userLogin: 'monalisa',
+        pendingCancellationAt: '2026-10-01' }),
+    ]);
+  });
+
+  it('rejects malformed Copilot seat snapshots', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      total_seats: 1, seats: [{ assignee: { login: 'missing-stable-id' } }],
+    })));
+    expect((await listOrganizationCopilotSeats('token', 'acme')).state).toBe('error');
   });
 
   it('paginates and maps the complete current budget schema', async () => {

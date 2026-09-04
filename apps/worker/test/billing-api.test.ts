@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { applyMigrations, openSqliteD1 } from '@repo-wrangler/persistence-sqlite';
 import { makeBudgetSnapshot, makeRepositorySnapshot, makeWorkspaceSnapshot } from '@repo-wrangler/test-support';
 import {
-  ensureGitHubConnection, replaceWorkspaceBudgets, setProviderCapability,
-  upsertCopilotSubscription, upsertRepository, upsertUsage, upsertWorkspace,
+  ensureGitHubConnection, replaceWorkspaceBudgets, replaceWorkspaceCopilotSeats,
+  setProviderCapability, upsertCopilotSubscription, upsertRepository, upsertUsage, upsertWorkspace,
 } from '@repo-wrangler/persistence-d1';
 import { apiRoutes } from '../src/api/routes';
 import type { Env } from '../src/bindings';
@@ -36,6 +36,16 @@ describe('budget and usage APIs', () => {
     return { DB: db, ASSETS: {}, DEMO_MODE: 'false' } as unknown as Env;
   }
 
+  it('returns representative cost and attribution data in demo mode', async () => {
+    const demo = { DB: db, ASSETS: {}, DEMO_MODE: 'true' } as unknown as Env;
+    const body = await (await app.request('/api/v1/usage', {}, demo)).json();
+    expect(body.capabilities).toEqual([expect.objectContaining({ state: 'available' })]);
+    expect(body.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ product: 'Actions', repositoryFullName: expect.any(String) }),
+      expect.objectContaining({ product: 'Copilot', userLogin: 'doc-brown' }),
+    ]));
+  });
+
   it('returns the full Heritage Virginia budget attribution instead of dashes', async () => {
     await replaceWorkspaceBudgets(db, workspaceId, [makeBudgetSnapshot({
       externalId: 'heritage-20', budgetType: 'SkuPricing', product: 'Actions',
@@ -63,6 +73,11 @@ describe('budget and usage APIs', () => {
     });
     await setProviderCapability(db, workspaceId, 'copilot_subscription', 'available');
     await setProviderCapability(db, workspaceId, 'budgets', 'available');
+    await replaceWorkspaceCopilotSeats(db, workspaceId, [{
+      externalUserId: '42', userLogin: 'octocat', planType: 'business',
+      assigningTeamSlug: 'platform', lastActivityAt: '2026-09-03T00:00:00Z',
+    }]);
+    await setProviderCapability(db, workspaceId, 'copilot_seats', 'available');
 
     const body = await (await app.request('/api/v1/budgets', {}, env())).json();
     expect(body.items).toBeUndefined();
@@ -71,6 +86,13 @@ describe('budget and usage APIs', () => {
       activeThisCycle: 10, seatManagementSetting: 'assign_selected',
     })]);
     expect(body.copilotCapabilities).toEqual([
+      expect.objectContaining({ workspaceSlug: 'heritage-virginia', state: 'available' }),
+    ]);
+    expect(body.copilotSeats).toEqual([expect.objectContaining({
+      workspaceSlug: 'heritage-virginia', externalUserId: '42', userLogin: 'octocat',
+      assigningTeamSlug: 'platform', status: 'active',
+    })]);
+    expect(body.copilotSeatCapabilities).toEqual([
       expect.objectContaining({ workspaceSlug: 'heritage-virginia', state: 'available' }),
     ]);
   });

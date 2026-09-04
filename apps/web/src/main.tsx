@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { CommandCenter } from './routes/CommandCenter';
 import { Repositories } from './routes/Repositories';
@@ -23,6 +23,9 @@ import { Credits } from './routes/Credits';
 import { ThemeStudio } from './routes/ThemeStudio';
 import { Onboarding } from './routes/Onboarding';
 import { EstateScope } from './routes/EstateScope';
+import { CostOverview } from './routes/CostOverview';
+import { CostCoverage } from './routes/CostCoverage';
+import { CostOptimization } from './routes/CostOptimization';
 import { SignIn } from './routes/SignIn';
 import './themes/registry';
 import './styles/global.css';
@@ -45,8 +48,13 @@ const router = createBrowserRouter([
       { path: 'pipelines', element: <Pipelines /> },
       { path: 'change-requests', element: <ChangeRequests /> },
       { path: 'security', element: <Security /> },
-      { path: 'budgets', element: <Budgets /> },
-      { path: 'usage', element: <Usage /> },
+      { path: 'costs', element: <CostOverview /> },
+      { path: 'costs/budgets', element: <Budgets /> },
+      { path: 'costs/usage', element: <Usage /> },
+      { path: 'costs/coverage', element: <CostCoverage /> },
+      { path: 'costs/optimization', element: <CostOptimization /> },
+      { path: 'budgets', element: <Navigate to="/costs/budgets" replace /> },
+      { path: 'usage', element: <Navigate to="/costs/usage" replace /> },
       { path: 'activity', element: <Activity /> },
       { path: 'workspaces', element: <Workspaces /> },
       { path: 'platform', element: <PlatformHealth /> },
