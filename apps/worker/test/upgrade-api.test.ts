@@ -13,6 +13,7 @@ const targetDigest = `sha256:${'b'.repeat(64)}`;
 let controllerCheckpoint: Record<string, unknown> | undefined;
 let controllerPreviewYaml: string | undefined;
 let controllerPreflightThrows = false;
+let controllerActionThrows = false;
 
 const manifest = {
   schemaVersion: '1.1', product: 'RepoWrangler', version: 'v1.0.24',
@@ -94,6 +95,7 @@ function providerFetch() {
     } : { value: {} });
     if (url.includes('/timeline')) return Response.json({ records: [] });
     if (url.includes('/_apis/build/builds/') && init?.method === 'PATCH') {
+      if (controllerActionThrows) throw new Error('cancel failed with secret=do-not-show');
       return Response.json({ status: 'cancelling' });
     }
     return new Response('not found', { status: 404 });
@@ -112,6 +114,7 @@ describe('Administration Updates API', () => {
     controllerCheckpoint = undefined;
     controllerPreviewYaml = 'stages: []';
     controllerPreflightThrows = false;
+    controllerActionThrows = false;
     vi.stubGlobal('fetch', providerFetch());
   });
 
@@ -342,5 +345,49 @@ describe('Administration Updates API', () => {
     }, env);
     expect(canceled.status).toBe(202);
     expect(await canceled.json()).toMatchObject({ job: { state: 'cancel_requested' } });
+  });
+
+  it('audits and redacts a failed protected controller action', async () => {
+    const app = application();
+    const prepared = await app.request('/api/v1/admin/updates/prepare', {
+      method: 'POST', headers: {
+        'content-type': 'application/json', origin: 'https://wrangler.example.test',
+      }, body: JSON.stringify({ targetVersion: 'v1.0.24', targetDigest }),
+    }, env);
+    const confirmation = await prepared.json() as { approvalToken: string };
+    const requested = await app.request('/api/v1/admin/updates/request', {
+      method: 'POST', headers: {
+        'content-type': 'application/json', origin: 'https://wrangler.example.test',
+      }, body: JSON.stringify({
+        targetVersion: 'v1.0.24', targetDigest, approvalToken: confirmation.approvalToken,
+        idempotencyKey: 'browser-generated-action-failure',
+      }),
+    }, env);
+    const accepted = await requested.json() as { job: { id: string } };
+    const actionPrepared = await app.request(
+      `/api/v1/admin/updates/jobs/${accepted.job.id}/prepare-action`, {
+        method: 'POST', headers: {
+          'content-type': 'application/json', origin: 'https://wrangler.example.test',
+        }, body: JSON.stringify({ action: 'cancel' }),
+      }, env,
+    );
+    const action = await actionPrepared.json() as { approvalToken: string };
+    controllerActionThrows = true;
+    const failed = await app.request(`/api/v1/admin/updates/jobs/${accepted.job.id}/cancel`, {
+      method: 'POST', headers: {
+        'content-type': 'application/json', origin: 'https://wrangler.example.test',
+      }, body: JSON.stringify({ action: 'cancel', approvalToken: action.approvalToken }),
+    }, env);
+    expect(failed.status).toBe(502);
+    const response = await failed.json() as Record<string, unknown>;
+    expect(response).toMatchObject({
+      error: 'controller_cancel_failed', detail: 'cancel failed with secret=[REDACTED]',
+    });
+    expect(JSON.stringify(response)).not.toContain('do-not-show');
+    const audit = await db.prepare(
+      `SELECT action, detail FROM audit_events WHERE action = 'upgrade.cancel.failed'`,
+    ).first<{ action: string; detail: string }>();
+    expect(audit?.detail).toContain('reason=controller_error');
+    expect(audit?.detail).not.toContain('do-not-show');
   });
 });

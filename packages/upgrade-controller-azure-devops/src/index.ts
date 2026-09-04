@@ -27,6 +27,7 @@ export interface ManagedIdentityTokenOptions {
   clientId?: string;
   fetcher?: typeof fetch;
   now?: () => number;
+  requestTimeoutMs?: number;
 }
 
 /** Short-lived Microsoft Entra token; no PAT or client secret is stored. */
@@ -34,10 +35,17 @@ export class AzureDevOpsManagedIdentityTokenProvider implements AccessTokenProvi
   private cached: AccessToken | null = null;
   private readonly fetcher: typeof fetch;
   private readonly now: () => number;
+  private readonly requestTimeoutMs: number;
 
   constructor(private readonly options: ManagedIdentityTokenOptions) {
     this.fetcher = options.fetcher ?? fetch;
     this.now = options.now ?? (() => Date.now() / 1000);
+    this.requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
+    if (!Number.isInteger(this.requestTimeoutMs)
+      || this.requestTimeoutMs < 1
+      || this.requestTimeoutMs > 60_000) {
+      throw new Error('Managed identity request timeout must be between 1 and 60000 milliseconds.');
+    }
   }
 
   async getToken(): Promise<AccessToken> {
@@ -56,14 +64,23 @@ export class AzureDevOpsManagedIdentityTokenProvider implements AccessTokenProvi
       headers.Metadata = 'true';
     }
     if (this.options.clientId) endpoint.searchParams.set('client_id', this.options.clientId);
-    const response = await this.fetcher(endpoint, { headers });
-    if (!response.ok) throw new Error(`Managed identity token request failed (${response.status}).`);
-    const body = await response.json() as { access_token?: string; expires_on?: string | number };
-    if (!body.access_token) throw new Error('Managed identity token response omitted access_token.');
-    const expiresAt = body.expires_on ? Number(body.expires_on) : this.now() + 600;
-    if (!Number.isFinite(expiresAt)) throw new Error('Managed identity token expiry is invalid.');
-    this.cached = { token: body.access_token, expiresAt };
-    return this.cached;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+    try {
+      const response = await this.fetcher(endpoint, { headers, signal: controller.signal });
+      if (!response.ok) throw new Error(`Managed identity token request failed (${response.status}).`);
+      const body = await response.json() as { access_token?: string; expires_on?: string | number };
+      if (!body.access_token) throw new Error('Managed identity token response omitted access_token.');
+      const expiresAt = body.expires_on ? Number(body.expires_on) : this.now() + 600;
+      if (!Number.isFinite(expiresAt)) throw new Error('Managed identity token expiry is invalid.');
+      this.cached = { token: body.access_token, expiresAt };
+      return this.cached;
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error('Managed identity token request timed out.');
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -382,6 +399,7 @@ export class AzureDevOpsUpgradeController implements UpgradeDeploymentController
     actor: UpgradeActor,
   ): Promise<UpgradeControllerReceipt> {
     if (!/^\d+$/.test(controllerCorrelationId)) throw new Error('Controller correlation ID is invalid.');
+    assertSafeTemplateParameter('actorId', actor.id);
     const run = await this.requestJson(
       `/_apis/pipelines/${this.options.pipelineId}/runs?api-version=7.1`,
       {

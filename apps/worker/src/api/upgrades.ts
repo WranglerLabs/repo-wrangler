@@ -406,9 +406,28 @@ async function executeAction(
   })) return c.json({ error: 'invalid_or_replayed_approval' }, 409);
 
   const configured = configuredUpgradeController(c.env);
-  const receipt = expectedAction === 'cancel'
-    ? await configured.controller.cancel(job.controllerCorrelationId, upgradeActor)
-    : await configured.controller.rollback(job.controllerCorrelationId, upgradeActor);
+  const capabilities = await configured.controller.capabilities();
+  if (configured.deploymentTarget !== job.deploymentTarget
+    || capabilities.availability !== 'available'
+    || capabilities.controllerType !== job.controllerType
+    || !capabilities.operations[expectedAction]) {
+    await recordAuditEvent(c.env.DB, upgradeActor.id, `upgrade.${expectedAction}.rejected`,
+      `job=${job.id} reason=controller_mismatch_or_unavailable`);
+    return c.json({ error: 'controller_mismatch_or_unavailable' }, 409);
+  }
+  let receipt;
+  try {
+    receipt = expectedAction === 'cancel'
+      ? await configured.controller.cancel(job.controllerCorrelationId, upgradeActor)
+      : await configured.controller.rollback(job.controllerCorrelationId, upgradeActor);
+  } catch (error) {
+    const detail = redactUpgradeDetail(
+      error instanceof Error ? error.message : `${expectedAction} request failed.`,
+    );
+    await recordAuditEvent(c.env.DB, upgradeActor.id, `upgrade.${expectedAction}.failed`,
+      `job=${job.id} reason=controller_error detail=${detail}`);
+    return c.json({ error: `controller_${expectedAction}_failed`, detail }, 502);
+  }
   const next = expectedAction === 'cancel' ? 'cancel_requested' : 'rollback_requested';
   const updated = await transitionUpgradeJob(c.env.DB, job.id, next, {
     eventId: crypto.randomUUID(), actorId: upgradeActor.id,

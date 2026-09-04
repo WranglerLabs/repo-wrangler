@@ -49,6 +49,17 @@ describe('Azure DevOps upgrade controller', () => {
     });
   });
 
+  it('fails stalled managed-identity token acquisition at its own timeout boundary', async () => {
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    const provider = new AzureDevOpsManagedIdentityTokenProvider({
+      identityEndpoint: 'http://localhost/identity', identityHeader: 'platform-header',
+      fetcher, requestTimeoutMs: 5,
+    });
+    await expect(provider.getToken()).rejects.toThrow('Managed identity token request timed out.');
+  });
+
   it('previews the approved private pipeline without creating a run', async () => {
     const fetcher = vi.fn<typeof fetch>(async (url, _init) => {
       if (String(url).includes('/runs')) return Response.json({ finalYaml: 'stages: []' });
@@ -103,6 +114,18 @@ describe('Azure DevOps upgrade controller', () => {
     await expect(controller.request({
       ...request, idempotencyKey: "request'; Write-Host injected; #",
     })).rejects.toThrow('template parameter idempotencyKey is invalid');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('rejects rollback actor injection before contacting Azure DevOps', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const controller = new AzureDevOpsUpgradeController({
+      organization: 'hybridcloudsolutions', project: 'WranglerLabs', pipelineId: 42,
+      controllerVersion: '1.0.0', tokenProvider, fetcher,
+    });
+    await expect(controller.rollback('700', {
+      id: "owner'; Write-Host injected; #", role: 'owner',
+    })).rejects.toThrow('template parameter actorId is invalid');
     expect(fetcher).not.toHaveBeenCalled();
   });
 

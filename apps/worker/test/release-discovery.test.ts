@@ -40,4 +40,18 @@ describe('release manifest discovery', () => {
       .resolves.toMatchObject({ ok: false, code: 'unsupported_source' });
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it('bounds stalled and oversized release metadata', async () => {
+    const stalled = vi.fn<typeof fetch>(async (_url, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    await expect(fetchReleaseManifest('https://example.test/manifest.json', stalled, 5))
+      .resolves.toMatchObject({ ok: false, code: 'unavailable', detail: 'Release metadata request timed out.' });
+
+    const oversized = vi.fn(async () => new Response('x', {
+      headers: { 'content-length': '1048577' },
+    }));
+    await expect(fetchReleaseManifest('https://example.test/manifest.json', oversized))
+      .resolves.toMatchObject({ ok: false, code: 'invalid_manifest', detail: 'Release metadata is too large.' });
+  });
 });
