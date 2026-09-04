@@ -21,6 +21,30 @@ export async function generateManifest(spec, baseDirectory = process.cwd()) {
   if (!Array.isArray(spec.artifacts) || spec.artifacts.length === 0) {
     throw new Error("at least one artifact is required");
   }
+  if (!Array.isArray(spec.containerImages) || spec.containerImages.length === 0) {
+    throw new Error("at least one immutable container image is required");
+  }
+  for (const image of spec.containerImages) {
+    if (!targets.has(image.target)) throw new Error(`unsupported image target: ${image.target}`);
+    if (!image.image || image.image.includes("@") || image.image.endsWith(":latest")) {
+      throw new Error(`container image repository is invalid for ${image.target}`);
+    }
+    if (!/^sha256:[a-f0-9]{64}$/.test(image.digest ?? "")) {
+      throw new Error(`container image digest is invalid for ${image.target}`);
+    }
+  }
+  const compatibility = spec.compatibility;
+  if (!compatibility || !versionPattern.test(compatibility.minimumSourceVersion ?? "")) {
+    throw new Error("minimum source compatibility is required");
+  }
+  const database = compatibility.databaseSchema;
+  if (!database
+    || !Number.isInteger(database.minimum)
+    || !Number.isInteger(database.maximum)
+    || !Number.isInteger(database.target)
+    || !Array.isArray(database.migrations)) {
+    throw new Error("database schema compatibility is required");
+  }
 
   const artifacts = [];
   for (const candidate of spec.artifacts) {
@@ -50,11 +74,16 @@ export async function generateManifest(spec, baseDirectory = process.cwd()) {
   }
 
   return {
-    schemaVersion: "1.0",
+    schemaVersion: "1.1",
     product: "RepoWrangler",
     version: spec.version,
     releasedAt: new Date(spec.releasedAt).toISOString(),
+    channel: spec.channel ?? "stable",
+    ...(spec.releaseNotesUrl ? { releaseNotesUrl: spec.releaseNotesUrl } : {}),
+    ...(spec.manifestAttestationUrl ? { manifestAttestationUrl: spec.manifestAttestationUrl } : {}),
     artifacts,
+    containerImages: spec.containerImages,
+    compatibility,
   };
 }
 

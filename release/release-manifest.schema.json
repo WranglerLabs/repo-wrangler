@@ -6,10 +6,13 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "product", "version", "releasedAt", "artifacts"],
   "properties": {
-    "schemaVersion": { "const": "1.0" },
+    "schemaVersion": { "enum": ["1.0", "1.1"] },
     "product": { "const": "RepoWrangler" },
     "version": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$" },
     "releasedAt": { "type": "string", "format": "date-time" },
+    "channel": { "enum": ["stable", "preview"] },
+    "releaseNotesUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "manifestAttestationUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
     "artifacts": {
       "type": "array",
       "minItems": 1,
@@ -27,6 +30,79 @@
           "sbomUrl": { "type": "string", "format": "uri", "pattern": "^https://" }
         }
       }
+    },
+    "containerImages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "image", "digest"],
+        "properties": {
+          "target": { "enum": ["azure-container-apps", "cloudflare", "local-compose", "remote-linux-compose"] },
+          "image": { "type": "string", "minLength": 1 },
+          "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimumSourceVersion": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$" },
+        "databaseSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum", "target", "migrations"],
+          "properties": {
+            "minimum": { "type": "integer", "minimum": 0 },
+            "maximum": { "type": "integer", "minimum": 0 },
+            "target": { "type": "integer", "minimum": 0 },
+            "migrations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "reversible"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1 },
+                  "reversible": { "type": "boolean" },
+                  "detail": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "controllers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "minimumVersion"],
+            "properties": {
+              "type": { "type": "string", "minLength": 1 },
+              "minimumVersion": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "enum": ["azure-container-apps", "cloudflare", "local-compose", "remote-linux-compose"] }
+        }
+      }
     }
-  }
+  },
+  "allOf": [{
+    "if": { "properties": { "schemaVersion": { "const": "1.1" } }, "required": ["schemaVersion"] },
+    "then": {
+      "properties": {
+        "channel": true,
+        "releaseNotesUrl": true,
+        "manifestAttestationUrl": true,
+        "containerImages": true,
+        "compatibility": true
+      },
+      "required": ["channel", "releaseNotesUrl", "manifestAttestationUrl", "containerImages", "compatibility"]
+    }
+  }]
 }

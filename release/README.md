@@ -14,7 +14,7 @@ Operators should normally consume these payloads through the separate
 consume them through their own automation. Ranch Hand is not shipped inside a RepoWrangler
 release, so this repository's release assets do not contain its Windows executable.
 
-The manifest and every referenced artifact are immutable. `latest`, moving branches, unpinned container tags, and an asset whose size or digest differs from the manifest are invalid inputs.
+The manifest and every referenced artifact are immutable. `latest`, moving branches, unpinned container tags, and an asset whose size or digest differs from the manifest are invalid inputs. Schema 1.1 manifests also declare the exact OCI image digest, supported source version, database-schema range and target, deployment targets, controller requirements, release channel, release notes, and provenance location used by Administration → Updates.
 
 Generate a manifest from a secret-free specification:
 
@@ -24,7 +24,7 @@ node scripts/release/generate-release-manifest.mjs \
   --output dist/release-manifest.json
 ```
 
-The specification contains `version`, `releasedAt`, and one or more artifacts with `target`, local `path`, public `url`, and optional `mediaType`, `attestationUrl`, and `sbomUrl`. The generator derives size and SHA-256 from the files; callers must not supply those values.
+The specification contains `version`, `releasedAt`, immutable container images, compatibility data, and one or more artifacts with `target`, local `path`, public `url`, and optional `mediaType`, `attestationUrl`, and `sbomUrl`. The generator derives size and SHA-256 from the files; callers must not supply those values.
 
 ## Published payloads
 
