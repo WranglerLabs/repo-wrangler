@@ -19,6 +19,8 @@ import type {
   RepositorySnapshot,
   SecurityFindingSnapshot,
   UsageSnapshot,
+  UpgradeJobSnapshot,
+  UpgradeJobState,
   WorkspaceSnapshot,
 } from '@repo-wrangler/domain';
 
@@ -81,6 +83,14 @@ export interface SyncCheckpointStore {
   set(job: string, cursor: string | undefined): Promise<void>;
 }
 
+/** Durable lifecycle state shared by every external deployment controller. */
+export interface UpgradeJobStore {
+  get(id: string): Promise<UpgradeJobSnapshot | null>;
+  getByIdempotencyKey(key: string): Promise<UpgradeJobSnapshot | null>;
+  list(limit?: number): Promise<UpgradeJobSnapshot[]>;
+  transition(id: string, state: UpgradeJobState): Promise<UpgradeJobSnapshot>;
+}
+
 /** The full port surface a backend must provide to serve RepoWrangler. */
 export interface StoragePort {
   readonly workspaces: WorkspaceStore;
@@ -92,4 +102,5 @@ export interface StoragePort {
   readonly budgets: BudgetStore;
   readonly usage: UsageStore;
   readonly checkpoints: SyncCheckpointStore;
+  readonly upgrades: UpgradeJobStore;
 }
