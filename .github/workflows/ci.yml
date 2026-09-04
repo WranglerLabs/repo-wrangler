@@ -11,7 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    # Pinned OSV-Scanner v2.5.0. This scans the complete lockfile without
+    # depending on npm's unreliable bulk-advisory endpoint.
+    permissions:
+      actions: read
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@8deb546fdb875b9996d27d4950be7312dac076a1
+    with:
+      scan-args: |-
+        --lockfile=pnpm-lock.yaml
+      upload-sarif: false
+      fail-on-vuln: true
+
   verify:
+    needs: dependency-audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,9 +39,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Audit dependencies
-        run: pnpm audit
 
       - name: Typecheck
         run: pnpm typecheck

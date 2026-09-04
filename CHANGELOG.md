@@ -25,6 +25,8 @@ semantic versioning.
 
 ### Fixed
 
+- CI and immutable release publication now use a pinned, blocking OSV scan of
+  the complete pnpm lockfile instead of npm's unreliable bulk-advisory endpoint.
 - Budget fields missing from a provider response now say so explicitly instead
   of rendering an ambiguous dash or false zero.
 - Budget comparisons always use their complete provider scope regardless of UI
