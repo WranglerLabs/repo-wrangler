@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   signInOptions,
   triggerManualSync,
+  updateSessionPolicy,
   useAuthConfig,
   usePlatformHealth,
   useSessionUser,
+  useSessionPolicy,
 } from '../api/client';
 
 export function Administration() {
@@ -14,9 +16,21 @@ export function Administration() {
   const signIns = signInOptions(authConfig);
   const health = usePlatformHealth();
   const [syncState, setSyncState] = useState<'idle' | 'ok' | 'error'>('idle');
+  const sessionPolicy = useSessionPolicy(Boolean(user && (user.role === 'admin' || user.role === 'owner')));
+  const [sessionMode, setSessionMode] = useState<'browser' | 'fixed'>('fixed');
+  const [timeoutMinutes, setTimeoutMinutes] = useState('720');
+  const [sessionSaveState, setSessionSaveState] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle');
 
   const isAdmin = user && (user.role === 'admin' || user.role === 'owner');
   const demoMode = health.data?.demoMode ?? true;
+
+  useEffect(() => {
+    if (!sessionPolicy.data) return;
+    setSessionMode(sessionPolicy.data.mode);
+    if (sessionPolicy.data.timeoutMinutes !== null) {
+      setTimeoutMinutes(String(sessionPolicy.data.timeoutMinutes));
+    }
+  }, [sessionPolicy.data]);
 
   async function onSync() {
     try {
@@ -24,6 +38,19 @@ export function Administration() {
       setSyncState('ok');
     } catch {
       setSyncState('error');
+    }
+  }
+
+  async function onSaveSessionPolicy() {
+    setSessionSaveState('saving');
+    try {
+      await updateSessionPolicy(sessionMode === 'browser'
+        ? { mode: 'browser' }
+        : { mode: 'fixed', timeoutMinutes: Number(timeoutMinutes) });
+      await sessionPolicy.refetch();
+      setSessionSaveState('ok');
+    } catch {
+      setSessionSaveState('error');
     }
   }
 
@@ -37,11 +64,72 @@ export function Administration() {
       <div className="panel">
         <h2>Session</h2>
         {user ? (
-          <p>
-            Signed in as <strong>{user.login}</strong> with role{' '}
-            <span className="badge info">{user.role}</span>
-            {user.demo ? ' (demo session)' : ''}
-          </p>
+          <>
+            <p>
+              Signed in as <strong>{user.login}</strong> with role{' '}
+              <span className="badge info">{user.role}</span>
+              {user.demo ? ' (demo session)' : ''}
+            </p>
+            {isAdmin && !user.demo && (
+              <div className="field" style={{ maxWidth: 460 }}>
+                <label htmlFor="session-mode">Sign-in duration</label>
+                <select
+                  id="session-mode"
+                  value={sessionMode}
+                  onChange={(event) => {
+                    setSessionMode(event.target.value as 'browser' | 'fixed');
+                    setSessionSaveState('idle');
+                  }}
+                >
+                  <option value="browser">Until the browser closes</option>
+                  <option value="fixed">Fixed duration</option>
+                </select>
+                {sessionMode === 'fixed' && (
+                  <>
+                    <label htmlFor="session-timeout">Duration in minutes</label>
+                    <input
+                      id="session-timeout"
+                      type="number"
+                      min="5"
+                      max="525600"
+                      value={timeoutMinutes}
+                      onChange={(event) => {
+                        setTimeoutMinutes(event.target.value);
+                        setSessionSaveState('idle');
+                      }}
+                    />
+                  </>
+                )}
+                <p className="field-hint">
+                  Browser sessions have no RepoWrangler time limit and are not stored as persistent
+                  cookies. Fixed duration accepts 5 minutes through 365 days. Changes apply at the
+                  next sign-in; Sign out and provider revocation always end access.
+                </p>
+                {sessionPolicy.data && (
+                  <p className="field-hint">
+                    Current policy source: {sessionPolicy.data.source === 'stored'
+                      ? 'saved in RepoWrangler'
+                      : sessionPolicy.data.source === 'deployment'
+                        ? 'deployment configuration'
+                        : 'product default'}.
+                  </p>
+                )}
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    disabled={sessionSaveState === 'saving'}
+                    onClick={() => void onSaveSessionPolicy()}
+                  >
+                    {sessionSaveState === 'saving' ? 'Saving…' : 'Save session policy'}
+                  </button>
+                  {sessionSaveState === 'ok' && <span>✓ Saved</span>}
+                  {sessionSaveState === 'error' && (
+                    <span className="capability">Could not save session policy.</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <p className="muted">
             Not signed in. Sign in to access administrative actions:{' '}

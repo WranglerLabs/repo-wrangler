@@ -27,6 +27,8 @@ config:
   allowedGithubUsers: ""
   publicBaseUrl: ""
   corsAllowedOrigins: ""
+  # Minutes; 0 uses a non-persistent browser-session cookie.
+  sessionTimeoutMinutes: 720
 
 # Real-mode GitHub App secrets. Leave empty in demo mode. For production prefer
 # an external secrets operator over inlining these; when set here they render

@@ -48,6 +48,8 @@ spec:
               value: {{ .Values.config.publicBaseUrl | quote }}
             - name: CORS_ALLOWED_ORIGINS
               value: {{ .Values.config.corsAllowedOrigins | quote }}
+            - name: SESSION_TIMEOUT_MINUTES
+              value: {{ .Values.config.sessionTimeoutMinutes | quote }}
           {{- if not .Values.demoMode }}
           envFrom:
             - secretRef:

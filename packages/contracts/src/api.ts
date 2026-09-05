@@ -468,6 +468,22 @@ export const sessionUserSchema = z.object({
 });
 export type SessionUserDto = z.infer<typeof sessionUserSchema>;
 
+export const sessionPolicySchema = z.object({
+  mode: z.enum(['browser', 'fixed']),
+  timeoutMinutes: z.number().int().min(5).max(525_600).nullable(),
+  source: z.enum(['stored', 'deployment', 'default']),
+});
+export type SessionPolicyDto = z.infer<typeof sessionPolicySchema>;
+
+export const sessionPolicyUpdateSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('browser') }),
+  z.object({
+    mode: z.literal('fixed'),
+    timeoutMinutes: z.number().int().min(5).max(525_600),
+  }),
+]);
+export type SessionPolicyUpdateDto = z.infer<typeof sessionPolicyUpdateSchema>;
+
 export const savedViewSchema = z.object({
   id: z.string(),
   name: z.string(),

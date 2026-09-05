@@ -41,6 +41,8 @@ data:
   ALLOWED_GITHUB_USERS: ""
   PUBLIC_BASE_URL: ""
   CORS_ALLOWED_ORIGINS: ""
+  # Minutes; "0" uses a non-persistent browser-session cookie.
+  SESSION_TIMEOUT_MINUTES: "720"
 ---
 # Real mode only — replace the placeholders and set DEMO_MODE=false above.
 # In demo mode this Secret is unused (the app tolerates missing values).

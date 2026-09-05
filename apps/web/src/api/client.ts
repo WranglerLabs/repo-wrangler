@@ -24,6 +24,8 @@ import type {
   RepositoryDetailDto,
   RepositoryListItemDto,
   SavedViewDto,
+  SessionPolicyDto,
+  SessionPolicyUpdateDto,
   SessionUserDto,
   WorkspaceDto,
   UpgradeJobDetailDto,
@@ -305,6 +307,19 @@ export function useSessionUser(enabled = true) {
     retry: false,
     enabled,
   });
+}
+
+export function useSessionPolicy(enabled = true) {
+  return useQuery<SessionPolicyDto>({
+    queryKey: ['session-policy'],
+    queryFn: () => apiGet('/api/v1/admin/session-policy'),
+    retry: false,
+    enabled,
+  });
+}
+
+export function updateSessionPolicy(policy: SessionPolicyUpdateDto): Promise<SessionPolicyDto> {
+  return apiSend('/api/v1/admin/session-policy', 'PUT', policy);
 }
 
 /**
