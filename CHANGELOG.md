@@ -6,6 +6,18 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-05
+
+### Fixed
+
+- Replaced the hard-coded 12-hour authenticated-session lifetime with an
+  audited Administration policy. Instance administrators can now keep access
+  valid until the browser session closes or choose a fixed duration from five
+  minutes through 365 days.
+- Added the same portable session default to the Node, Cloudflare, Azure
+  Container Apps, and Kubernetes deployment surfaces while preserving explicit
+  sign-out and immediate rejection when an identity provider is disabled.
+
 ## [1.1.0] - 2026-09-05
 
 ### Changed
