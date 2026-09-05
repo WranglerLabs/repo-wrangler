@@ -63,4 +63,11 @@ describe('loadSecrets + buildEnv', () => {
     const env = buildEnv({} as D1Database, {} as Fetcher, secrets);
     expect(env.SECRET_ENCRYPTION_KEY).toBeUndefined();
   });
+
+  it('passes the portable session timeout deployment default to the shared app', async () => {
+    process.env.SESSION_TIMEOUT_MINUTES = '0';
+    const { secrets } = await loadSecrets();
+    const env = buildEnv({} as D1Database, {} as Fetcher, secrets);
+    expect(env.SESSION_TIMEOUT_MINUTES).toBe('0');
+  });
 });

@@ -77,6 +77,8 @@ export interface Env {
   ALLOWED_GITHUB_USERS?: string;
   ALLOWED_GITHUB_ORGS?: string;
   DEFAULT_RETENTION_DAYS?: string;
+  /** Session duration in minutes. Set to 0 for a browser-session cookie. */
+  SESSION_TIMEOUT_MINUTES?: string;
   /**
    * Comma-separated exact SPA origins allowed to call the API cross-origin
    * (ADR-011, Mode B — decoupled frontend). Empty/unset (default, Mode A) means

@@ -15,6 +15,7 @@ import type {
   RepositoryListItemDto,
   WorkspaceDto,
 } from '@repo-wrangler/contracts';
+import { sessionPolicyUpdateSchema } from '@repo-wrangler/contracts';
 import type { CapabilityResult, GovernanceInfo, HealthFinding } from '@repo-wrangler/domain';
 import {
   getAttentionLevelCounts,
@@ -81,6 +82,7 @@ import {
 import { CREDITS } from '@repo-wrangler/credits';
 import { appVersion, isDemoMode } from '../bindings';
 import { resolveGitLabCredentials } from '../lib/connection-secrets';
+import { resolveSessionPolicy, saveSessionPolicy } from '../lib/session-policy';
 import { requireAdmin, type AppContext } from '../middleware/auth';
 
 export const apiRoutes = new Hono<AppContext>();
@@ -143,6 +145,25 @@ apiRoutes.get('/overview', async (c) => {
     generatedAt: new Date().toISOString(),
   };
   return c.json(body);
+});
+
+apiRoutes.get('/admin/session-policy', requireAdmin, async (c) => {
+  return c.json(await resolveSessionPolicy(c.env.DB, c.env.SESSION_TIMEOUT_MINUTES));
+});
+
+apiRoutes.put('/admin/session-policy', requireAdmin, async (c) => {
+  const parsed = sessionPolicyUpdateSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    return c.json({ error: 'Choose browser session or a fixed timeout from 5 to 525600 minutes.' }, 400);
+  }
+  const saved = await saveSessionPolicy(c.env.DB, parsed.data);
+  await recordAuditEvent(
+    c.env.DB,
+    c.get('user').login,
+    'session.policy.updated',
+    saved.mode === 'browser' ? 'mode=browser' : `mode=fixed minutes=${saved.timeoutMinutes}`,
+  );
+  return c.json(saved);
 });
 
 apiRoutes.get('/attention', async (c) => {

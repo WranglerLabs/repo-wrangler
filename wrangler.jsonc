@@ -29,6 +29,8 @@
     // Public default is demo mode: a fresh clone runs on mock data with zero secrets.
     // Set DEMO_MODE=false on your own deployment once your GitHub App secrets are set.
     "DEMO_MODE": "true",
+    // Session duration in minutes. Use "0" to end only when the browser session closes.
+    "SESSION_TIMEOUT_MINUTES": "720",
     // Per-deployment only. Set YOUR allowlist (comma-separated; first login is the owner)
     // as a Cloudflare secret or in .dev.vars — never commit a personal login here.
     // Empty = no real users (demo only).

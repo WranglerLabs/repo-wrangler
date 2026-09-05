@@ -74,6 +74,11 @@ param allowedGithubUsers string = ''
 @description('Enabled sign-in providers (PN-5), ordered CSV of github,gitlab,entra,google,local.')
 param authProviders string = 'github'
 
+@minValue(0)
+@maxValue(525600)
+@description('Session duration in minutes. Set to 0 to end only when the browser session closes.')
+param sessionTimeoutMinutes int = 720
+
 @description('Public URL the instance is reachable at (OAuth callbacks/links).')
 param publicBaseUrl string = ''
 
@@ -284,6 +289,7 @@ var baseEnv = [
   // Sign-in providers (PN-5). AUTH_MODE stays as the legacy fallback.
   { name: 'AUTH_PROVIDERS', value: authProviders }
   { name: 'AUTH_MODE', value: 'github_app' }
+  { name: 'SESSION_TIMEOUT_MINUTES', value: string(sessionTimeoutMinutes) }
   { name: 'ALLOWED_GITHUB_USERS', value: allowedGithubUsers }
   { name: 'PUBLIC_BASE_URL', value: publicBaseUrl }
   // One replica owns the scheduler (and the SQLite file in sqlite mode).

@@ -25,6 +25,7 @@ POSTGRES="${POSTGRES:-false}"
 KEY_VAULT_NAME="${KEY_VAULT_NAME:-}"
 ALLOWED_GITHUB_USERS="${ALLOWED_GITHUB_USERS:-}"
 AUTH_PROVIDERS="${AUTH_PROVIDERS:-github}"
+SESSION_TIMEOUT_MINUTES="${SESSION_TIMEOUT_MINUTES:-720}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-}"
 ENABLE_SCHEDULER="${ENABLE_SCHEDULER:-true}"
 CUSTOM_DOMAIN_NAME="${CUSTOM_DOMAIN_NAME:-}"
@@ -82,6 +83,7 @@ DEPLOY_OUT="$(az deployment group create \
      logAnalyticsWorkspaceName="$LOG_ANALYTICS_NAME" \
      storageAccountName="$STORAGE_ACCOUNT_NAME" \
      authProviders="$AUTH_PROVIDERS" \
+     sessionTimeoutMinutes="$SESSION_TIMEOUT_MINUTES" \
      allowedGithubUsers="$ALLOWED_GITHUB_USERS" publicBaseUrl="$PUBLIC_BASE_URL" \
      enableScheduler="$ENABLE_SCHEDULER" \
      customDomainName="$CUSTOM_DOMAIN_NAME" \

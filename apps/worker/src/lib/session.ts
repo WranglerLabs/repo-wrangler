@@ -6,7 +6,13 @@ import type { SessionUserDto } from '@repo-wrangler/contracts';
  */
 
 const COOKIE_NAME = 'rw_session';
-const SESSION_TTL_SECONDS = 12 * 60 * 60;
+const DEFAULT_SESSION_TTL_SECONDS = 12 * 60 * 60;
+
+export interface SessionCookiePolicy {
+  /** Browser sessions have no persistent cookie or application expiry. */
+  mode: 'browser' | 'fixed';
+  timeoutMinutes: number | null;
+}
 
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = '';
@@ -39,8 +45,12 @@ export async function createSessionCookie(
   user: SessionUserDto & { provider: NonNullable<SessionUserDto['provider']> },
   secure: boolean,
   sameSite: 'Lax' | 'None' = 'Lax',
+  policy: SessionCookiePolicy = { mode: 'fixed', timeoutMinutes: 12 * 60 },
 ): Promise<string> {
-  const expires = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const ttlSeconds = policy.mode === 'fixed'
+    ? (policy.timeoutMinutes ?? DEFAULT_SESSION_TTL_SECONDS / 60) * 60
+    : null;
+  const expires = ttlSeconds === null ? 0 : Math.floor(Date.now() / 1000) + ttlSeconds;
   // encodeURIComponent leaves `.` unescaped, but `.` is this cookie's field
   // separator — encode it too, or email-style logins (Entra/Google/GitLab)
   // produce a 5+-part value that readSession rejects, looping sign-in forever.
@@ -53,7 +63,7 @@ export async function createSessionCookie(
     'Path=/',
     'HttpOnly',
     `SameSite=${sameSite}`,
-    `Max-Age=${SESSION_TTL_SECONDS}`,
+    ...(ttlSeconds === null ? [] : [`Max-Age=${ttlSeconds}`]),
     ...(secure ? ['Secure'] : []),
   ].join('; ');
 }
@@ -83,7 +93,7 @@ export async function readSession(
   const expected = await hmac(secret, payload);
   if (!timingSafeEqualString(signature, expected)) return null;
   const expires = Number(expiresText);
-  if (Number.isNaN(expires) || expires * 1000 < Date.now()) return null;
+  if (Number.isNaN(expires) || (expires !== 0 && expires * 1000 < Date.now())) return null;
   if (role !== 'owner' && role !== 'admin' && role !== 'viewer') return null;
   if (!['github', 'gitlab', 'entra', 'google', 'local'].includes(provider)) return null;
   return {

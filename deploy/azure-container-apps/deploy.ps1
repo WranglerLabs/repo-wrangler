@@ -35,6 +35,7 @@ param(
     [string] $KeyVaultName = '',
     [string] $AllowedGithubUsers = '',
     [string] $AuthProviders = 'github',
+    [ValidateRange(0, 525600)] [int] $SessionTimeoutMinutes = 720,
     [string] $PublicBaseUrl = '',
     [bool]   $EnableScheduler = $true,
     [string] $CustomDomainName = '',
@@ -106,6 +107,7 @@ $outputs = az deployment group create `
        logAnalyticsWorkspaceName=$LogAnalyticsName `
        storageAccountName=$StorageAccountName `
        authProviders=$AuthProviders `
+       sessionTimeoutMinutes=$SessionTimeoutMinutes `
        allowedGithubUsers=$AllowedGithubUsers publicBaseUrl=$PublicBaseUrl `
        enableScheduler=$EnableScheduler `
        customDomainName=$CustomDomainName `

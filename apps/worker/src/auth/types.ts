@@ -5,6 +5,7 @@ import { corsAllowedOrigins, type Env } from '../bindings';
 import type { AppContext } from '../middleware/auth';
 import { createSessionCookie } from '../lib/session';
 import { markSetupCompleted } from '../lib/setup-state';
+import { resolveSessionPolicy } from '../lib/session-policy';
 
 /**
  * `IAuthenticationProvider` — the sign-in seam (ADR-019, PN-5).
@@ -69,11 +70,13 @@ export async function completeSignIn(
     return c.json({ error: 'This account is not authorized for this instance.' }, 403);
   }
   const spaOrigin = corsAllowedOrigins(c.env)[0];
+  const sessionPolicy = await resolveSessionPolicy(c.env.DB, c.env.SESSION_TIMEOUT_MINUTES);
   const cookie = await createSessionCookie(
     secret,
     { login: opts.identity, role, provider: opts.provider },
     true,
     spaOrigin ? 'None' : 'Lax',
+    sessionPolicy,
   );
   await recordAuditEvent(
     c.env.DB,
