@@ -14,15 +14,15 @@ For exact release contents, see the [changelog](CHANGELOG.md) and
 
 | Horizon | Focus | Intended outcome |
 |---|---|---|
-| **Now** | Stabilize RepoWrangler v1.0 and advance Ranch Hand Public Preview toward GA | A dependable product release with a primary guided deployment path and explicit Preview boundaries |
+| **Now** | Stabilize RepoWrangler v1.1 and advance Ranch Hand Public Preview toward GA | A dependable product release with a primary guided deployment path and explicit Preview boundaries |
 | **Next** | Make setup, access, and operations easier | A new operator can deploy confidently, add users, and understand sync health without editing configuration or querying the database |
 | **Later** | Scale administration, security, providers, and cost visibility | RepoWrangler grows from a strong estate dashboard into a broader operations platform |
 
 ---
 
-## Now — stabilize v1.0 GA
+## Now — stabilize v1.1 GA
 
-**Status: GA.** RepoWrangler v1.0.24 is the current supported patch release.
+**Status: GA.** RepoWrangler v1.1.0 is the current supported minor release.
 Ranch Hand `v0.1.0-rc.9` is now the primary recommended Windows deployment path
 in **Public Preview**; the manual recipes remain a supported alternative. The
 immediate focus is operator feedback, deployment safety, and the Ranch Hand GA

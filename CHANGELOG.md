@@ -6,6 +6,18 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-05
+
+### Changed
+
+- Promoted the completed estate administration, provider reconciliation, cost
+  intelligence, usage attribution, and secure in-app upgrade capabilities to
+  the v1.1 release line so the product version accurately communicates the
+  substantial backward-compatible functionality delivered since v1.0.
+- Preserved compatibility for existing v1.0.23 and v1.0.24 installations. The
+  release continues to target database schema 9 and requires no additional
+  production migration beyond the already published forward-only migrations.
+
 ## [1.0.24] - 2026-09-04
 
 ### Added
