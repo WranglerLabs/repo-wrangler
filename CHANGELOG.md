@@ -6,6 +6,43 @@ semantic versioning.
 
 ## [Unreleased]
 
+## [1.0.24] - 2026-09-04
+
+### Added
+
+- Administration now includes an Updates experience that discovers immutable
+  releases, evaluates application, database, deployment-target, controller, and
+  provenance compatibility, and distinguishes unavailable evidence from a
+  current installation.
+- Platform-neutral, durable upgrade jobs record exact versions and digests,
+  actor-bound correlation, lifecycle events, controller evidence, safe errors,
+  cancellation, rollback requests, and immutable audit history.
+- A managed-identity Azure DevOps controller can perform protected preflight,
+  queue an approved external deployment, and reconcile checkpointed progress
+  without giving RepoWrangler a PAT, cloud-owner credential, database
+  administrator password, or Docker socket.
+- Schema 1.1 release manifests publish controller requirements, source and
+  database compatibility, supported targets, exact container digests, release
+  notes, and provenance locations.
+
+### Security
+
+- Upgrade, cancellation, and rollback requests require owner or administrator
+  authorization, an exact trusted browser origin, short-lived actor-and-target
+  bound approval, durable one-time nonce consumption, and deployment-wide
+  concurrency protection.
+- Release discovery and managed-identity/controller calls are time bounded;
+  release metadata is size bounded and schema validated; controller failures
+  and protected-action errors are redacted before audit or display.
+
+### Changed
+
+- Docker Compose, Kubernetes/GitOps, Cloudflare, and custom installations now
+  report target-specific manual procedures when no trusted lifecycle controller
+  exists instead of presenting a nonfunctional one-click upgrade.
+- Release and rollback documentation now describes controller capabilities,
+  safety evidence, status meanings, recovery, and manual limitations.
+
 ## [1.0.23] - 2026-09-04
 
 ### Added
